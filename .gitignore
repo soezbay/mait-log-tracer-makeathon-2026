@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+*.duckdb
+*.db
+data/raw/
+data/uploads/
+.ipynb_checkpoints/
+.DS_Store
+node_modules/
+
+# Logpaket vom Partner (gross, nicht versionieren)
+MAIT_Makeathon_Logpaket/
