@@ -244,7 +244,7 @@ Details zu allen Frameworks und Komponenten: [docs/ARCHITEKTUR.md](docs/ARCHITEK
 ```
 makeathon/
 ├── plan.md / plan.en.md
-├── docs/ARCHITEKTUR.md
+├── docs/ARCHITEKTUR.md · ARCHITECTURE.md
 ├── MAIT_Makeathon_Logpaket/   # Originaldaten, nur lesen, in .gitignore
 ├── data/loglens.duckdb        # abgeleitet, in .gitignore
 ├── eval/questions.yaml        # Testfragen + Ground Truth

@@ -1,7 +1,7 @@
 # Architektur: LogLens
 
 > KI-Log-Assistent für die MAIT-Challenge · Stand: 23.11.2026 (Tag 1, Entwurf)
-> Bezug: [plan.md](../plan.md) · Datenbasis: `MAIT_Makeathon_Logpaket/` (nur lesen)
+> Bezug: [plan.md](../plan.md) · Englische Fassung: [ARCHITECTURE.md](ARCHITECTURE.md) · Datenbasis: `MAIT_Makeathon_Logpaket/` (nur lesen)
 
 ---
 
@@ -397,7 +397,8 @@ erDiagram
 makeathon/
 ├── plan.md · plan.en.md
 ├── docs/
-│   └── ARCHITEKTUR.md
+│   ├── ARCHITEKTUR.md              # Deutsch
+│   └── ARCHITECTURE.md             # Englisch
 ├── MAIT_Makeathon_Logpaket/        # Originaldaten (nicht im Git)
 ├── data/loglens.duckdb             # abgeleitet (nicht im Git)
 ├── eval/questions.yaml             # Testfragen + richtige Antworten
