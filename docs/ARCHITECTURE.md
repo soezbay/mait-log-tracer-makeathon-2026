@@ -1,4 +1,4 @@
-# Architecture: LogLens
+# Architecture: Log Tracer
 
 > AI log assistant for the MAIT challenge · Status: 2026-11-23 (day 1, draft)
 > Related: [plan.en.md](../plan.en.md) · German version: [ARCHITEKTUR.md](ARCHITEKTUR.md) · Data: `MAIT_Makeathon_Logpaket/` (read only)
@@ -7,7 +7,7 @@
 
 ## 1. Overview
 
-LogLens consists of **two separate applications** that talk to each other only through an HTTP API:
+Log Tracer consists of **two separate applications** that talk to each other only through an HTTP API:
 
 | | **Frontend** | **Backend** |
 |---|---|---|
@@ -38,7 +38,7 @@ flowchart LR
     end
 
     LOGS[("MAIT_Makeathon_Logpaket/<br/>originals, read only")]
-    DB[("DuckDB<br/>data/loglens.duckdb")]
+    DB[("DuckDB<br/>data/logtracer.duckdb")]
     LLM["LLM<br/>Claude API · optional Ollama local"]
 
     APIC -- "HTTP/JSON, SSE" --> API
@@ -109,7 +109,7 @@ flowchart LR
 ## 3. Backend components
 
 ```
-backend/src/loglens/
+backend/src/logtracer/
 ├── api/            ← HTTP layer (FastAPI routers, schemas)
 ├── services/       ← application logic called by the API
 ├── ingest/         ← find, read, parse logs
@@ -400,12 +400,12 @@ makeathon/
 │   ├── ARCHITEKTUR.md              # German
 │   └── ARCHITECTURE.md             # English
 ├── MAIT_Makeathon_Logpaket/        # original data (not in Git)
-├── data/loglens.duckdb             # derived (not in Git)
+├── data/logtracer.duckdb             # derived (not in Git)
 ├── eval/questions.yaml             # test questions + expected answers
 ├── backend/
 │   ├── pyproject.toml
 │   ├── .env.example                # LOG_ROOT, DB_PATH, LLM_PROVIDER, ANTHROPIC_API_KEY
-│   ├── src/loglens/
+│   ├── src/logtracer/
 │   │   ├── main.py                 # FastAPI app, routers, background tasks
 │   │   ├── api/ services/ ingest/ normalize/
 │   │   ├── analysis/ assistant/ storage/ core/
@@ -426,7 +426,7 @@ makeathon/
 ### Run locally
 
 ```powershell
-cd backend; uv sync; uv run uvicorn loglens.main:app --reload --port 8000
+cd backend; uv sync; uv run uvicorn logtracer.main:app --reload --port 8000
 ```
 
 ```powershell
@@ -440,7 +440,7 @@ The frontend runs on `http://localhost:5173` and proxies `/api` to the backend. 
 | Variable | Meaning |
 |---|---|
 | `LOG_ROOT` | path to the log package (e.g. `../MAIT_Makeathon_Logpaket`) |
-| `DB_PATH` | path to the DuckDB file (`../data/loglens.duckdb`) |
+| `DB_PATH` | path to the DuckDB file (`../data/logtracer.duckdb`) |
 | `LLM_PROVIDER` | `claude` or `ollama` |
 | `ANTHROPIC_API_KEY` | key for the Claude API (backend only, never in Git) |
 | `LLM_MODEL` | model ID, e.g. `claude-sonnet-5-5` |

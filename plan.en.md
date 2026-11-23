@@ -1,6 +1,6 @@
 # Makeathon Plan: AI Log Assistant for MAIT
 
-> Working title: **LogLens** · Challenge: *Automated log file management with an AI assistant* (MAIT)
+> Working title: **Log Tracer** · Challenge: *Automated log file management with an AI assistant* (MAIT)
 > Schedule: Day 1 concept, user stories & ingest · Days 2–3 build · Day 4 pitch
 > German version: [plan.md](plan.md) · Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · Data: `MAIT_Makeathon_Logpaket/` (not in Git)
 
@@ -147,7 +147,7 @@ Plus a **red herring**: harmless ERRORs ("Transient retry recovered") are *not* 
                                   ▼                                               │
                            ┌──────────────┐  tools (SQL)   ┌──────────────────┐   │
                            │ DuckDB       │◀──────────────│ AI assistant     │◀──┘
-                           │ loglens.duckdb│               │ LLM + tool use   │
+                           │ logtracer.duckdb│               │ LLM + tool use   │
                            └──────────────┘               └────────┬─────────┘
                                                                    ▼
                      UI: timeline · error groups · dependency graph · chat with evidence
@@ -155,7 +155,7 @@ Plus a **red herring**: harmless ERRORs ("Transient retry recovered") are *not* 
 
 ### Principle: originals stay untouched
 
-Log files are **read only**. Everything derived lives in **one DuckDB file** (`data/loglens.duckdb`) that a script can rebuild at any time. Every event points back to its original file and line.
+Log files are **read only**. Everything derived lives in **one DuckDB file** (`data/logtracer.duckdb`) that a script can rebuild at any time. Every event points back to its original file and line.
 
 ### Data model (DuckDB)
 
@@ -246,10 +246,10 @@ makeathon/
 ├── plan.md / plan.en.md
 ├── docs/ARCHITEKTUR.md · ARCHITECTURE.md
 ├── MAIT_Makeathon_Logpaket/   # original data, read only, in .gitignore
-├── data/loglens.duckdb        # derived, in .gitignore
+├── data/logtracer.duckdb        # derived, in .gitignore
 ├── eval/questions.yaml        # test questions + ground truth
 ├── backend/                   # Python + FastAPI
-│   └── src/loglens/
+│   └── src/logtracer/
 │       ├── api/               # REST + SSE endpoints
 │       ├── services/          # application logic (used by API and LLM tools)
 │       ├── ingest/            # scan, format detection, parsers, checkpoints, watcher
@@ -303,7 +303,7 @@ makeathon/
 ## 12. Pitch structure (5 min)
 
 1. **Problem** (45 s): Sandra, ticket "JT missing", 14 servers, 6 formats, 1.7 M lines, 3,345 ERRORs, and most of them are not the cause.
-2. **Solution** (30 s): LogLens: all logs, one answer with evidence, uncertainty and verification steps.
+2. **Solution** (30 s): Log Tracer: all logs, one answer with evidence, uncertainty and verification steps.
 3. **Live demo** (2 min): timeline → error group → chat question → causal chain across servers with evidence → click to the original line → a new log file is picked up live.
 4. **How it works** (45 s): originals untouched · 6 parsers · dedupe (60 % copies) · clock correction · groups instead of ERRORs · LLM only via tools.
 5. **Measured** (30 s): x of y test questions correct, 0 harmless ERRORs named as cause, z cents per question.
@@ -343,3 +343,99 @@ makeathon/
 - [ ] Harmless ERRORs are not named as cause
 - [ ] Evaluation run with hit rate and cost per question
 - [ ] Pitch + backup video done
+
+## 16. TODO by phase
+
+Role tags: **[ING]** ingest · **[ANA]** analytics · **[AI]** AI & evaluation · **[FE]** frontend & pitch · **[ALL]** whole team.
+Every phase ends with an **exit criterion**. A phase is only done once it is met.
+
+### Phase 0: Setup (day 1, early)
+- [ ] [ALL] Clone the repo, copy the log package locally to `MAIT_Makeathon_Logpaket/`
+- [ ] [ING] Create `backend/`: `pyproject.toml` (uv), FastAPI skeleton, `/api/health`, `.env.example`
+- [ ] [FE] Create `frontend/`: Vite + React + TypeScript, Mantine, router, proxy `/api` → `:8000`
+- [ ] [AI] Get a Claude API key, put it in `backend/.env` (never commit it)
+- [ ] [ALL] Agree on branch rules (e.g. feature branches, short review before merge)
+
+**Exit:** backend and frontend start locally, the frontend shows the response of `/api/health`.
+
+### Phase 1: Concept & user stories (day 1, morning)
+- [ ] [ALL] Briefing, ask the mentor the questions (§13), request missing docs
+- [ ] [ALL] Confirm personas and user stories, define the MVP cut
+- [ ] [ALL] Pick the demo scenario from §7 and trace it in the logs
+- [ ] [ALL] Assign roles, confirm team size
+- [ ] [ALL] Walk through the API contract in `docs/ARCHITECTURE.md` §5 and freeze it (changes only by agreement)
+
+**Exit:** prioritized backlog, chosen demo scenario, frozen API contract.
+
+### Phase 2: Ingest & normalization (day 1, afternoon/evening)
+- [ ] [ING] `scanner.py`: scan recursively, separate metadata (`server_info.json`, `README.md`), server/application/component from the path
+- [ ] [ING] `fingerprint.py`: SHA-256 per file, only link byte-identical copies
+- [ ] [ING] `reader.py`: `.gz` in memory, UTF-8 with Windows-1252 fallback, CRLF
+- [ ] [ING] Parsers `kv_log`, `bracket_json`, `csv_semicolon` (multi-line), `jsonl`, `xml_events`, `freetext`
+- [ ] [ING] Parser tests with real sample lines per format
+- [ ] [ING] `storage/schema.sql` + `db.py`: tables `sources`, `events`; Arrow batch insert
+- [ ] [ANA] `timestamps.py` (UTC) and `levels.py` (level mapping)
+- [ ] [ANA] `dedupe.py`: event fingerprint, flag duplicates
+- [ ] [AI] `eval/questions.yaml` v1: 10–15 test questions with expected cause, servers and evidence
+- [ ] [FE] Page skeleton with navigation; overview with mock data
+
+**Exit:** a full ingest runs through, all events are in DuckDB. Sanity check: events per server, level distribution and number of duplicates roughly match the analysis in §3.
+
+### Phase 3: Analysis (day 2, morning)
+- [ ] [ANA] `templates.py`: Drain3 with masking, `template_id` per event
+- [ ] [ANA] `error_groups.py`: build groups, status "recovered" / "failed"
+- [ ] [ANA] `anomalies.py`: error rate vs. baseline, new/rare templates, duration outliers
+- [ ] [ANA] `clock.py`: detect clock skew (`mait_win02_dispatcher_worker`), set `clock_offset_s`
+- [ ] [ING] API: `/stats`, `/sources`, `/events`, `/events/{id}`, `/events/{id}/context`
+- [ ] [FE] Connect the timeline (ECharts) and event table to the real API
+- [ ] [FE] `SourceViewer`: show the original lines around an event
+
+**Exit:** error groups for the demo scenario are correct; harmless ERRORs end up as "recovered"; the timeline shows real data.
+
+### Phase 4: Correlation & AI assistant (day 2, afternoon/evening)
+- [ ] [ANA] `correlation.py`: hard (trace, job within a time window, object ID, `INC-xx`) and soft links
+- [ ] [ANA] `graph.py` + API `/analysis/graph`, `/analysis/groups`, `/analysis/anomalies`, `/analysis/timeseries`, `/trace/{key}`
+- [ ] [AI] `providers/`: `ClaudeProvider` (and the interface for Ollama)
+- [ ] [AI] `tools.py`: `search_events`, `get_error_groups`, `get_anomalies`, `trace`, `correlate`, `get_context`
+- [ ] [AI] `prompt.py` + `answer.py`: answer format with evidence, uncertainty, verification steps; validate event IDs
+- [ ] [AI] `agent.py`: tool-use loop with a round limit; `costs.py` writes `llm_calls`
+- [ ] [AI] API `/chat` with SSE (`step`, `token`, `answer`, `done`)
+- [ ] [FE] Chat page with intermediate steps, `AnswerCard`, `EvidenceChip` → `SourceViewer`
+- [ ] [AI] `scripts/evaluate.py`: first evaluation run
+
+**Exit (milestone):** the demo question works once fully end-to-end in the frontend. First numbers on hit rate and cost are available.
+
+### Phase 5: Continuous & completion (day 3, morning)
+- [ ] [ING] `checkpoint.py`: byte offset/line per file, incremental ingest
+- [ ] [ING] `watcher.py`: watchdog inside the backend process, ingest new files automatically
+- [ ] [ING] API `/ingest` and `/ingest/progress` (SSE)
+- [ ] [ANA] Flag late entries; make the clock correction visible in the timeline
+- [ ] [FE] Error groups page, dependency graph (Cytoscape.js), `IngestProgress`
+- [ ] [AI] Improve the prompt based on the evaluation (wrong causes, missing evidence)
+
+**Exit:** a log file newly copied into the folder appears in the UI without a restart and without duplicates.
+
+### Phase 6: Evaluation & polish (day 3, midday)
+- [ ] [AI] Final evaluation run; compare "whole logs" vs. "tools" for cost
+- [ ] [FE] "Quality & cost" page with the numbers from `/eval/results`
+- [ ] [ALL] Could-stories only once all must-stories are done (ticket draft, "happened before?", masking)
+- [ ] [ALL] Bug fixing, click through the demo path several times
+- [ ] [ALL] **Feature freeze 16:00**
+
+**Exit:** every item of the definition of done (§15) is checked.
+
+### Phase 7: Pitch preparation (day 3, afternoon/evening)
+- [ ] [FE] Step-by-step demo script (which clicks, which question, which evidence)
+- [ ] [FE] Slides following §12, with real numbers from the evaluation
+- [ ] [ALL] Record a backup video of the demo
+- [ ] [ING] Pre-build and back up DuckDB; test startup without internet (except the LLM)
+- [ ] [ALL] Repo README: project, how to run, architecture links
+- [ ] [ALL] Timed dress rehearsal, practice jury questions
+
+**Exit:** the pitch fits in 5 minutes, the demo runs twice in a row without errors.
+
+### Phase 8: Pitch day (day 4)
+- [ ] [ALL] Final run-through in the morning
+- [ ] [ING] Check the demo machine: backend, frontend, DuckDB, API key, internet
+- [ ] [FE] Backup video and slides available offline
+- [ ] [ALL] Deliver the pitch, answer questions
