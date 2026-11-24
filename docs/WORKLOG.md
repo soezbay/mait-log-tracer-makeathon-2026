@@ -85,4 +85,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Why:** AI agents can read the project state quickly and cheaply from one compact file.
 - **Where:** `docs/AI_LOG.md`, `docs/WORKLOG.md`.
 
+### AGENTS.md (development and documentation rules)
+- **What:** `AGENTS.md` at the repo root: where to start, project summary, layout, roles and file ownership, frozen interfaces and how to change them, setup commands, engineering rules (data, DuckDB, Python, API, LLM, tests), git workflow, mandatory logging in `AI_LOG.md` and `WORKLOG.md` with formats, definition of done, data quick reference. `CLAUDE.md` imports it so Claude Code sessions of all team members follow the same rules.
+- **Why:** Every person and every AI agent works and documents the same way.
+- **Where:** `AGENTS.md`, `CLAUDE.md`.
+- **Open:** `AGENTS.md` links to `docs/plan.en.md`; the move of the plans into `docs/` still has to be committed.
+
 **Open (not done by Claude):** `plan.md`/`plan.en.md` were moved to `docs/` and `docs/todo/` was added to `.gitignore` locally; not committed yet. Links to `../plan*.md` in the architecture docs and the P1 TODO need updating after that move.
