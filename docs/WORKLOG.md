@@ -61,6 +61,6 @@ Format: date · what · why · where (files, commits) · open points.
 
 ### Work log
 - **What:** Created this log; from now on an English entry is added after every task or change.
-- **Where:** `docs/WORKLOG.md`.
+- **Where:** `docs/WORKLOG.md`; commit `39a03a2`, pushed on `p1/backend-setup` and fast-forwarded into `main`.
 
 **Open (not done by Claude):** `plan.md`/`plan.en.md` were moved to `docs/` and `docs/todo/` was added to `.gitignore` locally; not committed yet. Links to `../plan*.md` in the architecture docs and the P1 TODO need updating after that move.
