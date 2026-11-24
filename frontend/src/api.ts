@@ -1,4 +1,6 @@
 import type { Answer, Entry, EventPage, SourceContext } from './demo'
+import { translate } from './i18n'
+import type { Language } from './i18n'
 
 type JsonObject = Record<string, unknown>
 
@@ -68,7 +70,7 @@ function normalizeResponse(path: string, value: unknown) {
   return value
 }
 
-export async function request<T>(path: string, options?: RequestInit): Promise<T> {
+export async function request<T>(path: string, options?: RequestInit, language: Language = 'en'): Promise<T> {
   const response = await fetch('/api' + path, options)
   if (!response.ok) {
     let detail = ''
@@ -79,17 +81,17 @@ export async function request<T>(path: string, options?: RequestInit): Promise<T
     } catch {
       // Keep non-JSON server errors readable by reporting their HTTP status.
     }
-    throw new Error('Backend ' + path + ': HTTP ' + response.status + detail)
+    throw new Error(translate(language, 'error.apiRequest', { path, status: response.status, detail }))
   }
   return normalizeResponse(path, await response.json()) as T
 }
 
-export async function chat(question: string, onStep: (step: string) => void, signal: AbortSignal): Promise<Answer> {
+export async function chat(question: string, onStep: (step: string) => void, signal: AbortSignal, language: Language = 'en'): Promise<Answer> {
   const response = await fetch('/api/chat', {
     method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
     body: JSON.stringify({ question }), signal,
   })
-  if (!response.ok || !response.body) throw new Error('Chat konnte nicht gestartet werden (HTTP ' + response.status + ').')
+  if (!response.ok || !response.body) throw new Error(translate(language, 'assistant.startError', { status: response.status }))
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader()
   let buffer = ''
   let answer: Answer | undefined
@@ -100,13 +102,17 @@ export async function chat(question: string, onStep: (step: string) => void, sig
     if (event === 'step') {
       try {
         const step = JSON.parse(data) as string | { message?: string; text?: string }
-        onStep(typeof step === 'string' ? step : step.message ?? step.text ?? 'Logs werden durchsucht')
+        onStep(typeof step === 'string' ? step : step.message ?? step.text ?? translate(language, 'assistant.searching'))
       } catch {
         onStep(data)
       }
     }
     if (event === 'answer') answer = JSON.parse(data) as Answer
-    if (event === 'error') throw new Error(data || 'Der Chat-Stream meldet einen Fehler.')
+    if (event === 'error') {
+      let message = data
+      try { message = (JSON.parse(data) as { message?: string }).message ?? data } catch { /* The event may contain plain text. */ }
+      throw new Error(message || translate(language, 'assistant.streamError'))
+    }
   }
   try {
     while (!answer) {

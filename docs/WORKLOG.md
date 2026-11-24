@@ -182,3 +182,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `frontend/README.md`, `docs/WORKLOG.md`, `docs/AI_LOG.md`.
 - **Checks:** Reviewed the current router registrations and branch contents; no automated tests run.
 - **Open:** Start the backend with its fixture database and integrate P2/P3 routes before all Live screens work.
+
+### English and German language settings
+- **What:** Added English and German UI translations, with English as the default. The Settings control stays at the bottom of the desktop sidebar and floats at the bottom left on narrow screens; the choice persists in browser storage. The ZIP picker uses a translated button instead of the browser's native-language label.
+- **Why:** Let users use the frontend in English by default or switch to German from anywhere in the app.
+- **Where:** `frontend/src/i18n.tsx`, `frontend/src/main.tsx`, `frontend/src/style.css`, `frontend/src/ProcessMonitor.tsx`, `frontend/src/IncidentDetail.tsx`, `frontend/src/api.ts`, `frontend/src/demo.ts`, `frontend/src/import-zip.ts`, `frontend/src/incident.ts`, `frontend/README.md`; commit `self`.
+- **Checks:** TypeScript `--noEmit` and Vite production build passed. Checked the responsive Demo preview; Vite reports existing dependency `use client` warnings. No automated tests run.
+- **Open:** During preview, Live `/stats` and `/events` requests returned HTTP 500. P2 groups/trace and P3 chat routes are still absent from `develop` and need integration for full Live functionality.

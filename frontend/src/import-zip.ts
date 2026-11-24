@@ -1,5 +1,7 @@
 import { unzip, gunzipSync } from 'fflate'
 import type { Entry, SourceContext } from './demo'
+import { translate } from './i18n'
+import type { Language } from './i18n'
 
 export type ImportedLogs = {
   filename: string
@@ -17,7 +19,7 @@ const limit = 128 * 1024 * 1024
 const timestamp = /^(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?(?:Z|[+-]\d{2}:?\d{2})?)\s+/
 const header = /^(DEBUG|INFO|WARN(?:ING)?|ERROR|FATAL|CRITICAL|SEVERE|TRACE)\b/i
 
-function expand(bytes: Uint8Array<ArrayBuffer>): Promise<Record<string, Uint8Array>> {
+function expand(bytes: Uint8Array<ArrayBuffer>, language: Language): Promise<Record<string, Uint8Array>> {
   let size = 0
   let tooLarge = false
   return new Promise((resolve, reject) => {
@@ -29,8 +31,8 @@ function expand(bytes: Uint8Array<ArrayBuffer>): Promise<Record<string, Uint8Arr
         return !tooLarge
       },
     }, (error, files) => {
-      if (tooLarge) reject(new Error('Die Logdateien im ZIP überschreiten das Browser-Limit von 128 MiB. Bitte teile das Archiv auf.'))
-      else if (error) reject(new Error('Das ZIP konnte nicht geöffnet werden. Prüfe, ob es beschädigt oder verschlüsselt ist.'))
+      if (tooLarge) reject(new Error(translate(language, 'zip.tooLargeContent')))
+      else if (error) reject(new Error(translate(language, 'zip.unreadable')))
       else resolve(files)
     })
   })
@@ -97,9 +99,9 @@ function utc(value: unknown) {
   return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null
 }
 
-export async function importZip(file: File): Promise<ImportedLogs> {
-  if (file.size > limit) throw new Error('Das ZIP ist größer als 128 MiB. Bitte teile es für den Browser-Import auf.')
-  const files = await expand(new Uint8Array(await file.arrayBuffer()))
+export async function importZip(file: File, language: Language): Promise<ImportedLogs> {
+  if (file.size > limit) throw new Error(translate(language, 'zip.tooLargeFile'))
+  const files = await expand(new Uint8Array(await file.arrayBuffer()), language)
   const result: ImportedLogs = { filename: file.name, entries: [], sources: new Map(), references: new Map(), skipped: 0, unparsed: 0, duplicates: 0 }
   const seen = new Set<string>()
   let totalBytes = 0
@@ -107,7 +109,7 @@ export async function importZip(file: File): Promise<ImportedLogs> {
     let bytes: Uint8Array = compressed
     if (path.toLowerCase().endsWith('.gz')) {
       try {
-        if (bytes.byteLength < 18) throw new Error('Ungültiger Gzip-Header')
+        if (bytes.byteLength < 18) throw new Error(translate(language, 'zip.invalidGzip'))
         const advertised = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(bytes.byteLength - 4, true)
         if (advertised > limit - totalBytes) { result.skipped++; continue }
         bytes = gunzipSync(compressed, { out: new Uint8Array(advertised) })
@@ -117,12 +119,12 @@ export async function importZip(file: File): Promise<ImportedLogs> {
       }
     }
     totalBytes += bytes.byteLength
-    if (totalBytes > limit) throw new Error('Die entpackten Logs überschreiten 128 MiB. Bitte teile das Archiv auf.')
+    if (totalBytes > limit) throw new Error(translate(language, 'zip.tooLargeExpanded'))
     const lines = decode(bytes).split(/\r\n|\n|\r/)
     const originalCount = result.entries.length
     const parts = path.split('/')
     const logs = parts.lastIndexOf('logs')
-    const host = logs > 0 ? parts[logs - 1] : parts.at(-2) ?? 'Unbekannt'
+    const host = logs > 0 ? parts[logs - 1] : parts.at(-2) ?? (language === 'en' ? 'Unknown' : 'Unbekannt')
     const component = logs >= 0 ? parts[logs + 2] : ''
     function add(fields: Fields, start: number, end: number) {
       const time = utc(fields.timestamp ?? fields.ts_utc ?? fields.time)
@@ -196,7 +198,7 @@ export async function importZip(file: File): Promise<ImportedLogs> {
     if (result.entries.length > originalCount) result.sources.set(path, lines)
     else result.skipped++
   }
-  if (!result.entries.length) throw new Error('Keine unterstützten Logereignisse gefunden. ZIP mit CSV-, JSONL-, LOG-, TXT- oder XML-Logs auswählen.')
+  if (!result.entries.length) throw new Error(translate(language, 'zip.noSupportedLogs'))
   return result
 }
 

@@ -5,7 +5,7 @@ button { cursor: pointer; border: 1px solid transparent; border-radius: 8px; pad
 button:disabled { opacity: .55; cursor: default }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #209d86; outline-offset: 3px }
 .shell { display: grid; grid-template-columns: 235px minmax(0, 1fr); min-height: 100vh }
-.sidebar { background: #132638; color: #eef8fa; padding: 1.5rem 1rem }
+.sidebar { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; background: #132638; color: #eef8fa; padding: 1.5rem 1rem; overflow-y: auto }
 .brand { display: flex; align-items: center; gap: .75rem; font-size: 1.25rem; font-weight: 800; margin: .5rem .4rem 2rem }
 .brand small { display: block; font-size: .75rem; font-weight: 600; letter-spacing: .08em; color: #afc3cd }
 .brand-icon { display: grid; place-items: center; width: 2.65rem; height: 2.65rem; border-radius: 9px; background: #7fe3c7; color: #102d2d; font-size: 2rem }
@@ -13,6 +13,13 @@ nav { display: grid; gap: .3rem }
 nav a { border-radius: 8px; padding: .6rem .8rem; color: #d8e3ea; text-decoration: none; font-weight: 650 }
 nav a:hover, nav a.active { background: #264457; color: white }
 nav a.active { box-shadow: inset 3px 0 #7fe3c7 }
+.sidebar-settings { position: relative; margin-top: auto; padding-top: 1rem }
+.settings-trigger { display: flex; align-items: center; gap: .65rem; width: 100%; border-color: transparent; background: transparent; color: #d8e3ea; text-align: left; padding: .6rem .8rem; font-weight: 650 }
+.settings-trigger:hover, .settings-trigger[aria-expanded="true"] { background: #264457; color: #fff }
+.settings-trigger span:first-child { font-size: 1.15rem }
+.settings-panel { position: absolute; z-index: 20; left: 0; bottom: calc(100% + .5rem); width: 100%; display: grid; gap: .55rem; padding: .9rem; border: 1px solid #c5d4df; border-radius: 10px; background: #fff; color: #15283a; box-shadow: 0 12px 32px #081b2b40 }
+.settings-panel[hidden] { display: none }
+.settings-panel label { color: #30495c }
 .topbar { display: flex; gap: 1rem; justify-content: end; align-items: center; flex-wrap: wrap; background: white; border-bottom: 1px solid #d8e2ea; padding: .8rem clamp(1rem, 4vw, 3.5rem) }
 .secondary { background: #fff; border-color: #c5d4df; color: #173347 }
 .secondary:hover:not(:disabled) { background: #e8f2f5 }
@@ -68,15 +75,18 @@ h2 small { font-size: .85rem; font-weight: 500; margin-left: .4rem }
 .source .selected-line { background: #24534d }
 @media (max-width: 760px) {
   .shell { display: block }
-  .sidebar { padding: .7rem 1rem }
+  .sidebar { position: relative; height: auto; overflow: visible; padding: .7rem 1rem }
   .brand { margin: 0 0 .6rem }
   nav { display: flex; flex-wrap: wrap }
   nav a { padding: .3rem .55rem }
+  .sidebar-settings { position: fixed; z-index: 40; left: 1rem; bottom: 1rem; width: max-content; margin: 0; padding: 0 }
+  .settings-trigger { width: auto; padding: .65rem .8rem; background: #132638; border-color: #31556a; color: #eef8fa; box-shadow: 0 4px 16px #081b2b45 }
+  .settings-panel { position: fixed; left: 1rem; bottom: 4.5rem; top: auto; width: min(250px, calc(100vw - 2rem)) }
   .topbar { justify-content: space-between }
   .composer { grid-template-columns: 1fr }
 }
-.upload input { max-width: 32rem; border: 1px dashed #83aaa7; background: #f2faf8 }
-.upload input::file-selector-button { margin-right: .65rem; border: 0; border-radius: 5px; background: #085b51; color: white; padding: .4rem .65rem; cursor: pointer }
+.file-picker { display: flex; align-items: center; gap: .65rem }
+.upload input[type="file"] { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0 }
 .upload [role="status"] { margin-top: .65rem }
 .upload a { color: #085b51; font-weight: 650 }
 

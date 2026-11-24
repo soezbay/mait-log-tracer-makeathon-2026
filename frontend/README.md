@@ -6,6 +6,8 @@ React, TypeScript, Vite, Mantine und React Router für das MAIT-Makeathon-Projek
 
 Node.js 22 oder 24 verwenden. Beim Start über HTTP/HTTPS öffnet die Anwendung direkt den Live-Modus und ruft das Backend ab. Über `Demo` bleiben die vorbereiteten Fälle verfügbar; beim Öffnen der HTML-Datei startet die Anwendung automatisch offline in der Demo.
 
+English is the default language. Use **Settings** at the bottom of the sidebar to switch between English and German. The selection is saved in this browser.
+
 ```powershell
 cd frontend
 npm install

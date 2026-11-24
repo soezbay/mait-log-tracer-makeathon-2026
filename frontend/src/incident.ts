@@ -1,4 +1,6 @@
 import type { Entry } from './demo'
+import { translate } from './i18n'
+import type { Language } from './i18n'
 
 const isError = (entry: Entry) => /^(ERROR|FATAL)$/i.test(entry.level)
 const isRetry = (entry: Entry) => /\bretr(?:y|ies|ied|ying)\b/i.test(entry.message)
@@ -20,19 +22,19 @@ export function incidentEvidence(selected: Entry, events: Entry[]) {
 
 
 
-export function describeError(error: Entry, preceding?: Entry) {
+export function describeError(error: Entry, preceding?: Entry, language: Language = 'en') {
   const message = [preceding?.message, error.message].filter(Boolean).join(' ')
   if (/\b(?:missing assembly reference|reference.{0,55}(?:not found|not resolvable|missing|absent)|referenz.{0,55}(?:fehlt|nicht auflösbar))\b/i.test(message)) {
-    return 'Eine Baugruppenreferenz fehlt oder konnte nicht aufgelöst werden. Dadurch kann der Konverter die benötigten Teile möglicherweise nicht laden und kein Ergebnis erzeugen.'
+    return translate(language, 'error.missingReference')
   }
   if (/\bno space left on device\b|\bdisk (?:is )?full\b/i.test(message)) {
-    return 'Die Meldung deutet auf fehlenden Speicherplatz hin. Der betroffene Verarbeitungsschritt konnte möglicherweise seine Ausgabedatei nicht schreiben.'
+    return translate(language, 'error.diskSpace')
   }
   if (/\baccess denied\b|\bpermission denied\b|\bwrite permission\b|\bwrite access denied\b|\bzugriff verweigert\b/i.test(message)) {
-    return 'Die Meldung weist auf einen verweigerten Zugriff hin. Prüfe die Rechte des ausführenden Dienstkontos für die genannte Datei oder Freigabe.'
+    return translate(language, 'error.permission')
   }
   if (/\b(?:timed? out|timeout|zeitüberschreitung)\b/i.test(message)) {
-    return 'Eine Anfrage wurde innerhalb der vorgesehenen Zeit nicht beantwortet. Ein nachfolgender Retry kann zeigen, ob sich der Auftrag erholt hat.'
+    return translate(language, 'error.timeout')
   }
   return undefined
 }

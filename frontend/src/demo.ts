@@ -1,3 +1,5 @@
+import type { Language } from './i18n'
+
 export type Entry = {
   id: number
   ts_utc: string
@@ -54,33 +56,57 @@ export function demoContext(entry: Entry): SourceContext {
   return { path, line_start: line, line_end: entry.source_line_end ?? line, lines }
 }
 
-export function demoAnswer(question: string): Answer {
+export function demoAnswer(question: string, language: Language = 'en'): Answer {
   const sync = /retry|timeout|sync|erholt/i.test(question)
   const reference = !sync && /2010|seal|referenz|assembly|baugruppe/i.test(question)
   const selected = sync ? entries.slice(8) : reference ? entries.slice(4, 8) : entries.slice(0, 4)
-  const answers = sync
-    ? {
-      summary: 'Der Sync-Job hat sich nach dem Downstream-Timeout erholt. Die Folgeeinträge belegen einen erfolgreichen Retry.',
-      uncertainty: 'Der Timeout ist dokumentiert, aber die verfügbaren Zeilen zeigen nicht, wodurch der Downstream verzögert wurde.',
-      verification_steps: ['Latenz und Verfügbarkeit der Downstream-Abhängigkeit um 11:03 UTC prüfen.', 'Kontrollieren, ob weitere Jobs im selben Zeitraum betroffen waren.'],
-      counter_evidence: ['Zwei Meldungen haben ERROR-Level; die spätere Retry-Meldung belegt trotzdem die Erholung.'],
-      confidence: 0.9,
-    }
-    : reference
+  const answers = language === 'en'
+    ? sync
       ? {
-        summary: 'Die Logs sprechen für eine fehlende Baugruppenreferenz: DEMO-Seal-17/C wurde nicht aufgelöst, im Exportpaket nicht gefunden und der NX/JT-Export deshalb abgebrochen.',
-        uncertainty: 'Die Protokolle belegen den fehlenden Verweis, aber nicht, warum DEMO-Seal-17/C im Exportpaket fehlt.',
-        verification_steps: ['Baugruppenstruktur und Existenz von DEMO-Seal-17/C in Teamcenter prüfen.', 'Exportpaket und Referenzauflösung vor dem NX/JT-Lauf kontrollieren.'],
-        counter_evidence: [],
-        confidence: 0.86,
+        summary: 'The sync job recovered after the downstream timeout. The following events confirm a successful retry.',
+        uncertainty: 'The timeout is documented, but the available lines do not show what delayed the downstream service.',
+        verification_steps: ['Check the downstream dependency latency and availability around 11:03 UTC.', 'Check whether other jobs were affected during the same period.'],
+        counter_evidence: ['Two messages have ERROR level, but the later retry message confirms recovery.'],
+        confidence: 0.9,
       }
-      : {
-        summary: 'Die Logs sprechen für fehlendes Schreibrecht auf dem FMS-Zielvolume. Der Konverter erzeugte die JT-Datei erfolgreich; der Upload wurde anschließend abgewiesen, sodass der Publish-Workflow kein Ergebnis registrieren konnte.',
-        uncertainty: 'Die Ablehnung nennt das fehlende Schreibrecht, aber nicht das betroffene Dienstkonto oder die maßgebliche Zugriffsrichtlinie.',
-        verification_steps: ['FMS-Zugriffsrichtlinie und Schreibrecht des ausführenden Dienstkontos für das Zielvolume prüfen.', 'Kontrollieren, ob DEMO-301.jt nach dem fehlgeschlagenen Upload im Zielvolume liegt und im Workflow registriert wurde.'],
-        counter_evidence: ['Der Konverter meldet SUCCESS. Dieser Status betrifft die Konvertierung und widerspricht nicht dem späteren FMS-Upload-Fehler.'],
-        confidence: 0.91,
+      : reference
+        ? {
+          summary: 'The logs point to a missing assembly reference: DEMO-Seal-17/C could not be resolved or found in the export package, so the NX/JT export stopped.',
+          uncertainty: 'The logs confirm the missing reference, but do not show why DEMO-Seal-17/C is absent from the export package.',
+          verification_steps: ['Check the assembly structure and whether DEMO-Seal-17/C exists in Teamcenter.', 'Check the export package and reference resolution before the NX/JT run.'],
+          counter_evidence: [],
+          confidence: 0.86,
+        }
+        : {
+          summary: 'The logs point to missing write permission on the FMS target volume. The converter created the JT file successfully, but the upload was rejected, so the publish workflow could not register a result.',
+          uncertainty: 'The rejection identifies missing write permission, but not the affected service account or access policy.',
+          verification_steps: ['Check the FMS access policy and the service account write permission for the target volume.', 'Check whether DEMO-301.jt is present on the target volume and registered in the workflow.'],
+          counter_evidence: ['The converter reports SUCCESS. That status applies to conversion and does not contradict the later FMS upload failure.'],
+          confidence: 0.91,
+        }
+    : sync
+      ? {
+        summary: 'Der Sync-Job hat sich nach dem Downstream-Timeout erholt. Die Folgeeinträge belegen einen erfolgreichen Retry.',
+        uncertainty: 'Der Timeout ist dokumentiert, aber die verfügbaren Zeilen zeigen nicht, wodurch der Downstream verzögert wurde.',
+        verification_steps: ['Latenz und Verfügbarkeit der Downstream-Abhängigkeit um 11:03 UTC prüfen.', 'Kontrollieren, ob weitere Jobs im selben Zeitraum betroffen waren.'],
+        counter_evidence: ['Zwei Meldungen haben ERROR-Level; die spätere Retry-Meldung belegt trotzdem die Erholung.'],
+        confidence: 0.9,
       }
+      : reference
+        ? {
+          summary: 'Die Logs sprechen für eine fehlende Baugruppenreferenz: DEMO-Seal-17/C wurde nicht aufgelöst, im Exportpaket nicht gefunden und der NX/JT-Export deshalb abgebrochen.',
+          uncertainty: 'Die Protokolle belegen den fehlenden Verweis, aber nicht, warum DEMO-Seal-17/C im Exportpaket fehlt.',
+          verification_steps: ['Baugruppenstruktur und Existenz von DEMO-Seal-17/C in Teamcenter prüfen.', 'Exportpaket und Referenzauflösung vor dem NX/JT-Lauf kontrollieren.'],
+          counter_evidence: [],
+          confidence: 0.86,
+        }
+        : {
+          summary: 'Die Logs sprechen für fehlendes Schreibrecht auf dem FMS-Zielvolume. Der Konverter erzeugte die JT-Datei erfolgreich; der Upload wurde anschließend abgewiesen, sodass der Publish-Workflow kein Ergebnis registrieren konnte.',
+          uncertainty: 'Die Ablehnung nennt das fehlende Schreibrecht, aber nicht das betroffene Dienstkonto oder die maßgebliche Zugriffsrichtlinie.',
+          verification_steps: ['FMS-Zugriffsrichtlinie und Schreibrecht des ausführenden Dienstkontos für das Zielvolume prüfen.', 'Kontrollieren, ob DEMO-301.jt nach dem fehlgeschlagenen Upload im Zielvolume liegt und im Workflow registriert wurde.'],
+          counter_evidence: ['Der Konverter meldet SUCCESS. Dieser Status betrifft die Konvertierung und widerspricht nicht dem späteren FMS-Upload-Fehler.'],
+          confidence: 0.91,
+        }
   return {
     ...answers,
     causal_chain: selected.map((item, index) => ({ step: index + 1, server: item.host, text: item.message })),
