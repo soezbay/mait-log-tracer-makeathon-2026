@@ -212,6 +212,12 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Why:** PRs #1 and #2 went into `main` because GitHub targets the default branch; the rule makes the base choice explicit.
 - **Where:** `AGENTS.md` §8
 
+### Branch model: only main
+- **What:** Merged `develop` into `main` (contents were identical apart from one PR merge commit), then deleted `develop` locally and on GitHub. `AGENTS.md` §1, §8 and §10 now say: `main` is the only shared branch; small changes are committed on `main`, bigger ones on a short-lived `p<N>/<topic>` branch that is merged back into `main` the same day; `pytest` + `ruff check`, then `git pull --rebase` before every push; no force push.
+- **Why:** Safak's decision. Two long-lived branches caused PRs to land in the wrong one (#1, #2 into `main`, #4 `develop` into `main`) and extra merges.
+- **Where:** `AGENTS.md`
+- **Open:** teammates run `git switch main`, `git pull`, `git fetch --prune`; anyone with local work on `develop` merges it into `main` first. `frontend/README.md` (P4) still mentions `develop`.
+
 **Open (not done by Claude):** `plan.md`/`plan.en.md` were moved to `docs/` and `docs/todo/` was added to `.gitignore` locally; not committed yet. Links to `../plan*.md` in the architecture docs and the P1 TODO need updating after that move.
 
 ### Frontend API contract binding
