@@ -18,6 +18,14 @@ type Mode = 'demo' | 'live' | 'import'
 const offline = window.location.protocol === 'file:'
 const formatTime = (timestamp: string) => timestamp.replace('T', ' ').replace(/(?:\.\d+)?Z$/, ' UTC')
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error)
+function currentUtcDateTimeLocal() {
+  return new Date().toISOString().slice(0, 16)
+}
+function isValidDateTimeLocal(value: string | null, max: string): value is string {
+  if (!value || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return false
+  const date = new Date(`${value}Z`)
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 16) === value && value <= max
+}
 
 function useData<T>(path: string, mode: Mode, sample: T) {
   const { language } = useI18n()
@@ -98,6 +106,7 @@ function Heading({ caption, title, children }: React.PropsWithChildren<{ caption
 function Timeline({ mode, open, logs }: { mode: Mode; open: (id: number) => void; logs: ImportedLogs | null }) {
   const { language, t } = useI18n()
   const locale = language === 'en' ? 'en-GB' : 'de-DE'
+  const latestDateTime = currentUtcDateTimeLocal()
   const filters = [
     ['q', t('filter.text'), t('filter.textPlaceholder')], ['server', t('filter.server'), t('filter.serverPlaceholder')],
     ['component', t('filter.component'), t('filter.componentPlaceholder')], ['job_id', t('filter.job'), t('filter.jobPlaceholder')],
@@ -115,7 +124,8 @@ function Timeline({ mode, open, logs }: { mode: Mode; open: (id: number) => void
   }
   for (const field of ['from', 'to']) {
     const date = params.get(field)
-    if (date && Number.isFinite(Date.parse(date + 'Z'))) query.set(field, new Date(date + 'Z').toISOString())
+    if (isValidDateTimeLocal(date, latestDateTime)) query.set(field, new Date(`${date}Z`).toISOString())
+    else query.delete(field)
   }
   const localPageSize = 100
   const apiQuery = new URLSearchParams(query)
@@ -141,7 +151,14 @@ function Timeline({ mode, open, logs }: { mode: Mode; open: (id: number) => void
   return <>
     <Heading caption={t('timeline.caption')} title={t('timeline.title')}>{t('timeline.description')}</Heading>
     <div className="panel filters">
-      {filters.map(([name, label, placeholder]) => <label key={name}>{label}<input type={name === 'from' || name === 'to' ? 'datetime-local' : 'text'} placeholder={placeholder} value={params.get(name) ?? ''} onChange={e => set(name, e.target.value)} /></label>)}
+      {filters.map(([name, label, placeholder]) => {
+        const dateField = name === 'from' || name === 'to'
+        const value = params.get(name)
+        return <label key={name}>{label}<input type={dateField ? 'datetime-local' : 'text'} max={dateField ? latestDateTime : undefined} placeholder={placeholder} value={dateField ? (isValidDateTimeLocal(value, latestDateTime) ? value : '') : value ?? ''} onChange={e => {
+          const nextValue = e.currentTarget.value
+          set(name, dateField && nextValue && !isValidDateTimeLocal(nextValue, latestDateTime) ? '' : nextValue)
+        }} /></label>
+      })}
       <label>{t('filter.level')}<select value={params.get('level') ?? ''} onChange={e => set('level', e.target.value)}><option value="">{t('filter.all')}</option>{['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'].map(level => <option key={level}>{level}</option>)}</select></label>
       <button type="button" className="secondary" onClick={() => update({})} disabled={!params.size}>{t('filter.clear')}</button>
     </div>

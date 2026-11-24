@@ -44,4 +44,6 @@ Roles: P1 Safak ingest/storage · P2 Harsh analysis · P3 Tarun AI assistant · 
 2026-11-24 14:32 | P4 | frontend | Added English-default English/German language settings, saved preference, responsive bottom-left control and localized ZIP picker; typecheck/build pass | frontend/src/{i18n.tsx,main.tsx,style.css,ProcessMonitor.tsx,IncidentDetail.tsx,api.ts,demo.ts,import-zip.ts,incident.ts}, frontend/README.md | self | Live /stats and /events return HTTP 500 in preview; P2 groups/trace and P3 chat routes remain to integrate
 2026-11-24 14:43 | P4 | frontend | Compact page spacing, cards and type sizes; centered page headings and descriptions | frontend/src/style.css | self | -
 2026-11-24 14:51 | P4 | frontend | Reduced cards, notices, form controls, table spacing and body copy again; kept the centered heading at its current size | frontend/src/style.css | self | -
+2026-11-24 14:57 | P4 | frontend | Validate date-filter query values as four-digit local datetimes; malformed dates render empty and are omitted from API filters | frontend/src/main.tsx | self | -
+2026-11-24 15:02 | P4 | frontend | Cap timeline date/time inputs at the current UTC minute; discard future values from controls and API filters | frontend/src/main.tsx | self | -
 ```

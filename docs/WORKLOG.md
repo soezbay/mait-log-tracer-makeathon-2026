@@ -203,3 +203,17 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `frontend/src/style.css`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
 - **Checks:** TypeScript `--noEmit` and Vite production build passed.
 - **Open:** -
+
+### Validate timeline date filter values
+- **What:** Restrict `from` and `to` query values to valid four-digit `datetime-local` values. Invalid dates, including years with extra digits, now display empty and are omitted from the API query.
+- **Why:** Prevent malformed URL dates from rendering as impossible years in the browser's UTC date controls.
+- **Where:** `frontend/src/main.tsx`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
+- **Checks:** TypeScript `--noEmit` and Vite production build passed.
+- **Open:** -
+
+### Limit date filters to the current time
+- **What:** Set a dynamic `max` on both timeline date/time controls and reject URL or typed values after the current UTC minute. Future values are omitted from the API query.
+- **Why:** Prevent selecting a date or time in the future.
+- **Where:** `frontend/src/main.tsx`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
+- **Checks:** TypeScript `--noEmit` and Vite production build passed. In the preview, a five-digit-year query rendered blank and the date control exposed the current UTC minute as its maximum.
+- **Open:** -
