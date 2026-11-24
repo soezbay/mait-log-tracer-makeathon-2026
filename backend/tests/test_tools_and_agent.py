@@ -231,3 +231,12 @@ def test_ask_collects_result_and_history_goes_into_prompt(con):
     assert result.answer and result.usage["llm_calls"] == 2 and len(result.steps) == 2
     assert "FMS rejected the upload" in p.first_message
     assert con.execute("SELECT count(*) FROM hypotheses").fetchone()[0] == 0
+
+
+def test_default_gemini_model_has_a_price():
+    from logtracer.assistant.config import DEFAULT_MODELS
+    from logtracer.assistant.costs import estimate_cost_eur
+
+    # 1M input + 1M output tokens at 0.75 + 3.75 USD, converted with the default 0.86 EUR/USD
+    cost = estimate_cost_eur(DEFAULT_MODELS["gemini"], 1_000_000, 1_000_000)
+    assert cost == pytest.approx((0.75 + 3.75) * 0.86)

@@ -14,6 +14,8 @@ from .data_access import LogStore
 # Models missing here get cost None unless PRICE_INPUT_PER_MTOK / PRICE_OUTPUT_PER_MTOK are set in .env.
 # VERIFY on the provider's pricing page before quoting numbers in the pitch.
 PRICES: dict[str, tuple[float, float]] = {
+    # Google pricing page, Standard tier: 0.75 / 3.75 through 2026-12-31, 1.50 / 7.50 from 2027-01-01.
+    "gemini-3.6-flash": (0.75, 3.75),
     "gemini-2.5-flash": (0.30, 2.50),
     "gemini-2.5-pro": (1.25, 10.00),
     "claude-sonnet-4-5": (3.00, 15.00),

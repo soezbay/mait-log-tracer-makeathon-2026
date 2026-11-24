@@ -126,3 +126,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `backend/src/logtracer/assistant/config.py`, `costs.py`, `backend/scripts/ask.py`, `backend/.env.example`, `docs/ARCHITECTURE.md`, `contracts/examples/chat_stream.sse`.
 - **Checks:** 40 tests pass, `ruff check` clean; live run as above.
 - **Open:** verify gemini-3.6-flash prices and set `PRICE_*` before the pitch; 152 s per answer is too slow for a live demo (fewer rounds or lower thinking level); incidents/correlations empty until P2 delivers.
+
+### Official price for gemini-3.6-flash (P3, Tarun)
+- **What:** Added `gemini-3.6-flash` to the price table in `costs.py` from Google's pricing page (Standard, paid tier): 0.75 USD input and 3.75 USD output (incl. thinking tokens) per 1M tokens through 2026-12-31, then 1.50 / 7.50 from 2027-01-01. The JOB-2003 question (41,580 input + 2,948 output tokens) costs about 0.042 USD = 0.036 EUR on the paid tier (0.073 EUR at 2027 prices); on the free tier it is not billed. New test checks that the default Gemini model has a price.
+- **Why:** The pitch metric "EUR per question" needs a cost for the default model without extra `.env` settings.
+- **Where:** `backend/src/logtracer/assistant/costs.py`, `backend/tests/test_tools_and_agent.py`.
+- **Checks:** 41 tests pass, `ruff check` clean.
+- **Open:** switch to the 2027 prices on 2027-01-01 (or set `PRICE_*` in `.env`).
