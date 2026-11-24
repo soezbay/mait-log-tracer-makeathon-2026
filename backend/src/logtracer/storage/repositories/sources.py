@@ -129,3 +129,44 @@ def scan_summary(con: duckdb.DuckDBPyConnection) -> dict:
             {"server": s, "os": o, "files": n, "unique": u} for s, o, n, u in per_server
         ],
     }
+
+
+SOURCE_COLUMNS = (
+    "source_id", "path", "server", "os", "application", "component", "format", "encoding",
+    "compressed", "size", "sha256", "duplicate_of", "event_count", "checkpoint_bytes",
+    "checkpoint_line", "ingested_at",
+)
+
+
+def list_sources(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    server: str | None = None,
+    fmt: str | None = None,
+    duplicates: bool | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> tuple[list[dict], int]:
+    """Sources with server OS, filtered and paginated. Returns (items, total)."""
+    where, params = [], []
+    if server:
+        where.append("s.server = ?")
+        params.append(server)
+    if fmt:
+        where.append("s.format = ?")
+        params.append(fmt)
+    if duplicates is not None:
+        where.append("s.duplicate_of IS NOT NULL" if duplicates else "s.duplicate_of IS NULL")
+    clause = f"WHERE {' AND '.join(where)}" if where else ""
+    total = con.execute(f"SELECT count(*) FROM sources s {clause}", params).fetchone()[0]
+    select = ", ".join("v.os" if c == "os" else f"s.{c}" for c in SOURCE_COLUMNS)
+    rows = con.execute(
+        f"SELECT {select} FROM sources s LEFT JOIN servers v USING (server) {clause} "
+        "ORDER BY s.source_id LIMIT ? OFFSET ?",
+        [*params, limit, offset],
+    ).fetchall()
+    return [dict(zip(SOURCE_COLUMNS, row, strict=True)) for row in rows], total
+
+
+def last_ingest_at(con: duckdb.DuckDBPyConnection):
+    return con.execute("SELECT max(ingested_at) FROM sources").fetchone()[0]

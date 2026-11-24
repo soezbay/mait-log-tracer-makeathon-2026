@@ -39,7 +39,7 @@ data/                      derived DuckDB files, git-ignored
 
 | Role | Person | Owns |
 |---|---|---|
-| P1 ingest & storage | Safak | `ingest/`, `normalize/` (except `clock.py`), `storage/`, `api/health.py`, `api/ingest.py`, `api/events.py`, `scripts/ingest.py`, `scripts/make_fixture.py` |
+| P1 ingest & storage | Safak | `ingest/`, `normalize/` (except `clock.py`), `storage/`, `api/health.py`, `api/ingest.py`, `api/events.py`, `api/sources.py`, `api/schemas.py`, `api/deps.py`, `services/event_service.py`, `scripts/ingest.py`, `scripts/make_fixture.py` |
 | P2 analysis & correlation | Harsh | `analysis/`, `normalize/clock.py`, `api/analysis.py` |
 | P3 AI assistant | Tarun | `assistant/`, `api/chat.py` |
 | P4 frontend | Adnan | `frontend/` |

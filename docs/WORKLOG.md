@@ -148,4 +148,16 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `backend/src/logtracer/normalize/`, `backend/src/logtracer/ingest/full_ingest.py`, `backend/src/logtracer/storage/repositories/events.py`, tests; branch `p1/ingest`, merged into `develop`.
 - **Open:** `scripts/make_fixture.py`; API endpoints `/stats`, `/sources`, `/events`, `/events/{id}`, `/events/{id}/context`.
 
+### P1 API endpoints and fixture database
+- **What:**
+  - Endpoints: `GET /api/stats`, `GET /api/sources` (filters server, format, duplicates), `GET /api/events` (filters server, component, comma-separated level, from/to, text search `q`, job_id, trace_id, `include_duplicates`; `limit` ≤ 500, `offset`), `GET /api/events/{id}`, `GET /api/events/{id}/context?n=` (≤ 50 original lines around the event, read from the log file, also from `.gz`). Times are returned as ISO 8601 with `Z`.
+  - `main.create_app(settings)`: one DuckDB connection per process (opened in the lifespan), a cursor per request; makes the API testable with any database.
+  - `services/event_service.py`: the same functions are meant for the LLM tools of P3.
+  - `scripts/make_fixture.py`: builds `data/fixture.duckdb` from the scenario files only (JOB-2001/2003/2010, INC-01 day, `import_*`): 138 files, 32,767 events in 3.3 s.
+  - `contracts/examples/`: `stats.json`, `events.json` (now the real 4-step `JOB-2003` chain), `event.json`, `event_context.json` updated with real values.
+  - `AGENTS.md`: P1 ownership extended by `api/sources.py`, `api/schemas.py`, `api/deps.py`, `services/event_service.py`.
+- **Checks:** 40 tests pass (7 new API tests incl. filters, time window with offset, pagination, detail, context for a multi-line CSV entry and a `.gz` file, 404s), ruff clean. Live on the real database: all endpoints answer in 15–95 ms.
+- **Where:** `backend/src/logtracer/api/`, `backend/src/logtracer/services/`, `backend/src/logtracer/main.py`, `backend/scripts/make_fixture.py`, `contracts/examples/`; branch `p1/ingest`, merged into `develop`.
+- **Open:** day 3: checkpoints, watcher, `POST /api/ingest` + `GET /api/ingest/progress` (SSE). Demo docs still show the `JOB-2003` chain with 3 steps.
+
 **Open (not done by Claude):** `plan.md`/`plan.en.md` were moved to `docs/` and `docs/todo/` was added to `.gitignore` locally; not committed yet. Links to `../plan*.md` in the architecture docs and the P1 TODO need updating after that move.
