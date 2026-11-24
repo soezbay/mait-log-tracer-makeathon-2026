@@ -130,10 +130,11 @@ Besonderheiten: 1 Datei in Windows-1252, CRLF bei Windows-Dateien, Zeitstempel f
 
 1. **„Publish schlägt fehl, obwohl der Konverter SUCCESS meldet"** (24.11., `JOB-2003`, in den Daten geprüft):
    - 08:30:00 `mait_win03_cad_converter` `converter/nx_jt`: „Conversion succeeded; JT output=DEMO-301.jt"
+   - 08:30:04 `mait_win04_plm_sync` `fms/fcc`: „Result upload denied for DEMO-SERVICE; permission=WRITE_DATASET"
    - 08:30:08 `mait_linux1_teamcenter_app` `fms/fsc`: „Upload rejected; access policy lacks target volume write permission"
    - 08:30:12 `mait_linux1_teamcenter_app` `teamcenter/workflow`: „Publish task failed: no registered result; converter status=SUCCESS"
 
-   Ursache: fehlendes Schreibrecht auf dem FMS-Volume, nicht der Konverter. Zeigt **widersprüchliche Systeme** über 2 Server und 3 Formate (CSV, TXT, JSONL).
+   Ursache: fehlendes Schreibrecht auf dem FMS-Volume, nicht der Konverter. FMS-Client (win04) und FMS-Server-Cache (linux1) melden beide das verweigerte Schreiben, bevor das Publish scheitert. Zeigt **widersprüchliche Systeme** über 3 Server und 3 Formate (CSV, JSONL inkl. `.gz`, TXT).
 2. **Fehlende Baugruppen-Referenz** (24.11., `JOB-2010`): `nx/batch` „Required child DEMO-Seal-17/C not resolved" → `teamcenter/soa` „Reference target absent from exported input package" → `converter/nx_jt` „Export aborted because required reference is missing". Um 11:01 folgt eine **mehrzeilige Java-Exception** mit derselben Job-Nummer; prüfen, ob sie zum selben Job gehört (das README warnt, dass gleiche Anzeigenummern nicht immer derselbe Job sind).
 3. **`INC-01` im Oktober**: Teamcenter-App meldet wiederholt Downstream-Timeouts zur `teamcenter_db`. Viele ERRORs, **eine Ursache**, teils erfolgreiche Retries. Zeigt **Gruppierung + Retry ≠ Fehler**.
 4. **„Worker failed, local clock is behind"** (`mait_win02_dispatcher_worker`, `JOB-2001`): Zeigt **Quelluhr-Korrektur** (`clock_offset_seconds: -94`). Ohne Korrektur stimmt die Reihenfolge der Kette nicht.

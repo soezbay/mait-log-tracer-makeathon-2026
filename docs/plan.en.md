@@ -130,10 +130,11 @@ Specifics: 1 file in Windows-1252, CRLF in Windows files, timestamps almost ever
 
 1. **"Publish fails although the converter reports SUCCESS"** (24 Nov, `JOB-2003`, verified in the data):
    - 08:30:00 `mait_win03_cad_converter` `converter/nx_jt`: "Conversion succeeded; JT output=DEMO-301.jt"
+   - 08:30:04 `mait_win04_plm_sync` `fms/fcc`: "Result upload denied for DEMO-SERVICE; permission=WRITE_DATASET"
    - 08:30:08 `mait_linux1_teamcenter_app` `fms/fsc`: "Upload rejected; access policy lacks target volume write permission"
    - 08:30:12 `mait_linux1_teamcenter_app` `teamcenter/workflow`: "Publish task failed: no registered result; converter status=SUCCESS"
 
-   Cause: missing write permission on the FMS volume, not the converter. Shows **contradicting systems** across 2 servers and 3 formats (CSV, TXT, JSONL).
+   Cause: missing write permission on the FMS volume, not the converter. The FMS client (win04) and the FMS server cache (linux1) both report the denied write before the publish fails. Shows **contradicting systems** across 3 servers and 3 formats (CSV, JSONL incl. `.gz`, TXT).
 2. **Missing assembly reference** (24 Nov, `JOB-2010`): `nx/batch` "Required child DEMO-Seal-17/C not resolved" → `teamcenter/soa` "Reference target absent from exported input package" → `converter/nx_jt` "Export aborted because required reference is missing". A **multi-line Java exception** with the same job number follows at 11:01; check whether it belongs to the same job (the README warns that equal display numbers do not always mean the same job).
 3. **`INC-01` in October**: the Teamcenter app repeatedly reports downstream timeouts to `teamcenter_db`. Many ERRORs, **one cause**, partly successful retries. Shows **grouping + retry ≠ failure**.
 4. **"Worker failed, local clock is behind"** (`mait_win02_dispatcher_worker`, `JOB-2001`): shows **source clock correction** (`clock_offset_seconds: -94`). Without it, the order of the chain is wrong.

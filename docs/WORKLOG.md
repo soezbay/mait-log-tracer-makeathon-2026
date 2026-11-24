@@ -191,4 +191,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `docs/plan.en.md` §17, `docs/plan.md` §17
 - **Open:** team decision; then push `87bfd44` (option A) or rebuild the download for the chosen option.
 
+### JOB-2003 demo chain corrected to 4 steps
+- **What:** Plan §7 (EN + DE) and the example assistant answer in `ARCHITECTURE.md`/`ARCHITEKTUR.md` §5 now show the full chain from the data: win03 `converter/nx_jt` SUCCESS 08:30:00 → win04 `fms/fcc` "Result upload denied for DEMO-SERVICE; permission=WRITE_DATASET" 08:30:04 → linux1 `fms/fsc` upload rejected 08:30:08 → linux1 `teamcenter/workflow` publish failed 08:30:12. The example answer got the extra step, evidence line (`mait_win04_plm_sync/logs/fms/fcc/creative_2026-11-24.jsonl.gz`, line 29), affected system and the service user in summary, uncertainty and verification steps.
+- **Why:** The docs showed only 3 steps on 2 servers; the ingest showed 4 steps on 3 servers. Pitch, assistant prompt tests and evaluation ground truth must match the data.
+- **Where:** `docs/plan.en.md`, `docs/plan.md`, `docs/ARCHITECTURE.md`, `docs/ARCHITEKTUR.md`
+- **Also:** Safak invited Harsh, Tarun and Adnan as GitHub collaborators.
+
 **Open (not done by Claude):** `plan.md`/`plan.en.md` were moved to `docs/` and `docs/todo/` was added to `.gitignore` locally; not committed yet. Links to `../plan*.md` in the architecture docs and the P1 TODO need updating after that move.
