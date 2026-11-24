@@ -14,7 +14,9 @@ def create_provider(settings: Settings) -> LLMProvider:
     if name in ("claude", "anthropic"):
         from .claude import ClaudeProvider
 
-        return ClaudeProvider(settings.anthropic_api_key, settings.model_name)
+        return ClaudeProvider(
+            settings.anthropic_api_key, settings.model_name, max_tokens=settings.max_output_tokens
+        )
     raise ProviderError(f"Unknown LLM_PROVIDER {settings.llm_provider!r}. Use 'gemini' or 'claude'.")
 
 

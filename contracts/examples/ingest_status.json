@@ -1,0 +1,19 @@
+{
+  "running": false,
+  "mode": "incremental",
+  "started_at": "2026-11-24T11:56:32.687Z",
+  "finished_at": "2026-11-24T11:56:34.730Z",
+  "last_result": {
+    "mode": "incremental",
+    "files_checked": 1,
+    "files_new": 1,
+    "files_appended": 0,
+    "files_rewritten": 0,
+    "files_duplicate": 0,
+    "events_written": 222,
+    "duplicates": 0,
+    "elapsed_s": 2.04
+  },
+  "error": null,
+  "watcher_enabled": true
+}

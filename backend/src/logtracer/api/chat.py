@@ -8,9 +8,9 @@ see assistant/answer.py) · done (usage, cost) · error.
 Streams use FastAPI's built-in SSE (``fastapi.sse``), as AGENTS.md requires. The frontend reads this
 POST stream with ``fetch``, not ``EventSource``.
 
-By default this module opens DB_PATH once via ``storage.db`` (P1) and hands out cursors. When main.py
-owns a shared connection, call ``configure(cursor_factory=...)`` once at startup so API, ingest and
-assistant share it (DuckDB: one writing process per file).
+main.py (P1) calls ``use_connection(app.state.db)`` at startup, so API, ingest and assistant share one
+DuckDB connection (DuckDB: one writing process per file). Without it (scripts, some tests) this module
+opens DB_PATH once itself via ``storage.db``.
 """
 from __future__ import annotations
 
@@ -45,6 +45,12 @@ def configure(
     """Override the database cursor and/or the LLM provider (used by main.py and by tests)."""
     global _cursor_factory, _provider_factory
     _cursor_factory, _provider_factory = cursor_factory, provider_factory
+
+
+def use_connection(con: duckdb.DuckDBPyConnection | None) -> None:
+    """Use the app's shared connection for all chat cursors (None: back to the module's own)."""
+    global _cursor_factory
+    _cursor_factory = con.cursor if con is not None else None
 
 
 def _default_cursor() -> duckdb.DuckDBPyConnection:

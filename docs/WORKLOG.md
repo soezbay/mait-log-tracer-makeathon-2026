@@ -94,7 +94,143 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **What:** `plan.md` and `plan.en.md` now live in `docs/` (move by Safak, committed now). Fixed relative links in plans and architecture docs and the repo-structure blocks; `docs/todo/` is git-ignored. Checked tool support: Codex reads `AGENTS.md` natively, Claude Code reads `CLAUDE.md`, which imports `AGENTS.md`, so both follow the same rules.
 - **Where:** `docs/plan*.md`, `docs/ARCHITECTURE.md`, `docs/ARCHITEKTUR.md`, `.gitignore`.
 
+### Ingest steps 1-3: scan, read, file dedupe (P1)
+- **What:**
+  - `ingest/scanner.py`: finds all servers (`<server>/logs/…`, folders starting with `_` are skipped) and log files; reads `server_info.json`; derives application and component (components can have two levels, e.g. `translators/nx_jt`); skips `README.md` and `server_info.json`.
+  - `ingest/reader.py`: decompresses `.gz` in memory, decodes UTF-8 (with/without BOM) with Windows-1252 fallback, splits lines on `
+` only and strips `
+`.
+  - `ingest/fingerprint.py`: SHA-256 over the decompressed bytes and a duplicate index (first file per hash is the original).
+  - `ingest/pipeline.py` + `storage/repositories/sources.py`: full scan writes `servers` and `sources` in one PyArrow batch; duplicates get `duplicate_of` and are not decoded.
+  - `backend/scripts/ingest.py --scan-only` prints a JSON summary.
+  - Schema: `sources.source_id` is now assigned by the pipeline (sequence default removed) so explicit IDs and defaults cannot collide.
+- **Why:** Foundation for the parsers; confirms file counts, duplicates and encodings before parsing.
+- **Checks:** 12 tests pass (layout, multi-level components, gz, cp1252, BOM, CRLF, duplicate detection incl. `.gz` vs plain, idempotent rescan), ruff clean. Real run: 14 servers, 13,643 files, 5,068 unique, 8,575 duplicates, 460 MB unique decompressed, 1 cp1252 original, 0 errors, 18.6 s. Matches the earlier analysis.
+- **Where:** `backend/src/logtracer/ingest/`, `backend/src/logtracer/storage/`, `backend/scripts/ingest.py`, `backend/tests/test_scan.py`; branch `p1/ingest`.
+- **Commit:** `4d0ea40`.
+
+### Ingest steps 4-5: format detection and parsers (P1)
+- **What:**
+  - `ingest/models.py`: shared `RawEvent` (line range, raw text, timestamp text, level, host, component, IDs, message, `attrs`, `parse_error`) and `ParseContext` (fallback host/component, default date).
+  - `ingest/detector.py`: format by extension for `.jsonl(.gz)`, `.csv`, `.xml`; `.log`/`.txt` by the first line, because `creative_*.log` files use the bracket-JSON shape, not key=value.
+  - Parsers: `kv_log` (key=value pairs from the message into `attrs`), `bracket_json` (JSON payload incl. `trace_id`, `clock_offset_seconds`, `observed_at`), `csv_semicolon` (csv module, multi-line stack traces with correct line ranges), `jsonl`, `xml_events` (one `<Event>` per line), `freetext` (pipe, bracket with optional host, tagged `TC.*`, time-only lines). Unmatched lines are continuations; nothing is dropped.
+  - Time-only lines get the most common date of the `import_*` files (2026-10-06) and `attrs.time_only`.
+  - `ingest/parse_run.py` + `scripts/ingest.py --parse-dry-run`: parses all unique files, stores the format in `sources.format` (duplicates inherit it), prints statistics.
+- **Checks:** 24 tests pass (9 parser tests with real line shapes), ruff clean. Dry run on the real package: 1,673,792 events from 5,068 files in 13.5 s, **0 parse errors**; only 1 multi-line event; 5 time-only lines.
+- **Where:** `backend/src/logtracer/ingest/`, `backend/tests/test_parsers.py`.
+- **Open:** normalization (UTC, level mapping, event dedupe) and writing `events` to DuckDB.
+
+### Configuration: .env and .env.example
+- **What:** `core/config.py` now holds every setting: paths (log package, DB, fixture DB, eval questions), API server (host, port, reload, CORS, log level), ingest (batch size, workers, default time zone), watcher (on/off, debounce), LLM (provider, model, API key, tool rounds, output limit, Ollama URL/model). `backend/.env.example` documents all of them with defaults; a local `backend/.env` was created from it (git-ignored, API key empty). `uv run logtracer` now uses host/port/reload/log level from the settings. A test checks that `.env.example` and the settings stay in sync.
+- **Why:** One place for all configuration; nobody hard-codes paths or keys.
+- **Where:** `backend/src/logtracer/core/config.py`, `backend/.env.example`, `backend/src/logtracer/__init__.py`, `backend/tests/test_config.py`.
+- **Open:** frontend `.env` (`VITE_…`) once the frontend exists.
+
+### GitHub push access
+- **What:** Checked the repository via the public GitHub API: public repo, `main` is not protected, no rulesets. Teammates cannot push because the repo belongs to a personal account and only the owner and invited collaborators may push.
+- **Open:** Safak adds Harsh, Tarun and Adnan under Settings → Collaborators; they accept the invitation.
+
+### develop branch and branch rules
+- **What:** Created the integration branch `develop` (from `p1/ingest`, i.e. `main` plus ingest steps 1-5) and pushed it. `AGENTS.md` §8 now says: work only on `develop` or your own `p<N>/<topic>` branch, start every task from the latest `develop`, merge back into `develop` when tests pass, never commit, merge or push to `main`; `main` is updated only by Safak from a green `develop`. Start-here list and definition of done updated accordingly.
+- **Why:** `main` stays stable for the demo and the pitch while everyone integrates on `develop`.
+- **Where:** `AGENTS.md`; branch `develop`.
+- **Open:** optionally make `develop` the default branch and protect `main` in the GitHub settings.
+
+### Ingest steps 6-7: normalization and writing events (P1)
+- **What:**
+  - `normalize/timestamps.py`: ISO text to naive UTC; times without a zone are read in `DEFAULT_TIMEZONE` and flagged `tz_assumed`.
+  - `normalize/levels.py`: map to `DEBUG/INFO/WARN/ERROR/FATAL` (`Critical`/`CRITICAL` → `FATAL`); unknown levels stay `NULL`, `level_raw` keeps the original.
+  - `normalize/dedupe.py`: SHA-1 fingerprint over host, event_id, UTC time and message; late detector (entry more than 60 s older than an earlier entry of the same file).
+  - `storage/repositories/events.py`: PyArrow batch insert, duplicate marking in SQL (`duplicate_of` = first id with the same fingerprint), summary for the report and later `/api/stats`.
+  - `ingest/full_ingest.py`: scan → parse → normalize → write; stores format, event count and checkpoint per source. `scripts/ingest.py` runs the full ingest by default.
+- **Checks:** 33 tests pass (normalization, full ingest with small batches, cross-file duplicate, late entry, time-only line, repeatable rebuild), ruff clean. Real run: **1,673,792 events in 53 s**, 0 unparsed, 0 without timestamp, 11,125 duplicate events, 2,379 late, 78 with assumed time zone; all hosts in the events are known servers; `JOB-2003` chain, multi-line exception and clock-skew entry come out correctly; a per-minute error query over 24 Nov runs instantly.
+- **Finding:** the `JOB-2003` chain has a fourth step: 08:30:04 `mait_win04_plm_sync` `fms/fcc` "Result upload denied for DEMO-SERVICE; permission=WRITE_DATASET" (in a `.jsonl.gz`). Plan §7 and the architecture example still show three steps.
+- **Where:** `backend/src/logtracer/normalize/`, `backend/src/logtracer/ingest/full_ingest.py`, `backend/src/logtracer/storage/repositories/events.py`, tests; branch `p1/ingest`, merged into `develop`.
+- **Open:** `scripts/make_fixture.py`; API endpoints `/stats`, `/sources`, `/events`, `/events/{id}`, `/events/{id}/context`.
+
+### P1 API endpoints and fixture database
+- **What:**
+  - Endpoints: `GET /api/stats`, `GET /api/sources` (filters server, format, duplicates), `GET /api/events` (filters server, component, comma-separated level, from/to, text search `q`, job_id, trace_id, `include_duplicates`; `limit` ≤ 500, `offset`), `GET /api/events/{id}`, `GET /api/events/{id}/context?n=` (≤ 50 original lines around the event, read from the log file, also from `.gz`). Times are returned as ISO 8601 with `Z`.
+  - `main.create_app(settings)`: one DuckDB connection per process (opened in the lifespan), a cursor per request; makes the API testable with any database.
+  - `services/event_service.py`: the same functions are meant for the LLM tools of P3.
+  - `scripts/make_fixture.py`: builds `data/fixture.duckdb` from the scenario files only (JOB-2001/2003/2010, INC-01 day, `import_*`): 138 files, 32,767 events in 3.3 s.
+  - `contracts/examples/`: `stats.json`, `events.json` (now the real 4-step `JOB-2003` chain), `event.json`, `event_context.json` updated with real values.
+  - `AGENTS.md`: P1 ownership extended by `api/sources.py`, `api/schemas.py`, `api/deps.py`, `services/event_service.py`.
+- **Checks:** 40 tests pass (7 new API tests incl. filters, time window with offset, pagination, detail, context for a multi-line CSV entry and a `.gz` file, 404s), ruff clean. Live on the real database: all endpoints answer in 15–95 ms.
+- **Where:** `backend/src/logtracer/api/`, `backend/src/logtracer/services/`, `backend/src/logtracer/main.py`, `backend/scripts/make_fixture.py`, `contracts/examples/`; branch `p1/ingest`, merged into `develop`.
+- **Open:** day 3: checkpoints, watcher, `POST /api/ingest` + `GET /api/ingest/progress` (SSE). Demo docs still show the `JOB-2003` chain with 3 steps.
+
+### Continuous ingest: checkpoints, watcher and /ingest API (P1, MAIT step 3)
+- **What:**
+  - `ingest/incremental.py`: per file the checkpoint decides: unknown → all events; grown → only entries after `checkpoint_line` (the whole file is parsed again so CSV headers and multi-line entries stay correct); shrunk or previously a copy → its events are replaced; byte-identical to another file → duplicate; only touched → skipped. Event duplicates are flagged for the new ids only. Deleted files keep their events.
+  - `ingest/event_writer.py`: row building shared by full and incremental ingest.
+  - `services/ingest_service.py`: one ingest at a time in a background thread through a cursor of the single DuckDB connection; changes arriving during a run are queued; progress is pushed to SSE subscribers.
+  - `ingest/watcher.py`: watchdog observer with debounce. **Safety net** `WATCH_RESCAN_S` (default 10 s): a quiet size/mtime check of the whole package, because in the live test Windows delivered change notifications for shell appends late or not at all. Watcher and rescan runs stay silent when nothing changed.
+  - API: `POST /api/ingest` (`full` | `incremental`, 202 / 409), `GET /api/ingest/status`, `GET /api/ingest/progress` (SSE: `state`, `started`, `progress`, `new_file`, `done`, `error`).
+  - Contract examples `ingest_status.json` and `ingest_progress.sse.txt`; `AGENTS.md` ownership extended.
+- **Checks:** 51 tests pass (new file, append, CSV append keeps header mapping, rewrite, copy, cross-file duplicate, watcher, manager events, quiet rescan, endpoints), ruff clean. Live on a temporary copy of scenario files (original package untouched): new `.txt` and `.gz` files and four shell appends each became queryable in about 5 s; the SSE stream showed `new_file` and `done`; a line that the watcher had missed earlier was picked up by the rescan.
+- **Where:** `backend/src/logtracer/ingest/`, `backend/src/logtracer/services/ingest_service.py`, `backend/src/logtracer/api/ingest.py`, `backend/src/logtracer/main.py`, `backend/.env.example`, `contracts/examples/`; branch `p1/ingest`, merged into `develop`.
+- **Open:** for the pitch demo, copy new files into a watched folder (a copy of the package or a separate demo folder), never edit the original package.
+
+### Log package via Git LFS with download and extraction on start (P1)
+- **What:**
+  - `MAIT_Makeathon_Logpaket.zip` (83 MB, 13,836 files) is tracked with Git LFS (`.gitattributes`); the extracted folder stays git-ignored.
+  - `core/logpaket.py`, called on every program start (API lifespan, `scripts/ingest.py`, `scripts/make_fixture.py`):
+    - ZIP missing or only an LFS pointer → `git lfs pull --include <zip>` (`AUTO_DOWNLOAD`, uses the same Git login as push, so it works for a private repo).
+    - Marker `data/logpaket.extracted.json` matches the ZIP (size + mtime) → nothing to do.
+    - Otherwise → extract only missing or different files (`AUTO_EXTRACT`); existing files are never rewritten; entries with `..`, absolute paths or drive letters are rejected (zip slip).
+  - Settings `LOGPAKET_ZIP`, `AUTO_EXTRACT`, `AUTO_DOWNLOAD` in `config.py` and `.env.example`; `AGENTS.md` (layout, setup) and `backend/README.md` updated.
+- **Why:** Everyone gets the same log package with `git clone` and a program start, without putting 867 MB of files into normal Git history.
+- **Checks:** 60 tests pass (first extraction, fast second start, repair of a missing file without touching others, new ZIP version, LFS pointer, download then extract, failed download message, missing ZIP with existing folder, zip slip), ruff clean. Real ZIP: existing folder fully compared in 1.25 s, next start 0.00 s; fresh extraction of all 13,836 files in 50 s, content identical to the original.
+- **Where:** `.gitattributes`, `MAIT_Makeathon_Logpaket.zip`, `backend/src/logtracer/core/logpaket.py`, `backend/tests/test_logpaket.py`; branch `p1/ingest`.
+- **Open:** not pushed yet. The repo is still public, and an LFS object in a public repo can be downloaded by anyone. Push after the repo is private. Free GitHub LFS quota is about 1 GB storage and 1 GB download per month (≈ 12 clones of the ZIP).
+
+### Deferred decision: hosting of the log package
+- **What:** New section §17 "Deferred decisions" in `docs/plan.en.md` and `docs/plan.md` with D1: where the log package ZIP lives. Lists options A (whole repo private), B (separate private data repo), C (release asset in a private repo), D (cloud storage) with effort, a recommendation and the question to the organizers about redistribution.
+- **Why:** On GitHub, Git LFS files have the same visibility as the repo; they cannot be made private on their own. The team wants to decide later, so the LFS commit stays unpushed until then.
+- **Where:** `docs/plan.en.md` §17, `docs/plan.md` §17
+- **Open:** team decision; then push `87bfd44` (option A) or rebuild the download for the chosen option.
+
+### JOB-2003 demo chain corrected to 4 steps
+- **What:** Plan §7 (EN + DE) and the example assistant answer in `ARCHITECTURE.md`/`ARCHITEKTUR.md` §5 now show the full chain from the data: win03 `converter/nx_jt` SUCCESS 08:30:00 → win04 `fms/fcc` "Result upload denied for DEMO-SERVICE; permission=WRITE_DATASET" 08:30:04 → linux1 `fms/fsc` upload rejected 08:30:08 → linux1 `teamcenter/workflow` publish failed 08:30:12. The example answer got the extra step, evidence line (`mait_win04_plm_sync/logs/fms/fcc/creative_2026-11-24.jsonl.gz`, line 29), affected system and the service user in summary, uncertainty and verification steps.
+- **Why:** The docs showed only 3 steps on 2 servers; the ingest showed 4 steps on 3 servers. Pitch, assistant prompt tests and evaluation ground truth must match the data.
+- **Where:** `docs/plan.en.md`, `docs/plan.md`, `docs/ARCHITECTURE.md`, `docs/ARCHITEKTUR.md`
+- **Also:** Safak invited Harsh, Tarun and Adnan as GitHub collaborators.
+
+### Push incl. the log package ZIP; main updated
+- **What:** Pushed `p1/ingest` and `develop`. `main` had two pull requests the team merged directly into it (#1 P4 frontend integration, #2 P2 analysis integration); merged `origin/main` into `develop` (conflict only in `docs/AI_LOG.md`, both sides kept), then set `main` to `develop` and pushed both. This includes the Git LFS ZIP (`87bfd44`), uploaded to the repo while it is still public. Plan §17 D1 status updated.
+- **Why:** Safak decided to push everything now, knowing the repo is public; he owns `main` and asked for the merge.
+- **Open:** D1 (private repo or separate data repo) is still open; until the repo is private the ZIP can be downloaded by anyone.
+
 **Open (not done by Claude):** `plan.md`/`plan.en.md` were moved to `docs/` and `docs/todo/` was added to `.gitignore` locally; not committed yet. Links to `../plan*.md` in the architecture docs and the P1 TODO need updating after that move.
+
+### Frontend API contract binding
+- **What:** Fast-forwarded `main` to `7f3e3d5`; kept the proxy on `http://localhost:8000`, made Live the default, and normalized the frontend against the frozen API examples (`limit/offset`, stats fields, `source_path`, and context line `no`). Kept JOB-2003, JOB-2010 and the recovered retry separate in the demo.
+- **Why:** Make the P4 frontend consume the shared backend contract while the backend routes are being implemented.
+- **Where:** `frontend/vite.config.mjs`, `frontend/.env.example`, `frontend/src/api.ts`, `frontend/src/main.tsx`, `frontend/src/demo.ts`, `frontend/src/incident.ts`, `frontend/README.md`, `docs/AI_LOG.md`.
+- **Checks:** TypeScript check and Vite production build passed. `localhost:8000` did not accept a connection.
+- **Open (at the time of this entry):** The checkout then registered only `GET /api/health`. The later develop merge below added P1 stats, sources, events and context routes.
+
+### Frontend branch synced with develop
+- **What:** Merged the latest `origin/develop` (`cb794f2`) into the frontend branch. The branch now includes P1 stats, sources, event and source-context APIs plus the fixture database builder. Opened the built frontend in Demo mode at `http://127.0.0.1:4173/`.
+- **Why:** Bring the frontend branch up to date with the team's integration work and make the UI reviewable without a running backend.
+- **Where:** Backend/API and fixture files from `develop`, updated project logs; branch `codex/frontend-backend-integration`.
+- **Checks:** Static preview returned HTTP 200 and the Demo dashboard loaded in the browser. Automated tests were not run.
+- **Open:** `localhost:8000` did not respond here. P2 groups/trace routes are not in `develop`; P3 chat exists on a separate branch and still needs integration.
+
+### Frontend README reflects merged backend APIs
+- **What:** Updated the frontend setup notes to distinguish P1 endpoints now included in the branch from P2 groups/trace routes still missing in `develop` and the P3 chat endpoint still on its separate branch.
+- **Why:** Keep the API status and live setup instructions accurate after syncing with `develop`.
+- **Where:** `frontend/README.md`, `docs/WORKLOG.md`, `docs/AI_LOG.md`.
+- **Checks:** Reviewed the current router registrations and branch contents; no automated tests run.
+- **Open:** Start the backend with its fixture database and integrate P2/P3 routes before all Live screens work.
+
+### English and German language settings
+- **What:** Added English and German UI translations, with English as the default. The Settings control stays at the bottom of the desktop sidebar and floats at the bottom left on narrow screens; the choice persists in browser storage. The ZIP picker uses a translated button instead of the browser's native-language label.
+- **Why:** Let users use the frontend in English by default or switch to German from anywhere in the app.
+- **Where:** `frontend/src/i18n.tsx`, `frontend/src/main.tsx`, `frontend/src/style.css`, `frontend/src/ProcessMonitor.tsx`, `frontend/src/IncidentDetail.tsx`, `frontend/src/api.ts`, `frontend/src/demo.ts`, `frontend/src/import-zip.ts`, `frontend/src/incident.ts`, `frontend/README.md`; commit `self`.
+- **Checks:** TypeScript `--noEmit` and Vite production build passed. Checked the responsive Demo preview; Vite reports existing dependency `use client` warnings. No automated tests run.
+- **Open:** During preview, Live `/stats` and `/events` requests returned HTTP 500. P2 groups/trace and P3 chat routes are still absent from `develop` and need integration for full Live functionality.
 
 ### AI assistant and /api/chat (P3, Tarun)
 - **What:**
@@ -133,3 +269,15 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `backend/src/logtracer/assistant/costs.py`, `backend/tests/test_tools_and_agent.py`.
 - **Checks:** 41 tests pass, `ruff check` clean.
 - **Open:** switch to the 2027 prices on 2027-01-01 (or set `PRICE_*` in `.env`).
+
+### p3/assistant brought up to date with develop (P3, Tarun)
+- **What:**
+  - Merged `develop` (same commit as `main`, 9e332b1: P1 ingest pipeline, API, watcher and LFS log package; P4 frontend; PR #2) into `p3/assistant`. Conflicts in `main.py`, `.env.example`, `AI_LOG.md` and `WORKLOG.md` resolved by keeping both sides.
+  - `main.py`: the lifespan now passes the single DuckDB connection to the assistant with `chat.use_connection(app.state.db)` and releases it on shutdown; the chat router is registered in `create_app`. This closes the open item "share the DB connection" from the first P3 entry.
+  - `.env.example`: LLM section lists `gemini` as provider and documents `GEMINI_API_KEY`. `core/config.py` (P1) gets one line, `gemini_api_key`, because `test_example_env_matches_settings` requires every key in `.env.example` to be a setting.
+  - The assistant reads `LLM_MAX_TOOL_ROUNDS` and `LLM_MAX_OUTPUT_TOKENS` (names documented by P1); the output limit is passed to the Claude provider.
+  - New test: starting the full app shares the DB connection with `/api/chat`, LLM calls land in that connection, and it is released on shutdown.
+- **Why:** PR #3 had merge conflicts with `main`, and AGENTS.md §8 now routes all work through `develop`.
+- **Where:** `backend/src/logtracer/main.py`, `api/chat.py`, `core/config.py`, `assistant/config.py`, `assistant/providers/__init__.py`, `backend/.env.example`, `backend/tests/test_providers_and_api.py`.
+- **Checks:** 96 tests pass (P1 + P3), `ruff check` clean.
+- **Open:** for Safak: `tests/test_incremental.py::test_manager_runs_and_publishes` is flaky, it also fails about 1 in 10 runs on a clean `main` (`state["running"]` is still True right after the `done` event).

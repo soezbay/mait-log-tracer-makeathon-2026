@@ -42,8 +42,12 @@ class Settings(BaseSettings):
     # llm_calls stores cost in EUR (schema.sql). Verify the current rate before quoting numbers.
     eur_per_usd: float = 0.86
 
-    max_rounds: int = 8
+    # LLM_MAX_TOOL_ROUNDS / LLM_MAX_OUTPUT_TOKENS are the names documented in .env.example (P1).
+    max_rounds: int = Field(default=8, validation_alias=AliasChoices("LLM_MAX_TOOL_ROUNDS", "MAX_ROUNDS"))
     max_tool_calls: int = 14
+    max_output_tokens: int = Field(
+        default=4096, validation_alias=AliasChoices("LLM_MAX_OUTPUT_TOKENS", "MAX_OUTPUT_TOKENS")
+    )
 
     @field_validator("db_path")
     @classmethod

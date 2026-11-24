@@ -34,15 +34,16 @@ def test_init_schema_is_idempotent(con):
 def test_source_and_event_roundtrip(con):
     # Real event from the JOB-2003 chain (fms/fsc on mait_linux1_teamcenter_app).
     con.execute(
-        "INSERT INTO sources (path, server, application, component, format, encoding) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO sources (source_id, path, server, application, component, format, encoding) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
         [
+            812,
             "mait_linux1_teamcenter_app/logs/fms/fsc/creative_2026-11-24.txt",
             "mait_linux1_teamcenter_app", "fms", "fsc", "bracket_json", "utf-8",
         ],
     )
     source_id = con.execute("SELECT source_id FROM sources").fetchone()[0]
-    assert source_id == 1  # sequence default works
+    assert source_id == 812
 
     con.execute(
         "INSERT INTO events (id, source_id, line_start, line_end, ts_raw, ts_utc, ingest_seq, "

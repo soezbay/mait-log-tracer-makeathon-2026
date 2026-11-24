@@ -7,6 +7,7 @@ Instructions for AI coding agents and humans working in this repository. Written
 1. Read [docs/AI_LOG.md](docs/AI_LOG.md): one line per change, newest at the bottom. It tells you the current state and what is open.
 2. Read your role in [docs/plan.en.md](docs/plan.en.md) §11 and the components in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 3. Check the frozen interfaces before you change anything that others use (§5 below).
+4. Work on `develop` or your own branch only, never on `main` (§8).
 
 ## 2. Project in one paragraph
 
@@ -30,15 +31,16 @@ backend/                   Python 3.12, uv, FastAPI
   tests/
 frontend/                  React 19 + TypeScript (Vite)   [planned]
 eval/                      test questions + ground truth   [planned]
-MAIT_Makeathon_Logpaket/   original log data, READ ONLY, git-ignored
-data/                      derived DuckDB files, git-ignored
+MAIT_Makeathon_Logpaket.zip  the log package, versioned with Git LFS (never edit)
+MAIT_Makeathon_Logpaket/   extracted log data, READ ONLY, git-ignored (created from the ZIP)
+data/                      derived DuckDB files and the extraction marker, git-ignored
 ```
 
 ## 4. Roles and ownership
 
 | Role | Person | Owns |
 |---|---|---|
-| P1 ingest & storage | Safak | `ingest/`, `normalize/` (except `clock.py`), `storage/`, `api/health.py`, `api/ingest.py`, `api/events.py`, `scripts/ingest.py`, `scripts/make_fixture.py` |
+| P1 ingest & storage | Safak | `ingest/`, `normalize/` (except `clock.py`), `storage/`, `api/health.py`, `api/ingest.py`, `api/events.py`, `api/sources.py`, `api/schemas.py`, `api/deps.py`, `services/event_service.py`, `services/ingest_service.py`, `scripts/ingest.py`, `scripts/make_fixture.py` |
 | P2 analysis & correlation | Harsh | `analysis/`, `normalize/clock.py`, `api/analysis.py` |
 | P3 AI assistant | Tarun | `assistant/`, `api/chat.py` |
 | P4 frontend | Adnan | `frontend/` |
@@ -58,6 +60,13 @@ data/                      derived DuckDB files, git-ignored
 Changing an interface: agree with the affected roles first, then change schema/code **and** the example in `contracts/examples/` **and** `docs/ARCHITECTURE.md` in the same commit, and note it in both logs.
 
 ## 6. Development setup
+
+Log package (Git LFS):
+```powershell
+git lfs install                     # once per machine (Git for Windows ships Git LFS)
+git clone <repo>                    # LFS pulls MAIT_Makeathon_Logpaket.zip (~83 MB)
+```
+On every program start (API server, `scripts/ingest.py`, `scripts/make_fixture.py`) the backend checks the package: if the ZIP is missing or only an LFS pointer it runs `git lfs pull` for it (`AUTO_DOWNLOAD`), and if `MAIT_Makeathon_Logpaket/` is missing or incomplete it extracts the missing files once (`AUTO_EXTRACT`, first time ~1 min). Later starts take no time (marker in `data/logpaket.extracted.json`).
 
 Backend:
 ```powershell
@@ -108,9 +117,23 @@ Configuration comes from `backend/.env` (see `backend/.env.example`). Relative p
 
 ## 8. Git workflow
 
-- Branch per role and topic: `p1/backend-setup`, `p2/drain3-templates`, `p4/timeline`, … Never commit directly on `main`.
+**Only work on `develop` or on your own branches. Never commit, merge or push to `main`.**
+
+| Branch | Purpose | Who writes to it |
+|---|---|---|
+| `main` | stable state for the demo and the pitch | only Safak (P1), by merging `develop` when it is green |
+| `develop` | integration branch, base for all work | everyone, by merging their own branch |
+| `p<N>/<topic>` | your own work, e.g. `p2/drain3-templates`, `p4/timeline` | only the owner of the role |
+
+Flow:
+1. Start every task from the latest `develop`: `git switch develop`, `git pull`, `git switch -c p<N>/<topic>`.
+2. Commit on your own branch; pull `develop` into it often to stay close to the others.
+3. When the task is done and `pytest` + `ruff check` pass: merge your branch into `develop` (pull request or merge), push `develop`.
+4. Never rewrite pushed history on `develop` (no force push).
+
+Rules:
 - Small, focused commits. Message: imperative English subject (≤ 72 chars), body with bullets for what and why.
-- Merge into `main` only with green tests; fast-forward or PR. Pull `main` often.
+- An AI agent asked to "merge into main" merges into `develop` instead and points to this rule.
 - Never commit: `.env`, API keys, `*.duckdb`, `MAIT_Makeathon_Logpaket/`, `docs/todo/`.
 
 ## 9. Documentation and work logging (mandatory)
@@ -154,7 +177,7 @@ Decisions that change no file (e.g. "no Docker") are logged too, with `area` = `
 - [ ] `pytest` passes, `ruff check` clean
 - [ ] Interfaces unchanged, or changed with agreement + updated examples + docs
 - [ ] One line in `docs/AI_LOG.md`, entry in `docs/WORKLOG.md`
-- [ ] Committed on the role branch with an English message
+- [ ] Committed on your own branch with an English message and merged into `develop` (never into `main`)
 
 ## 11. Data quick reference
 

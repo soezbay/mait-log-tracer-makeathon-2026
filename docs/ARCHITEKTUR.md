@@ -275,22 +275,24 @@ Basis: `http://localhost:8000/api`, OpenAPI unter `/docs`. JSON, Zeiten immer IS
 
 ```json
 {
-  "summary": "Das Publish von JOB-2003 schlug fehl, weil FMS den JT-Upload abgelehnt hat (fehlendes Schreibrecht auf dem Ziel-Volume), obwohl der Konverter Erfolg meldete.",
+  "summary": "Das Publish von JOB-2003 schlug fehl, weil FMS den JT-Upload abgelehnt hat (Dienstbenutzer DEMO-SERVICE fehlt WRITE_DATASET auf dem Ziel-Volume), obwohl der Konverter Erfolg meldete.",
   "causal_chain": [
     {"step": 1, "server": "mait_win03_cad_converter", "event_ids": [1001], "text": "Konvertierung erfolgreich; JT-Ausgabe DEMO-301.jt"},
-    {"step": 2, "server": "mait_linux1_teamcenter_app", "event_ids": [1002], "text": "FMS-Upload abgelehnt: Zugriffsrichtlinie ohne Schreibrecht auf dem Ziel-Volume"},
-    {"step": 3, "server": "mait_linux1_teamcenter_app", "event_ids": [1003], "text": "Publish-Task fehlgeschlagen: kein registriertes Ergebnis; converter status=SUCCESS"}
+    {"step": 2, "server": "mait_win04_plm_sync", "event_ids": [1002], "text": "FMS-Client: Ergebnis-Upload für DEMO-SERVICE verweigert; permission=WRITE_DATASET"},
+    {"step": 3, "server": "mait_linux1_teamcenter_app", "event_ids": [1003], "text": "FMS-Server-Cache: Upload abgelehnt, Zugriffsrichtlinie ohne Schreibrecht auf dem Ziel-Volume"},
+    {"step": 4, "server": "mait_linux1_teamcenter_app", "event_ids": [1004], "text": "Publish-Task fehlgeschlagen: kein registriertes Ergebnis; converter status=SUCCESS"}
   ],
-  "affected_systems": ["mait_win03_cad_converter", "mait_linux1_teamcenter_app"],
+  "affected_systems": ["mait_win03_cad_converter", "mait_win04_plm_sync", "mait_linux1_teamcenter_app"],
   "evidence": [
     {"event_id": 1001, "file": "mait_win03_cad_converter/logs/converter/nx_jt/creative_2026-11-24.csv", "line": 31, "ts": "2026-11-24T08:30:00Z"},
-    {"event_id": 1002, "file": "mait_linux1_teamcenter_app/logs/fms/fsc/creative_2026-11-24.txt", "line": 29, "ts": "2026-11-24T08:30:08Z"},
-    {"event_id": 1003, "file": "mait_linux1_teamcenter_app/logs/teamcenter/workflow/creative_2026-11-24.jsonl", "line": 30, "ts": "2026-11-24T08:30:12Z"}
+    {"event_id": 1002, "file": "mait_win04_plm_sync/logs/fms/fcc/creative_2026-11-24.jsonl.gz", "line": 29, "ts": "2026-11-24T08:30:04Z"},
+    {"event_id": 1003, "file": "mait_linux1_teamcenter_app/logs/fms/fsc/creative_2026-11-24.txt", "line": 29, "ts": "2026-11-24T08:30:08Z"},
+    {"event_id": 1004, "file": "mait_linux1_teamcenter_app/logs/teamcenter/workflow/creative_2026-11-24.jsonl", "line": 30, "ts": "2026-11-24T08:30:12Z"}
   ],
   "confidence": 0.85,
-  "uncertainty": "Kein Log zeigt, warum das Schreibrecht fehlt (geänderte Richtlinie oder neues Volume).",
+  "uncertainty": "Kein Log zeigt, warum DEMO-SERVICE das Schreibrecht fehlt (geänderte Richtlinie oder neues Volume).",
   "counter_evidence": ["Der Konverter meldet SUCCESS, die Konvertierung selbst ist also nicht die Ursache"],
-  "verification_steps": ["Zugriffsrichtlinie des FMS-Volumes für den hochladenden Dienstbenutzer prüfen", "Prüfen, ob um 08:30 weitere Uploads auf dasselbe Volume fehlschlugen"],
+  "verification_steps": ["Zugriffsrichtlinie des FMS-Volumes für DEMO-SERVICE prüfen", "Prüfen, ob um 08:30 weitere Uploads auf dasselbe Volume fehlschlugen"],
   "recommendation": "Schreibrecht auf dem Ziel-Volume vergeben, danach den Publish-Task neu anstoßen."
 }
 ```

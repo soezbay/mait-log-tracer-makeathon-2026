@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from types import SimpleNamespace
 
+import duckdb
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -222,3 +223,29 @@ def test_chat_validation_and_provider_errors():
     finally:
         chat_api.configure()
     assert events == [("error", {"message": "GEMINI_API_KEY is not set (put it in backend/.env)."})]
+
+
+def test_app_start_shares_the_db_connection_with_chat(tmp_path):
+    from logtracer.core.config import Settings as CoreSettings
+    from logtracer.main import create_app
+
+    db = tmp_path / "app.duckdb"
+    build(duckdb.connect(str(db))).close()
+    provider = ScriptedProvider([
+        resp(call("trace", key="JOB-2003")),
+        resp(call("submit_answer", **good_submission())),
+    ])
+    settings = CoreSettings(_env_file=None, auto_extract=False, auto_download=False, db_path=db,
+                            log_root=tmp_path)
+    app = create_app(settings)
+    try:
+        with TestClient(app) as c:
+            assert chat_api._cursor_factory.__self__ is app.state.db
+            chat_api._provider_factory = lambda: provider
+            r = c.post("/api/chat", json={"question": "Why did JOB-2003 fail?"})
+            assert "event: done" in r.text
+            # written through the app's own connection, readable there right away
+            assert app.state.db.execute("SELECT count(*) FROM llm_calls").fetchone()[0] == 2
+        assert chat_api._cursor_factory is None  # released on shutdown
+    finally:
+        chat_api.configure()
