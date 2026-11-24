@@ -72,16 +72,17 @@ Specifics: 1 file in Windows-1252, CRLF in Windows files, timestamps almost ever
 **Time ranges & data sets**
 - **2026-10-01 to 10-30** (`*.ki-integriert.jsonl`): a month of operation with `trace_id` and **tagged incidents `INC-01` … `INC-10`** (e.g. "Downstream timeout/retry during INC-01; dependency=mait_linux2_teamcenter_db").
 - **2026-10-06** (`import_*.log`): imported free-text error scenarios (jobs 4710/4711, converter, license, workflow).
-- **2026-11-23**: normal operation (`NORMAL-…` jobs), baseline.
+- **2026-11-23**: mostly normal operation (`NORMAL-…` jobs), used as the baseline. It also contains a few failing jobs (`JOB-1xxx`, e.g. `JOB-1003` "No output JT produced" on `mait_windows2`), which must be excluded from the baseline.
 - **2026-11-24** (`creative_*`): targeted error scenarios in all formats.
 
 **Correlation keys**: `job_id`, `trace_id`, `session_id`, `event_id`, `INC-xx`, `dependency=<host>`, object IDs (`DEMO-…`, `DEMO-Seal-17/C`), request IDs (`REQ-…`).
 
 **Error patterns found (candidates for demo & evaluation)**
 - Downstream timeouts with a dependency on the Teamcenter DB or the dispatcher master (`INC-01…10`)
-- "Worker failed … **local clock is behind**" → skewed source clock (`mait_win02_dispatcher_worker`)
-- **Converter reports SUCCESS, publish finds no result** → contradicting systems
-- **Missing assembly reference** `DEMO-Seal-17/C` → "No output JT produced" (multi-line Java exception)
+- "Worker failed … **local clock is behind**" → skewed source clock (`mait_win02_dispatcher_worker`, `dispatcher/module`, `JOB-2001`). The entry itself carries `clock_offset_seconds: -94` and an `observed_at` time, so the offset can be measured instead of guessed.
+- **Converter reports SUCCESS, publish finds no result** (`JOB-2003`) → contradicting systems; the actual cause is a rejected FMS upload (missing write permission on the target volume), see §7
+- **Missing assembly reference** `DEMO-Seal-17/C` (`JOB-2010`) → "Reference target absent" (Teamcenter SOA) → "Export aborted" (NX/JT converter), plus a multi-line Java exception
+- "No output JT produced" (`JOB-1003`, Solid Edge → JT translator on `mait_windows2`, 23 Nov): a separate case, not linked to `DEMO-Seal-17/C`
 - `no space left on device` when writing the result
 - Access denied (reading share, writing PDF, `WRITE_DATASET`)
 - Process killed due to **memory pressure** (large assembly)
@@ -127,9 +128,15 @@ Specifics: 1 file in Windows-1252, CRLF in Windows files, timestamps almost ever
 
 **Pick it from the real data on day 1.** Favorites, because they show the jury's traps:
 
-1. **"JT missing although the converter reports SUCCESS"** (24 Nov): converter `SUCCESS` → publish "no registered result" → cause: missing reference `DEMO-Seal-17/C` (multi-line exception). Shows **contradicting systems + multi-line**.
-2. **`INC-01` in October**: the Teamcenter app repeatedly reports downstream timeouts to `teamcenter_db`. Many ERRORs, **one cause**, partly successful retries. Shows **grouping + retry ≠ failure**.
-3. **"Worker failed, local clock is behind"** (`mait_win02_dispatcher_worker`): shows **source clock correction**. Without it, the order of the chain is wrong.
+1. **"Publish fails although the converter reports SUCCESS"** (24 Nov, `JOB-2003`, verified in the data):
+   - 08:30:00 `mait_win03_cad_converter` `converter/nx_jt`: "Conversion succeeded; JT output=DEMO-301.jt"
+   - 08:30:08 `mait_linux1_teamcenter_app` `fms/fsc`: "Upload rejected; access policy lacks target volume write permission"
+   - 08:30:12 `mait_linux1_teamcenter_app` `teamcenter/workflow`: "Publish task failed: no registered result; converter status=SUCCESS"
+
+   Cause: missing write permission on the FMS volume, not the converter. Shows **contradicting systems** across 2 servers and 3 formats (CSV, TXT, JSONL).
+2. **Missing assembly reference** (24 Nov, `JOB-2010`): `nx/batch` "Required child DEMO-Seal-17/C not resolved" → `teamcenter/soa` "Reference target absent from exported input package" → `converter/nx_jt` "Export aborted because required reference is missing". A **multi-line Java exception** with the same job number follows at 11:01; check whether it belongs to the same job (the README warns that equal display numbers do not always mean the same job).
+3. **`INC-01` in October**: the Teamcenter app repeatedly reports downstream timeouts to `teamcenter_db`. Many ERRORs, **one cause**, partly successful retries. Shows **grouping + retry ≠ failure**.
+4. **"Worker failed, local clock is behind"** (`mait_win02_dispatcher_worker`, `JOB-2001`): shows **source clock correction** (`clock_offset_seconds: -94`). Without it, the order of the chain is wrong.
 
 Plus a **red herring**: harmless ERRORs ("Transient retry recovered") are *not* named as the cause.
 
@@ -234,8 +241,8 @@ Further tables: `templates`, `error_groups` (group with a shared cause, with ret
 | Graph | networkx (+ pyvis/Plotly) | dependency graph |
 | Watcher | watchdog | monitor the folder |
 | LLM | Claude API (tool use); Ollama as "local" option | demo quality; privacy argument |
-| Backend / API | FastAPI + Uvicorn, Pydantic, SSE | clear interface, OpenAPI docs, live streaming |
-| Frontend | React + TypeScript (Vite), Mantine, ECharts, Cytoscape.js; fallback Streamlit | separated from the backend, only via the API |
+| Backend / API | FastAPI + Uvicorn, Pydantic, FastAPI's built-in SSE (`fastapi.sse`) | clear interface, OpenAPI docs, live streaming |
+| Frontend | React 19 + TypeScript (Vite), Mantine, ECharts, Cytoscape.js; Node.js 22 or 24 LTS; fallback Streamlit | separated from the backend, only via the API |
 
 Details on all frameworks and components: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
@@ -393,6 +400,8 @@ By day 1 evening P1 also delivers **`scripts/make_fixture.py`**, which builds a 
 | LLM hallucinates | tool-based answers only, mandatory evidence, state uncertainty |
 | Too much scope | feature freeze day 3, 16:00; could-stories only after MVP |
 | Demo failure | backup video + locally pre-built DuckDB |
+| Drain3 is unmaintained (last release 0.9.11, 2022) | install and test it on day 1 with our Python version; fallback: own regex masking + grouping by masked message |
+| Time zones on Windows | Python's `zoneinfo` has no system time zone data on Windows: add the `tzdata` package as a backend dependency |
 
 ## 15. Definition of done (MVP)
 
@@ -414,7 +423,7 @@ Every phase ends with an **exit criterion**. A phase is only done once it is met
 ### Phase 0: Setup (day 1, early)
 - [ ] [ALL] Clone the repo, copy the log package locally to `MAIT_Makeathon_Logpaket/`
 - [ ] [ING] Create `backend/`: `pyproject.toml` (uv), FastAPI skeleton, `/api/health`, `.env.example`
-- [ ] [FE] Create `frontend/`: Vite + React + TypeScript, Mantine, router, proxy `/api` → `:8000`
+- [ ] [FE] Create `frontend/`: Vite + React 19 + TypeScript, Mantine, router, proxy `/api` → `:8000` (Node.js 22 or 24 LTS; Node 20 is end of life)
 - [ ] [AI] Get a Claude API key, put it in `backend/.env` (never commit it)
 - [ ] [EVAL] Read the log package README and `_dokumentation/`, prepare the mentor questions (§13)
 - [ ] [ALL] Agree on branch rules (feature branch per person, short review before merge)

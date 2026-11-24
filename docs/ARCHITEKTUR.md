@@ -68,30 +68,32 @@ flowchart LR
 | **FastAPI** | Web-Framework für APIs | REST-Endpunkte, automatische OpenAPI-Doku unter `/docs`, Validierung der Anfragen |
 | **Uvicorn** | ASGI-Server | Startet die FastAPI-App |
 | **Pydantic v2** + **pydantic-settings** | Datenmodelle mit Validierung | API-Schemas (Request/Response), Antwortformat des Assistenten, Konfiguration aus `.env` |
-| **sse-starlette** | Server-Sent Events für Starlette/FastAPI | Chat-Antworten und Ingest-Fortschritt live ans Frontend streamen |
+| **FastAPI-SSE** (`fastapi.sse`, eingebaut seit FastAPI 0.135) | Server-Sent Events über `EventSourceResponse` | Chat-Antworten und Ingest-Fortschritt live ans Frontend streamen; kein Zusatzpaket nötig |
 | **DuckDB** | Eingebettete analytische SQL-Datenbank (eine Datei) | Speicher für Quellen, Events, Templates, Gruppen, Hypothesen, LLM-Kosten |
 | **PyArrow** | Spaltenformat im Speicher | Schneller Bulk-Insert von Events in DuckDB (statt Zeile für Zeile) |
 | **pandas** | Tabellen-Datenanalyse | Zeitfenster, Raten pro Minute, Baseline-Berechnung |
-| **Drain3** | Online-Log-Template-Mining | Macht aus Meldungen Templates (`Timeout after <*> to <*>`) für Gruppierung |
+| **Drain3** | Online-Log-Template-Mining | Macht aus Meldungen Templates (`Timeout after <*> to <*>`) für Gruppierung. Hinweis: letzte Version 0.9.11 (2022), wird nicht mehr aktiv gepflegt; Installation an Tag 1 testen |
 | **scikit-learn** | Machine-Learning-Bibliothek | Optional: Isolation Forest für Anomalien auf Template-Häufigkeiten |
 | **networkx** | Graph-Bibliothek | Abhängigkeitsgraph der Server, Kausalketten als gerichteter Graph |
 | **watchdog** | Dateisystem-Beobachtung | Erkennt neue oder wachsende Logdateien für inkrementellen Ingest |
 | **anthropic** (SDK) | Client für die Claude API | LLM-Aufrufe mit Tool-Use, Token-Zählung für Kosten |
 | **httpx** | HTTP-Client | Optionaler Ollama-Provider (lokales LLM), Tests der API |
 | Standardbibliothek: `gzip`, `csv`, `json`, `xml.etree` (iterparse), `hashlib`, `zoneinfo` | | Entpacken, mehrzeilige CSV-Felder, XML streamen, Datei-Hashes, Zeitzonen |
+| **tzdata** | IANA-Zeitzonendaten als Python-Paket | Für `zoneinfo` unter Windows nötig, weil Windows keine Zeitzonendatenbank mitbringt |
 | **pytest**, **ruff** | Tests, Linter/Formatter | Parser-Tests je Format, einheitlicher Code-Stil |
 
-### 2.2 Frontend (Node 20+)
+### 2.2 Frontend (Node.js 22 oder 24 LTS; Node 20 hat im April 2026 sein Lebensende erreicht)
 
 | Framework / Bibliothek | Was es ist | Wofür wir es nutzen |
 |---|---|---|
-| **React 18** + **TypeScript** | UI-Bibliothek mit Typisierung | Komponenten für alle Ansichten |
+| **React 19** + **TypeScript** | UI-Bibliothek mit Typisierung | Komponenten für alle Ansichten (aktuelle Mantine-Versionen setzen React 19 voraus) |
 | **Vite** | Build-Tool & Dev-Server | Schneller Start, Hot Reload, Proxy `/api` → Backend |
 | **TanStack Query** | Server-State-Management | Laden, Cachen und Aktualisieren der API-Daten |
 | **React Router** | Routing | Seiten: Übersicht, Zeitleiste, Fehlergruppen, Graph, Chat |
 | **Mantine** | UI-Komponentenbibliothek | Layout, Tabellen, Filter, Badges, Drawer, Dark Mode |
 | **Apache ECharts** (`echarts-for-react`) | Chart-Bibliothek | Zeitleiste pro Server mit Zoom, Fehlerraten, Anomalie-Marker; performant bei vielen Punkten |
-| **Cytoscape.js** (`react-cytoscapejs`) | Graph-Visualisierung | Abhängigkeitsgraph und Kausalkette |
+| **Cytoscape.js** (`react-cytoscapejs`) | Graph-Visualisierung | Abhängigkeitsgraph und Kausalkette. Der React-Wrapper wurde seit 2022 nicht mehr aktualisiert; bei Problemen `cytoscape` direkt in einer kleinen Komponente mit `useRef`/`useEffect` einbinden |
+| **fetch-event-stream** (oder `fetch` + `ReadableStream`) | SSE-Client für POST-Anfragen | Der Chat-Stream kommt von `POST /chat`; das `EventSource` des Browsers kann nur GET |
 | **react-markdown** | Markdown-Renderer | Chat-Antworten formatiert darstellen |
 | **openapi-typescript** | Typ-Generator | TypeScript-Typen direkt aus der OpenAPI-Spezifikation des Backends |
 
@@ -201,10 +203,10 @@ Verbindet API, Analyse und Speicher. Wird von der API **und** von den LLM-Tools 
 | Komponente | Was sie macht |
 |---|---|
 | `db.py` | Öffnet **eine** DuckDB-Verbindung pro Prozess. Lesende Zugriffe über `cursor()` |
-| `schema.sql` | Tabellen: `sources`, `events`, `templates`, `error_groups`, `group_members`, `anomalies`, `correlations`, `hypotheses`, `llm_calls`, `chat_messages` |
+| `schema.sql` | Tabellen: `sources`, `events`, `templates`, `error_groups`, `group_members`, `anomalies`, `correlations`, `incidents`, `hypotheses`, `llm_calls`, `chat_messages` |
 | `repositories/` | Gekapselte SQL-Abfragen je Tabelle, damit kein SQL in API oder Services verstreut ist |
 
-> **Wichtig zu DuckDB:** Nur **ein Prozess** darf die Datei schreibend öffnen. Darum laufen API, Ingest und Watcher im **selben Backend-Prozess** (Watcher und Ingest als Hintergrund-Tasks). Skripte wie `scripts/ingest.py` laufen nur, wenn das Backend gestoppt ist, oder rufen die API auf.
+> **Wichtig zu DuckDB:** Eine normale Datenbankdatei öffnet entweder **ein Prozess** lesend und schreibend, oder mehrere Prozesse nur lesend. Neuere DuckDB-Versionen bieten zusätzliche Wege für Schreibzugriffe aus mehreren Prozessen, die wir nicht brauchen. Darum laufen API, Ingest und Watcher im **selben Backend-Prozess** (Watcher und Ingest als Hintergrund-Tasks). Skripte wie `scripts/ingest.py` laufen nur, wenn das Backend gestoppt ist, oder rufen die API auf.
 
 ---
 
@@ -223,7 +225,7 @@ frontend/src/
 
 | Seite | Was sie zeigt | Nutzt API |
 |---|---|---|
-| **Übersicht** | Kacheln: Server, Events, ERRORs, offene Fehlergruppen, Ingest-Status; Liste auffälliger Server | `/api/stats`, `/api/analysis/groups` |
+| **Übersicht** | Kacheln: Server, Events, ERRORs, offene Fehlergruppen, Ingest-Status; Liste der Vorfälle (verknüpfte Fehlergruppen) und auffälliger Server | `/api/stats`, `/api/analysis/incidents`, `/api/analysis/groups` |
 | **Zeitleiste** | Eine Spur pro Server, Fehlerrate + Anomalie-Marker, Zoom; Klick öffnet Events im Zeitraum | `/api/analysis/timeseries`, `/api/events` |
 | **Fehlergruppen** | Tabelle: Template, Server, Anzahl, Zeitraum, Status (erholt/fehlgeschlagen), verknüpfte Gruppen | `/api/analysis/groups` |
 | **Abhängigkeiten** | Graph der Server; Kanten aus `dependency=` und Korrelationen; Kausalkette hervorgehoben | `/api/analysis/graph` |
@@ -260,10 +262,11 @@ Basis: `http://localhost:8000/api`, OpenAPI unter `/docs`. JSON, Zeiten immer IS
 | `GET` | `/events/{id}/context?n=10` | Originalzeilen um das Event |
 | `GET` | `/analysis/timeseries` | Events/Fehler pro Server und Zeitfenster |
 | `GET` | `/analysis/groups` | Fehlergruppen mit Status und Verknüpfungen |
+| `GET` | `/analysis/incidents` | Vorfälle: über Server verknüpfte Fehlergruppen mit Zeitraum und Status |
 | `GET` | `/analysis/anomalies` | Anomalien im Zeitraum |
 | `GET` | `/analysis/graph` | Knoten & Kanten für den Abhängigkeitsgraph |
 | `GET` | `/trace/{key}` | Alle Events einer Kette (`job_id`, `trace_id`, Objekt-ID) |
-| `POST` | `/chat` | Frage stellen. Antwort als **SSE**: `step` (Tool-Aufruf), `token` (Text), `answer` (strukturiert), `done` |
+| `POST` | `/chat` | Frage stellen. Antwort als **SSE**: `step` (Tool-Aufruf), `token` (Text), `answer` (strukturiert), `done`. Das Frontend liest den Stream mit `fetch` (z. B. `fetch-event-stream`), weil `EventSource` keine POST-Anfragen senden kann |
 | `GET` | `/chat/{conversation_id}` | Verlauf |
 | `POST` | `/eval/run` | Evaluationslauf starten |
 | `GET` | `/eval/results` | Metriken: Trefferquote, Kosten, Antwortzeit |
@@ -272,23 +275,27 @@ Basis: `http://localhost:8000/api`, OpenAPI unter `/docs`. JSON, Zeiten immer IS
 
 ```json
 {
-  "summary": "JT-Konvertierung lieferte keine Datei, weil eine Baugruppen-Referenz fehlte.",
+  "summary": "Das Publish von JOB-2003 schlug fehl, weil FMS den JT-Upload abgelehnt hat (fehlendes Schreibrecht auf dem Ziel-Volume), obwohl der Konverter Erfolg meldete.",
   "causal_chain": [
-    {"step": 1, "server": "mait_win03_cad_converter", "event_ids": [48211], "text": "Referenz DEMO-Seal-17/C nicht auflösbar"},
-    {"step": 2, "server": "mait_win03_cad_converter", "event_ids": [48212], "text": "No output JT produced"},
-    {"step": 3, "server": "mait_win01_dispatcher_master", "event_ids": [91004], "text": "Publish: no registered result, converter status=SUCCESS"}
+    {"step": 1, "server": "mait_win03_cad_converter", "event_ids": [1001], "text": "Konvertierung erfolgreich; JT-Ausgabe DEMO-301.jt"},
+    {"step": 2, "server": "mait_linux1_teamcenter_app", "event_ids": [1002], "text": "FMS-Upload abgelehnt: Zugriffsrichtlinie ohne Schreibrecht auf dem Ziel-Volume"},
+    {"step": 3, "server": "mait_linux1_teamcenter_app", "event_ids": [1003], "text": "Publish-Task fehlgeschlagen: kein registriertes Ergebnis; converter status=SUCCESS"}
   ],
-  "affected_systems": ["mait_win03_cad_converter", "mait_win01_dispatcher_master"],
-  "evidence": [{"event_id": 48211, "file": "mait_win03_cad_converter/logs/converter/nx_jt/creative_2026-11-24.csv", "line": 812, "ts": "2026-11-24T11:01:00Z"}],
-  "confidence": 0.8,
-  "uncertainty": "Kein Beleg, warum die Referenz fehlt (Datenpflege oder Sync).",
-  "counter_evidence": ["Konverter meldet SUCCESS"],
-  "verification_steps": ["Struktur von DEMO-Seal-17/C in Teamcenter prüfen", "sync_plm-Logs um 11:00 prüfen"],
-  "recommendation": "Referenz korrigieren, Job neu anstoßen."
+  "affected_systems": ["mait_win03_cad_converter", "mait_linux1_teamcenter_app"],
+  "evidence": [
+    {"event_id": 1001, "file": "mait_win03_cad_converter/logs/converter/nx_jt/creative_2026-11-24.csv", "line": 31, "ts": "2026-11-24T08:30:00Z"},
+    {"event_id": 1002, "file": "mait_linux1_teamcenter_app/logs/fms/fsc/creative_2026-11-24.txt", "line": 29, "ts": "2026-11-24T08:30:08Z"},
+    {"event_id": 1003, "file": "mait_linux1_teamcenter_app/logs/teamcenter/workflow/creative_2026-11-24.jsonl", "line": 30, "ts": "2026-11-24T08:30:12Z"}
+  ],
+  "confidence": 0.85,
+  "uncertainty": "Kein Log zeigt, warum das Schreibrecht fehlt (geänderte Richtlinie oder neues Volume).",
+  "counter_evidence": ["Der Konverter meldet SUCCESS, die Konvertierung selbst ist also nicht die Ursache"],
+  "verification_steps": ["Zugriffsrichtlinie des FMS-Volumes für den hochladenden Dienstbenutzer prüfen", "Prüfen, ob um 08:30 weitere Uploads auf dasselbe Volume fehlschlugen"],
+  "recommendation": "Schreibrecht auf dem Ziel-Volume vergeben, danach den Publish-Task neu anstoßen."
 }
 ```
 
-*(Werte sind ein Beispiel für das Format, keine Analyseergebnisse.)*
+*(Kette, Dateien, Zeilen und Zeiten stammen aus dem Logpaket; die Event-IDs sind Platzhalter für die internen DuckDB-IDs.)*
 
 ---
 
@@ -475,7 +482,7 @@ Das Backend erzeugt `openapi.json`. Das Frontend erzeugt daraus mit `openapi-typ
 | E3 | Ein Backend-Prozess für API, Ingest und Watcher | DuckDB erlaubt nur einen schreibenden Prozess | Separater Worker + Server-DB |
 | E4 | LLM nur über Tools, nie Rohlogs komplett | Kosten, Genauigkeit, Belegbarkeit | Ganze Dateien in den Kontext (Vergleichswert in der Evaluation) |
 | E5 | Regelbasierte/statistische Analyse vor ML | Erklärbar, schnell gebaut, in 3 Tagen testbar | Deep-Learning-Anomalieerkennung |
-| E6 | SSE statt WebSockets | Nur Server → Client nötig, einfacher | WebSockets |
+| E6 | SSE statt WebSockets | Nur Server → Client nötig, einfacher; `GET`-Streams über `EventSource`, der `POST /chat`-Stream über `fetch` | WebSockets |
 | E7 | Provider-Schnittstelle für das LLM | Claude für Qualität, Ollama für Datenschutz-Demo | Fest verdrahteter Anbieter |
 
 ## 12. Offene Punkte

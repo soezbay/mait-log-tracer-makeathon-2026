@@ -68,30 +68,32 @@ flowchart LR
 | **FastAPI** | web framework for APIs | REST endpoints, automatic OpenAPI docs at `/docs`, request validation |
 | **Uvicorn** | ASGI server | runs the FastAPI app |
 | **Pydantic v2** + **pydantic-settings** | data models with validation | API schemas (request/response), the assistant's answer format, configuration from `.env` |
-| **sse-starlette** | Server-Sent Events for Starlette/FastAPI | stream chat answers and ingest progress live to the frontend |
+| **FastAPI SSE** (`fastapi.sse`, built in since FastAPI 0.135) | Server-Sent Events via `EventSourceResponse` | stream chat answers and ingest progress live to the frontend; no extra package needed |
 | **DuckDB** | embedded analytical SQL database (single file) | storage for sources, events, templates, groups, hypotheses, LLM cost |
 | **PyArrow** | in-memory columnar format | fast bulk insert of events into DuckDB (instead of row by row) |
 | **pandas** | tabular data analysis | time windows, rates per minute, baseline computation |
-| **Drain3** | online log template mining | turns messages into templates (`Timeout after <*> to <*>`) for grouping |
+| **Drain3** | online log template mining | turns messages into templates (`Timeout after <*> to <*>`) for grouping. Note: last release 0.9.11 (2022), no longer actively maintained; test the install on day 1 |
 | **scikit-learn** | machine learning library | optional: Isolation Forest for anomalies on template frequencies |
 | **networkx** | graph library | server dependency graph, causal chains as directed graphs |
 | **watchdog** | file system monitoring | detects new or growing log files for incremental ingest |
 | **anthropic** (SDK) | client for the Claude API | LLM calls with tool use, token counting for cost |
 | **httpx** | HTTP client | optional Ollama provider (local LLM), API tests |
 | Standard library: `gzip`, `csv`, `json`, `xml.etree` (iterparse), `hashlib`, `zoneinfo` | | decompression, multi-line CSV fields, XML streaming, file hashes, time zones |
+| **tzdata** | IANA time zone data as a Python package | required for `zoneinfo` on Windows, which has no system time zone database |
 | **pytest**, **ruff** | tests, linter/formatter | parser tests per format, consistent code style |
 
-### 2.2 Frontend (Node 20+)
+### 2.2 Frontend (Node.js 22 or 24 LTS; Node 20 reached end of life in April 2026)
 
 | Framework / library | What it is | What we use it for |
 |---|---|---|
-| **React 18** + **TypeScript** | UI library with typing | components for all views |
+| **React 19** + **TypeScript** | UI library with typing | components for all views (current Mantine versions require React 19) |
 | **Vite** | build tool & dev server | fast startup, hot reload, proxy `/api` → backend |
 | **TanStack Query** | server state management | loading, caching and refreshing API data |
 | **React Router** | routing | pages: overview, timeline, error groups, graph, chat |
 | **Mantine** | UI component library | layout, tables, filters, badges, drawer, dark mode |
 | **Apache ECharts** (`echarts-for-react`) | charting library | per-server timeline with zoom, error rates, anomaly markers; performs well with many points |
-| **Cytoscape.js** (`react-cytoscapejs`) | graph visualization | dependency graph and causal chain |
+| **Cytoscape.js** (`react-cytoscapejs`) | graph visualization | dependency graph and causal chain. The React wrapper has not been updated since 2022; if it causes problems, use `cytoscape` directly in a small component with `useRef`/`useEffect` |
+| **fetch-event-stream** (or `fetch` + `ReadableStream`) | SSE client for POST requests | the chat stream comes from `POST /chat`; the browser's `EventSource` only supports GET |
 | **react-markdown** | Markdown renderer | render chat answers |
 | **openapi-typescript** | type generator | TypeScript types generated from the backend's OpenAPI spec |
 
@@ -201,10 +203,10 @@ Connects API, analysis and storage. Used by the API **and** the LLM tools, so bo
 | Component | What it does |
 |---|---|
 | `db.py` | opens **one** DuckDB connection per process. Reads go through `cursor()` |
-| `schema.sql` | tables: `sources`, `events`, `templates`, `error_groups`, `group_members`, `anomalies`, `correlations`, `hypotheses`, `llm_calls`, `chat_messages` |
+| `schema.sql` | tables: `sources`, `events`, `templates`, `error_groups`, `group_members`, `anomalies`, `correlations`, `incidents`, `hypotheses`, `llm_calls`, `chat_messages` |
 | `repositories/` | encapsulated SQL queries per table, so no SQL is scattered across API or services |
 
-> **Important about DuckDB:** only **one process** may open the file for writing. That is why API, ingest and watcher run in the **same backend process** (watcher and ingest as background tasks). Scripts like `scripts/ingest.py` only run while the backend is stopped, or they call the API.
+> **Important about DuckDB:** with a normal database file, either **one process** opens it for reading and writing, or several processes open it read-only. Newer DuckDB versions offer extra options for writing from several processes, which we do not need. That is why API, ingest and watcher run in the **same backend process** (watcher and ingest as background tasks). Scripts like `scripts/ingest.py` only run while the backend is stopped, or they call the API.
 
 ---
 
@@ -223,7 +225,7 @@ frontend/src/
 
 | Page | What it shows | Uses API |
 |---|---|---|
-| **Overview** | tiles: servers, events, ERRORs, open error groups, ingest status; list of abnormal servers | `/api/stats`, `/api/analysis/groups` |
+| **Overview** | tiles: servers, events, ERRORs, open error groups, ingest status; list of incidents (linked error groups) and abnormal servers | `/api/stats`, `/api/analysis/incidents`, `/api/analysis/groups` |
 | **Timeline** | one lane per server, error rate + anomaly markers, zoom; click opens the events in that range | `/api/analysis/timeseries`, `/api/events` |
 | **Error groups** | table: template, server, count, time range, status (recovered/failed), linked groups | `/api/analysis/groups` |
 | **Dependencies** | server graph; edges from `dependency=` and correlations; causal chain highlighted | `/api/analysis/graph` |
@@ -260,10 +262,11 @@ Base: `http://localhost:8000/api`, OpenAPI at `/docs`. JSON, times always ISO-86
 | `GET` | `/events/{id}/context?n=10` | original lines around the event |
 | `GET` | `/analysis/timeseries` | events/errors per server and time window |
 | `GET` | `/analysis/groups` | error groups with status and links |
+| `GET` | `/analysis/incidents` | incidents: correlated error groups across servers with time range and status |
 | `GET` | `/analysis/anomalies` | anomalies in a time range |
 | `GET` | `/analysis/graph` | nodes & edges for the dependency graph |
 | `GET` | `/trace/{key}` | all events of a chain (`job_id`, `trace_id`, object ID) |
-| `POST` | `/chat` | ask a question. Answer as **SSE**: `step` (tool call), `token` (text), `answer` (structured), `done` |
+| `POST` | `/chat` | ask a question. Answer as **SSE**: `step` (tool call), `token` (text), `answer` (structured), `done`. The frontend reads this stream with `fetch` (e.g. `fetch-event-stream`), because `EventSource` cannot send POST requests |
 | `GET` | `/chat/{conversation_id}` | history |
 | `POST` | `/eval/run` | start an evaluation run |
 | `GET` | `/eval/results` | metrics: hit rate, cost, response time |
@@ -272,23 +275,27 @@ Base: `http://localhost:8000/api`, OpenAPI at `/docs`. JSON, times always ISO-86
 
 ```json
 {
-  "summary": "JT conversion produced no file because an assembly reference was missing.",
+  "summary": "Publishing JOB-2003 failed because FMS rejected the JT upload (missing write permission on the target volume), although the converter reported success.",
   "causal_chain": [
-    {"step": 1, "server": "mait_win03_cad_converter", "event_ids": [48211], "text": "Reference DEMO-Seal-17/C could not be resolved"},
-    {"step": 2, "server": "mait_win03_cad_converter", "event_ids": [48212], "text": "No output JT produced"},
-    {"step": 3, "server": "mait_win01_dispatcher_master", "event_ids": [91004], "text": "Publish: no registered result, converter status=SUCCESS"}
+    {"step": 1, "server": "mait_win03_cad_converter", "event_ids": [1001], "text": "Conversion succeeded; JT output=DEMO-301.jt"},
+    {"step": 2, "server": "mait_linux1_teamcenter_app", "event_ids": [1002], "text": "FMS upload rejected: access policy lacks target volume write permission"},
+    {"step": 3, "server": "mait_linux1_teamcenter_app", "event_ids": [1003], "text": "Publish task failed: no registered result; converter status=SUCCESS"}
   ],
-  "affected_systems": ["mait_win03_cad_converter", "mait_win01_dispatcher_master"],
-  "evidence": [{"event_id": 48211, "file": "mait_win03_cad_converter/logs/converter/nx_jt/creative_2026-11-24.csv", "line": 812, "ts": "2026-11-24T11:01:00Z"}],
-  "confidence": 0.8,
-  "uncertainty": "No evidence why the reference is missing (data maintenance or sync).",
-  "counter_evidence": ["Converter reports SUCCESS"],
-  "verification_steps": ["Check the structure of DEMO-Seal-17/C in Teamcenter", "Check sync_plm logs around 11:00"],
-  "recommendation": "Fix the reference, resubmit the job."
+  "affected_systems": ["mait_win03_cad_converter", "mait_linux1_teamcenter_app"],
+  "evidence": [
+    {"event_id": 1001, "file": "mait_win03_cad_converter/logs/converter/nx_jt/creative_2026-11-24.csv", "line": 31, "ts": "2026-11-24T08:30:00Z"},
+    {"event_id": 1002, "file": "mait_linux1_teamcenter_app/logs/fms/fsc/creative_2026-11-24.txt", "line": 29, "ts": "2026-11-24T08:30:08Z"},
+    {"event_id": 1003, "file": "mait_linux1_teamcenter_app/logs/teamcenter/workflow/creative_2026-11-24.jsonl", "line": 30, "ts": "2026-11-24T08:30:12Z"}
+  ],
+  "confidence": 0.85,
+  "uncertainty": "No log shows why the write permission is missing (changed policy or new volume).",
+  "counter_evidence": ["The converter reports SUCCESS, so the conversion itself is not the cause"],
+  "verification_steps": ["Check the FMS volume's access policy for the uploading service user", "Check whether other uploads to the same volume failed around 08:30"],
+  "recommendation": "Grant write permission on the target volume, then resubmit the publish task."
 }
 ```
 
-*(Values illustrate the format; they are not analysis results.)*
+*(Chain, files, lines and times are from the log package; the event IDs are placeholders for the internal DuckDB IDs.)*
 
 ---
 
@@ -475,7 +482,7 @@ The backend generates `openapi.json`. The frontend generates its types from it w
 | D3 | One backend process for API, ingest and watcher | DuckDB allows only one writing process | separate worker + server DB |
 | D4 | LLM only via tools, never full raw logs | cost, accuracy, evidence | whole files in context (baseline in the evaluation) |
 | D5 | Rule-based/statistical analysis before ML | explainable, quick to build, testable in 3 days | deep-learning anomaly detection |
-| D6 | SSE instead of WebSockets | only server → client needed, simpler | WebSockets |
+| D6 | SSE instead of WebSockets | only server → client needed, simpler; `GET` streams via `EventSource`, the `POST /chat` stream via `fetch` | WebSockets |
 | D7 | Provider interface for the LLM | Claude for quality, Ollama for the privacy demo | hard-wired vendor |
 
 ## 12. Open items
