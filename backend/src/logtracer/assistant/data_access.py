@@ -78,6 +78,26 @@ def _compress_keys(keys: list[str], show: int = 6) -> dict[str, Any]:
     return {"count": len(keys), "first": keys[:3], "last": keys[-2:]}
 
 
+def _related_sentence(key: str, n_events: int, keys: list[str], groups: dict[str, Any]) -> str:
+    """E.g. 'ALSO: 98 log lines of 49 OTHER jobs (JOB-2003-R01 ... JOB-2003-R49) mention JOB-2003:
+    49x ERROR mait_win04_plm_sync fms/fcc "Result upload denied ..."; ...'"""
+    if not keys:
+        span = "other keys"
+    elif len(keys) == 1:
+        span = keys[0]
+    else:
+        span = f"{keys[0]} ... {keys[-1]}"
+    cols = groups["cols"]
+    parts = []
+    for row in groups["rows"][:3]:
+        g = dict(zip(cols, row))
+        parts.append(f'{g["count"]}x {g["level"]} {g["host"]} {g["component"]} '
+                     f'"{_short(g["message_example"], 80)}"')
+    return (f"ALSO: {n_events} log lines of {len(keys)} OTHER jobs/traces ({span}) mention {key}: "
+            + "; ".join(parts)
+            + ". Say in the answer whether they failed the same way (e.g. re-runs of the same job).")
+
+
 class LogStore:
     """Read/write access for the assistant on top of a DuckDB connection or cursor."""
 
@@ -294,13 +314,15 @@ class LogStore:
                 ).fetchall()
                 if r[0]
             ]
+            groups = self._groups(related, rparams)
             out["related"] = {
                 "events": n_related,
                 "keys": _compress_keys(keys),
-                "groups": self._groups(related, rparams),
-                "note": "Other jobs/traces whose log lines mention this key (e.g. re-runs). "
-                        "Check whether they failed the same way before naming a cause.",
+                "groups": groups,
             }
+            # A plain sentence at the TOP of the result: models skim nested tables at the end.
+            out = {"key": key, "related_summary": _related_sentence(key, n_related, keys, groups),
+                   **{k: v for k, v in out.items() if k != "key"}}
         return out
 
     def context(self, event_id: int, n: int = 5, window_seconds: int = 0) -> dict[str, Any]:

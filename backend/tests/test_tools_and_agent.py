@@ -313,3 +313,50 @@ def test_answer_without_counter_evidence_is_sent_back(con):
     ans = next(e["data"] for e in ev if e["event"] == "answer")
     assert ans["counter_evidence"] == ["Converter reported SUCCESS."]
     assert "counter_evidence is empty" in json.dumps([r for _, r in p.tool_results[-1]])
+
+
+def test_trace_puts_related_failures_first_as_a_sentence(con, box):
+    add_reruns(con, 7)
+    r = box.execute("trace", {"key": "JOB-2003"})
+    assert list(r)[:2] == ["key", "related_summary"]
+    sentence = r["related_summary"]
+    assert "14 log lines of 7 OTHER jobs" in sentence and "JOB-2003-R01 ... JOB-2003-R07" in sentence
+    assert "7x ERROR" in sentence
+    assert box.related_failures["JOB-2003"]["count"] == 7
+
+
+def test_answer_ignoring_failed_reruns_is_sent_back(con):
+    add_reruns(con, 7)
+    fixed = good_submission(
+        summary="Publish of JOB-2003 failed: FMS rejected the upload. The same failure repeated in "
+                "7 re-runs (JOB-2003-R01 ... R07).")
+    p = ScriptedProvider([
+        resp(call("trace", key="JOB-2003")),
+        resp(call("submit_answer", **good_submission())),  # says nothing about the re-runs
+        resp(call("submit_answer", **fixed)),
+    ])
+    ev = run(con, p)
+    ans = next(e["data"] for e in ev if e["event"] == "answer")
+    assert "re-runs" in ans["summary"]
+    sent_back = json.dumps([r for _, r in p.tool_results[-1]])
+    assert "ignores related jobs" in sent_back and "7 other jobs" in sent_back
+
+
+def test_answer_naming_a_rerun_is_accepted_first_time(con):
+    add_reruns(con, 3)
+    ok = good_submission(uncertainty="JOB-2003-R02 failed the same way; logs do not show why.")
+    p = ScriptedProvider([resp(call("trace", key="JOB-2003")), resp(call("submit_answer", **ok))])
+    ev = run(con, p)
+    assert any(e["event"] == "answer" for e in ev)
+    assert len(p.tool_results) == 1  # no second submit was needed
+
+
+def test_info_only_related_lines_do_not_force_a_mention(con, box):
+    con.execute(
+        "INSERT INTO events (id, source_id, line_start, line_end, ts_utc, ingest_seq, host, level, "
+        "job_id, message, raw) VALUES (9001, 4, 1, 1, TIMESTAMP '2026-11-24 09:00:00', 9001, 'h', "
+        "'INFO', 'AUDIT-7', 'audit entry', 'INFO job=AUDIT-7 parent=JOB-2003 audit entry')"
+    )
+    r = box.execute("trace", {"key": "JOB-2003"})
+    assert r["related"]["events"] == 1  # still reported
+    assert box.related_failures == {}  # but nothing failed, so no mention is required

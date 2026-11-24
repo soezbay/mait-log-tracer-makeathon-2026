@@ -186,6 +186,8 @@ class ToolBox:
     def __init__(self, store: LogStore):
         self.store = store
         self.seen_event_ids: set[int] = set()
+        # trace key -> related jobs that logged WARN/ERROR/FATAL (the answer must mention them)
+        self.related_failures: dict[str, dict[str, Any]] = {}
         self._handlers: dict[str, Callable[..., dict[str, Any]]] = {
             "get_stats": store.stats,
             "get_incidents": lambda **kw: store.incidents(**kw),
@@ -223,4 +225,23 @@ class ToolBox:
             return {"error": f"Database error while running {name}: {str(exc)[:200]}"}
         result = _fit(_json_safe(result))
         self.seen_event_ids |= collect_event_ids(result)
+        if name == "trace":
+            self._remember_related(result)
         return result
+
+    def _remember_related(self, result: dict[str, Any]) -> None:
+        rel = result.get("related")
+        if not isinstance(rel, dict):
+            return
+        groups = rel.get("groups") or {}
+        cols = groups.get("cols") or []
+        if "level" not in cols:
+            return
+        i = cols.index("level")
+        if not any(str(row[i]).upper() in ("WARN", "ERROR", "FATAL") for row in groups.get("rows", [])):
+            return
+        keys = rel.get("keys") or {}
+        shown = (keys.get("list") or []) + (keys.get("first") or []) + (keys.get("last") or [])
+        self.related_failures[str(result.get("key"))] = {
+            "events": rel.get("events"), "count": keys.get("count", len(shown)), "keys": shown,
+        }
