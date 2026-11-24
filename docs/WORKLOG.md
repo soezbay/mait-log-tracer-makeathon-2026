@@ -126,4 +126,8 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `backend/src/logtracer/core/config.py`, `backend/.env.example`, `backend/src/logtracer/__init__.py`, `backend/tests/test_config.py`.
 - **Open:** frontend `.env` (`VITE_…`) once the frontend exists.
 
+### GitHub push access
+- **What:** Checked the repository via the public GitHub API: public repo, `main` is not protected, no rulesets. Teammates cannot push because the repo belongs to a personal account and only the owner and invited collaborators may push.
+- **Open:** Safak adds Harsh, Tarun and Adnan under Settings → Collaborators; they accept the invitation.
+
 **Open (not done by Claude):** `plan.md`/`plan.en.md` were moved to `docs/` and `docs/todo/` was added to `.gitignore` locally; not committed yet. Links to `../plan*.md` in the architecture docs and the P1 TODO need updating after that move.
