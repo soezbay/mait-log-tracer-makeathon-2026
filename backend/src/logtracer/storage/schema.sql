@@ -22,11 +22,10 @@ CREATE TABLE IF NOT EXISTS servers (
     info        JSON                   -- full server_info.json
 );
 
-CREATE SEQUENCE IF NOT EXISTS seq_source_id START 1;
-
 -- One row per log file (README.md and server_info.json are not log files).
+-- source_id is assigned by the pipeline (stable order: sorted by path), like events.id.
 CREATE TABLE IF NOT EXISTS sources (
-    source_id        INTEGER PRIMARY KEY DEFAULT nextval('seq_source_id'),
+    source_id        INTEGER PRIMARY KEY,
     path             VARCHAR NOT NULL UNIQUE, -- relative to LOG_ROOT, forward slashes
     server           VARCHAR NOT NULL,        -- first path segment
     application      VARCHAR,                 -- logs/<application>/...
