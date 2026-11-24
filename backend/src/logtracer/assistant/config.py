@@ -14,7 +14,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from logtracer.core.config import BACKEND_DIR
 
 DEFAULT_MODELS = {
-    "gemini": "gemini-2.5-flash",
+    "gemini": "gemini-3.6-flash",
     "claude": "claude-sonnet-5-5",
 }
 

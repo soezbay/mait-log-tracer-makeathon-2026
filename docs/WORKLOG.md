@@ -116,3 +116,13 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `backend/src/logtracer/assistant/providers/gemini.py`, `backend/src/logtracer/assistant/providers/base.py`, `backend/tests/test_providers_and_api.py`.
 - **Checks:** 40 tests pass, `ruff check` clean.
 - **Open:** rerun `scripts/ask.py` to see Google's message; first successful live Gemini answer.
+
+### First live Gemini answer, default model gemini-3.6-flash (P3, Tarun)
+- **What:**
+  - First successful run against real Gemini on the stand-in DB built from the full log package. Question: "Why did the publish of JOB-2003 fail on 24 Nov?" Answer: FMS rejected the JT upload (missing write permission), confidence 0.95. Evidence matches the reference chain in ARCHITECTURE.md §5 (converter csv:31 08:30:00, FMS fsc txt:29 08:30:08, workflow jsonl:30 08:30:12) and adds the FMS client denial on mait_win04_plm_sync (fcc jsonl.gz:29, 08:30:04). The decoy `DEMO-Seal-17/C` and harmless retry ERRORs were not named. 6 tool calls, 7 LLM calls, 41,580 input + 2,948 output tokens, 152 s.
+  - Default Gemini model changed from `gemini-2.5-flash` to `gemini-3.6-flash`: 2.5 is only served to keys that used it before; `gemini-3.8-flash` and `gemini-4-hydrogen` answered `503 UNAVAILABLE` (high demand) at the time of testing.
+  - Cost wording: `cost_eur` is the paid-tier list price per question (the pitch metric); free-tier calls are not billed. Models without a known price show "cost unknown" until `PRICE_INPUT_PER_MTOK` / `PRICE_OUTPUT_PER_MTOK` are set.
+- **Why:** New team members' keys cannot use 2.5; the default must work out of the box.
+- **Where:** `backend/src/logtracer/assistant/config.py`, `costs.py`, `backend/scripts/ask.py`, `backend/.env.example`, `docs/ARCHITECTURE.md`, `contracts/examples/chat_stream.sse`.
+- **Checks:** 40 tests pass, `ruff check` clean; live run as above.
+- **Open:** verify gemini-3.6-flash prices and set `PRICE_*` before the pitch; 152 s per answer is too slow for a live demo (fewer rounds or lower thinking level); incidents/correlations empty until P2 delivers.

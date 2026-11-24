@@ -22,6 +22,12 @@ from logtracer.assistant.data_access import LogStore
 from logtracer.assistant.providers import ProviderError, create_provider
 
 
+def _cost(eur: float | None) -> str:
+    if eur is None:
+        return "cost unknown (set PRICE_INPUT_PER_MTOK / PRICE_OUTPUT_PER_MTOK in .env)"
+    return f"est. paid-tier cost {eur} EUR"
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("question")
@@ -54,7 +60,7 @@ def main() -> int:
             answer = data
         elif kind == "done" and not args.json:
             print(f"\n[{data['provider']}/{data['model']}] {data['llm_calls']} LLM calls, {data['tool_calls']} tool calls, "
-                  f"{data['input_tokens']}+{data['output_tokens']} tokens, est. cost {data['cost_eur']} EUR, "
+                  f"{data['input_tokens']}+{data['output_tokens']} tokens, {_cost(data['cost_eur'])}, "
                   f"{data['duration_ms'] / 1000:.1f}s", file=sys.stderr)
         elif kind == "error":
             print(f"ERROR: {data['message']}", file=sys.stderr)

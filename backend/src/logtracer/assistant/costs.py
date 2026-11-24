@@ -9,8 +9,10 @@ from dataclasses import dataclass, field
 from .config import Settings
 from .data_access import LogStore
 
-# USD per 1M tokens (input, output). VERIFY on the provider's pricing page before quoting numbers in the
-# pitch, or override with PRICE_INPUT_PER_MTOK / PRICE_OUTPUT_PER_MTOK in .env.
+# Paid list prices in USD per 1M tokens (input, output). The cost is what a paid account would pay
+# per question (the pitch metric "EUR per question"); calls on the free tier are not billed.
+# Models missing here get cost None unless PRICE_INPUT_PER_MTOK / PRICE_OUTPUT_PER_MTOK are set in .env.
+# VERIFY on the provider's pricing page before quoting numbers in the pitch.
 PRICES: dict[str, tuple[float, float]] = {
     "gemini-2.5-flash": (0.30, 2.50),
     "gemini-2.5-pro": (1.25, 10.00),

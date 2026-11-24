@@ -104,7 +104,7 @@ flowchart LR
 | Service | Role | Note |
 |---|---|---|
 | **Claude API** (Anthropic) | LLM for the assistant (tool use) | e.g. `claude-sonnet-5-5`; key in the backend only (`.env`) |
-| **Gemini API** (Google) | alternative LLM provider (tool use), free tier for development | e.g. `gemini-2.5-flash`; key in the backend only (`.env`) |
+| **Gemini API** (Google) | alternative LLM provider (tool use), free tier for development | e.g. `gemini-3.6-flash` (free tier available); key in the backend only (`.env`) |
 | **Ollama** (optional) | local LLM | privacy argument: no logs leave the premises |
 
 ---
