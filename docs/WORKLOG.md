@@ -238,3 +238,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `frontend/src/time.ts`, `frontend/src/main.tsx`, `frontend/src/ProcessMonitor.tsx`, `frontend/src/i18n.tsx`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
 - **Checks:** TypeScript `--noEmit` and Vite production build passed. Timeline parameters are converted to UTC ISO strings before API filtering.
 - **Open:** -
+
+### Pull and start the backend
+- **What:** The feature branch was already current with its upstream. Installed Python 3.12.10 for the current Windows user, synced backend dependencies from `uv.lock`, and started the API in a hidden background process at `http://127.0.0.1:8000`.
+- **Why:** Make the local backend available to the frontend for development.
+- **Where:** Local runtime in `backend/.venv`; generated database in `data/logtracer.duckdb`; no backend source files changed.
+- **Checks:** `GET /api/health` returns `status: ok` and `db_found: true`.
+- **Open:** `log_root_found: false`; `MAIT_Makeathon_Logpaket/` is absent from this checkout, so the local database is empty until the log package is provided.
