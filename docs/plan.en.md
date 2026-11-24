@@ -527,7 +527,7 @@ Decisions we postponed on purpose. Each entry says what is open, the options, an
 
 ### D1: Where the log package is hosted (repo visibility)
 
-- **Status:** open, decide later as a team. Commit `87bfd44` (ZIP via Git LFS) is **not pushed** until this is decided.
+- **Status:** open, decide later as a team. On 2026-11-24 Safak decided to push commit `87bfd44` (ZIP via Git LFS) to the still **public** repo, so the ZIP is publicly downloadable until the repo is made private.
 - **Problem:** on GitHub, a Git LFS file has the same visibility as its repository. LFS files cannot be made private on their own, so in a public repo anyone can download the ZIP. Once an LFS object is in a public repo, removing it means deleting the repo or asking GitHub support.
 - **Options:**
 

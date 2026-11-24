@@ -456,7 +456,7 @@ Bewusst vertagte Entscheidungen (Details und Stand in [plan.en.md](plan.en.md) �
 
 ### D1: Wo das Logpaket liegt (Sichtbarkeit des Repos)
 
-- **Stand:** offen, entscheiden wir später im Team. Commit `87bfd44` (ZIP per Git LFS) wird bis dahin **nicht gepusht**.
+- **Stand:** offen, entscheiden wir später im Team. Am 24.11. hat Safak entschieden, Commit `87bfd44` (ZIP per Git LFS) in das noch **öffentliche** Repo zu pushen; die ZIP ist damit öffentlich abrufbar, bis das Repo privat gestellt wird.
 - **Problem:** Eine LFS-Datei hat bei GitHub immer dieselbe Sichtbarkeit wie das Repo; man kann sie nicht einzeln privat stellen. In einem öffentlichen Repo kann jeder die ZIP herunterladen, und einmal hochgeladen bekommt man sie nur durch Löschen des Repos oder über den GitHub-Support wieder weg.
 - **Möglichkeiten:**
 

@@ -197,4 +197,9 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `docs/plan.en.md`, `docs/plan.md`, `docs/ARCHITECTURE.md`, `docs/ARCHITEKTUR.md`
 - **Also:** Safak invited Harsh, Tarun and Adnan as GitHub collaborators.
 
+### Push incl. the log package ZIP; main updated
+- **What:** Pushed `p1/ingest` and `develop`, fast-forwarded `main` to `develop` and pushed it. This includes the Git LFS ZIP (`87bfd44`), uploaded to the repo while it is still public. Plan §17 D1 status updated.
+- **Why:** Safak decided to push everything now, knowing the repo is public; he owns `main` and asked for the merge.
+- **Open:** D1 (private repo or separate data repo) is still open; until the repo is private the ZIP can be downloaded by anyone.
+
 **Open (not done by Claude):** `plan.md`/`plan.en.md` were moved to `docs/` and `docs/todo/` was added to `.gitignore` locally; not committed yet. Links to `../plan*.md` in the architecture docs and the P1 TODO need updating after that move.
