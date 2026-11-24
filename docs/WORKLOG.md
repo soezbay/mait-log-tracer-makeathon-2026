@@ -204,8 +204,13 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 
 ### Remove IDE settings from Git
 - **What:** `git rm --cached -r .idea/` (6 JetBrains files that came in with the merged PRs); `.gitignore` now ignores `.idea/`, `.vscode/` and `data/`.
-- **Why:** IDE settings are personal and cause needless conflicts; `data/` only holds derived files (DuckDB, extraction marker) that are rebuilt by script. The files stay on everyone's disk.
+- **Why:** IDE settings are personal and cause needless conflicts; `data/` only holds derived files (DuckDB, extraction marker) that are rebuilt by script. Note: pulling this commit deletes the local `.idea/` folder once (Git removes files that a pulled commit stops tracking); JetBrains IDEs recreate it on the next start, and from then on it stays untracked.
 - **Where:** `.gitignore`
+
+### Decision: main stays the default branch
+- **What:** `main` remains the GitHub default branch (Safak). `AGENTS.md` §8 now says to set the base branch to `develop` when opening a pull request.
+- **Why:** PRs #1 and #2 went into `main` because GitHub targets the default branch; the rule makes the base choice explicit.
+- **Where:** `AGENTS.md` §8
 
 **Open (not done by Claude):** `plan.md`/`plan.en.md` were moved to `docs/` and `docs/todo/` was added to `.gitignore` locally; not committed yet. Links to `../plan*.md` in the architecture docs and the P1 TODO need updating after that move.
 
