@@ -21,6 +21,21 @@ const statusKeys: Record<Process['status'], MessageKey> = {
   Fehlgeschlagen: 'status.failed', Unklar: 'status.unknown',
 }
 
+type ProcessFilterState = {
+  search: string
+  host: string
+  workflow: string
+  status: string
+  kind: string
+  from: string
+  to: string
+  sort: string
+}
+
+const initialProcessFilters: ProcessFilterState = {
+  search: '', host: '', workflow: '', status: '', kind: '', from: '', to: '', sort: 'recent',
+}
+
 function workflowLabel(value: string, language: 'en' | 'de') {
   const english: Record<string, string> = { 'NX → JT · Baugruppe': 'NX → JT · Assembly', 'PLM-Synchronisation': 'PLM Synchronization' }
   const german: Record<string, string> = { 'NX → JT · Assembly': 'NX → JT · Baugruppe', 'PLM Synchronization': 'PLM-Synchronisation' }
@@ -34,36 +49,33 @@ export function ProcessMonitor({ events, open }: { events: Entry[]; open: (id: n
   const processes = useMemo(() => buildProcesses(events), [events])
   const hosts = useMemo(() => [...new Set(processes.flatMap(process => process.hosts))].sort(), [processes])
   const workflows = useMemo(() => [...new Set(processes.map(process => process.workflow).filter(Boolean))].sort(), [processes])
-  const [search, setSearch] = useState('')
-  const [host, setHost] = useState('')
-  const [workflow, setWorkflow] = useState('')
-  const [status, setStatus] = useState('')
-  const [kind, setKind] = useState('')
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
-  const [sort, setSort] = useState('recent')
+  const [draftFilters, setDraftFilters] = useState(initialProcessFilters)
+  const [appliedFilters, setAppliedFilters] = useState(initialProcessFilters)
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<string | null>(null)
+  const toMinimum = isValidDateTimeLocal(draftFilters.from, latestDateTime) ? draftFilters.from : undefined
+  const filtersChanged = (Object.keys(draftFilters) as (keyof ProcessFilterState)[]).some(key => draftFilters[key] !== appliedFilters[key])
   const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase()
-    const lower = isValidDateTimeLocal(from, latestDateTime) ? Date.parse(`${from}Z`) : -Infinity
-    const upper = isValidDateTimeLocal(to, latestDateTime) ? Date.parse(`${to}Z`) : Infinity
+    const term = appliedFilters.search.trim().toLowerCase()
+    const lower = isValidDateTimeLocal(appliedFilters.from, latestDateTime) ? Date.parse(`${appliedFilters.from}Z`) : -Infinity
+    const upper = isValidDateTimeLocal(appliedFilters.to, latestDateTime) && (!appliedFilters.from || appliedFilters.to >= appliedFilters.from)
+      ? Date.parse(`${appliedFilters.to}Z`) : Infinity
     const list = processes.filter(process =>
       (!term || [process.job, process.trace, process.workflow].some(value => value.toLowerCase().includes(term)))
-      && (!host || process.hosts.includes(host))
-      && (!workflow || process.workflow === workflow)
-      && (!status || process.status === status)
-      && (!kind || process.conversion)
+      && (!appliedFilters.host || process.hosts.includes(appliedFilters.host))
+      && (!appliedFilters.workflow || process.workflow === appliedFilters.workflow)
+      && (!appliedFilters.status || process.status === appliedFilters.status)
+      && (!appliedFilters.kind || process.conversion)
       && Date.parse(process.last) >= lower && Date.parse(process.first) <= upper,
     )
     return list.sort((a, b) => {
-      if (sort === 'duration') return (b.duration ?? -1) - (a.duration ?? -1)
-      if (sort === 'errors') return b.errors.length - a.errors.length
-      if (sort === 'job') return (a.job || a.trace).localeCompare(b.job || b.trace, 'de', { numeric: true })
-      if (sort === 'oldest') return a.first.localeCompare(b.first)
+      if (appliedFilters.sort === 'duration') return (b.duration ?? -1) - (a.duration ?? -1)
+      if (appliedFilters.sort === 'errors') return b.errors.length - a.errors.length
+      if (appliedFilters.sort === 'job') return (a.job || a.trace).localeCompare(b.job || b.trace, 'de', { numeric: true })
+      if (appliedFilters.sort === 'oldest') return a.first.localeCompare(b.first)
       return b.last.localeCompare(a.last)
     })
-  }, [processes, search, host, workflow, status, kind, from, to, sort, latestDateTime])
+  }, [processes, appliedFilters, latestDateTime])
   const pageSize = 25
   const maxPage = Math.max(1, Math.ceil(filtered.length / pageSize))
   const current = Math.min(page, maxPage)
@@ -71,12 +83,24 @@ export function ProcessMonitor({ events, open }: { events: Entry[]; open: (id: n
   const mean = withDuration.length ? withDuration.reduce((sum, process) => sum + process.duration!, 0) / withDuration.length : undefined
   const unidentified = events.filter(entry => !entry.job_id.trim() && !entry.trace_id.trim()).length
 
-  function filter(setter: (value: string) => void, value: string) {
-    setter(value)
-    setPage(1)
+  function updateDraft(field: keyof ProcessFilterState, value: string) {
+    setDraftFilters(previous => ({ ...previous, [field]: value }))
   }
-  function filterDate(setter: (value: string) => void, value: string) {
-    filter(setter, value && !isValidDateTimeLocal(value, latestDateTime) ? '' : value)
+  function updateDraftDate(field: 'from' | 'to', value: string) {
+    const nextValue = value && !isValidDateTimeLocal(value, latestDateTime) ? '' : value
+    setDraftFilters(previous => {
+      const next = { ...previous, [field]: nextValue }
+      if (next.from && next.to && next.to < next.from) next.to = ''
+      return next
+    })
+  }
+  function applyFilters() {
+    const from = isValidDateTimeLocal(draftFilters.from, latestDateTime) ? draftFilters.from : ''
+    const to = isValidDateTimeLocal(draftFilters.to, latestDateTime) && (!from || draftFilters.to >= from) ? draftFilters.to : ''
+    const next = { ...draftFilters, from, to }
+    setDraftFilters(next)
+    setAppliedFilters(next)
+    setPage(1)
   }
 
   return <>
@@ -91,14 +115,15 @@ export function ProcessMonitor({ events, open }: { events: Entry[]; open: (id: n
     <section className="panel process-panel">
       <h2>{t('process.title')}</h2>
       <div className="filters process-filters">
-        <label>{t('process.jobOrTrace')}<input value={search} onChange={e => filter(setSearch, e.target.value)} placeholder={t('process.searchPlaceholder')} /></label>
-        <label>{t('process.workflowTemplate')}<select value={workflow} onChange={e => filter(setWorkflow, e.target.value)}><option value="">{t('process.allTemplates')}</option>{workflows.map(value => <option key={value} value={value}>{workflowLabel(value, language)}</option>)}</select></label>
-        <label>{t('filter.server')}<select value={host} onChange={e => filter(setHost, e.target.value)}><option value="">{t('process.allServers')}</option>{hosts.map(value => <option key={value}>{value}</option>)}</select></label>
-        <label>{t('process.status')}<select value={status} onChange={e => filter(setStatus, e.target.value)}><option value="">{t('process.allStatuses')}</option>{(['Läuft', 'Erfolgreich', 'Erholt', 'Fehlgeschlagen', 'Unklar'] as const).map(value => <option key={value} value={value}>{t(statusKeys[value])}</option>)}</select></label>
-        <label>{t('process.jobType')}<select value={kind} onChange={e => filter(setKind, e.target.value)}><option value="">{t('process.allJobs')}</option><option value="conversion">{t('process.conversions')}</option></select></label>
-        <label>{t('filter.from')}<input type="datetime-local" max={latestDateTime} value={isValidDateTimeLocal(from, latestDateTime) ? from : ''} onChange={e => filterDate(setFrom, e.target.value)} onBlur={e => filterDate(setFrom, e.currentTarget.value)} /></label>
-        <label>{t('filter.to')}<input type="datetime-local" max={latestDateTime} value={isValidDateTimeLocal(to, latestDateTime) ? to : ''} onChange={e => filterDate(setTo, e.target.value)} onBlur={e => filterDate(setTo, e.currentTarget.value)} /></label>
-        <label>{t('process.sortBy')}<select value={sort} onChange={e => filter(setSort, e.target.value)}><option value="recent">{t('process.latest')}</option><option value="oldest">{t('process.oldest')}</option><option value="duration">{t('process.longest')}</option><option value="errors">{t('process.mostErrors')}</option><option value="job">{t('process.jobIdSort')}</option></select></label>
+        <label>{t('process.jobOrTrace')}<input value={draftFilters.search} onChange={e => updateDraft('search', e.target.value)} placeholder={t('process.searchPlaceholder')} /></label>
+        <label>{t('process.workflowTemplate')}<select value={draftFilters.workflow} onChange={e => updateDraft('workflow', e.target.value)}><option value="">{t('process.allTemplates')}</option>{workflows.map(value => <option key={value} value={value}>{workflowLabel(value, language)}</option>)}</select></label>
+        <label>{t('filter.server')}<select value={draftFilters.host} onChange={e => updateDraft('host', e.target.value)}><option value="">{t('process.allServers')}</option>{hosts.map(value => <option key={value}>{value}</option>)}</select></label>
+        <label>{t('process.status')}<select value={draftFilters.status} onChange={e => updateDraft('status', e.target.value)}><option value="">{t('process.allStatuses')}</option>{(['Läuft', 'Erfolgreich', 'Erholt', 'Fehlgeschlagen', 'Unklar'] as const).map(value => <option key={value} value={value}>{t(statusKeys[value])}</option>)}</select></label>
+        <label>{t('process.jobType')}<select value={draftFilters.kind} onChange={e => updateDraft('kind', e.target.value)}><option value="">{t('process.allJobs')}</option><option value="conversion">{t('process.conversions')}</option></select></label>
+        <label>{t('filter.from')}<input type="datetime-local" max={latestDateTime} value={isValidDateTimeLocal(draftFilters.from, latestDateTime) ? draftFilters.from : ''} onChange={e => updateDraftDate('from', e.target.value)} onBlur={e => updateDraftDate('from', e.currentTarget.value)} /></label>
+        <label>{t('filter.to')}<input type="datetime-local" min={toMinimum} max={latestDateTime} value={isValidDateTimeLocal(draftFilters.to, latestDateTime) && (!toMinimum || draftFilters.to >= toMinimum) ? draftFilters.to : ''} onChange={e => updateDraftDate('to', e.target.value)} onBlur={e => updateDraftDate('to', e.currentTarget.value)} /></label>
+        <label>{t('process.sortBy')}<select value={draftFilters.sort} onChange={e => updateDraft('sort', e.target.value)}><option value="recent">{t('process.latest')}</option><option value="oldest">{t('process.oldest')}</option><option value="duration">{t('process.longest')}</option><option value="errors">{t('process.mostErrors')}</option><option value="job">{t('process.jobIdSort')}</option></select></label>
+        <button type="button" disabled={!filtersChanged} onClick={applyFilters}>{t('process.applyFilters')}</button>
       </div>
       {!filtered.length ? <p className="notice">{processes.length ? t('process.noMatches') : t('process.noIds')}</p> :
         <div className="table process-table-scroll" role="region" aria-label={t('process.jobs')} tabIndex={0}><table><thead><tr><th>{t('process.jobTemplate')}</th><th>{t('process.status')}</th><th>{t('process.startEnd')}</th><th>{t('process.duration')}</th><th>{t('filter.server')}</th><th>{t('process.logs')}</th></tr></thead>

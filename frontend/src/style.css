@@ -95,6 +95,7 @@ h2 small { font-size: .85rem; font-weight: 500; margin-left: .4rem }
 .process-panel table td:nth-child(3) { font-variant-numeric: tabular-nums; white-space: nowrap }
 .process-panel table td:nth-child(1) { white-space: normal; min-width: 11rem }
 .process-filters { margin: .7rem 0 1.2rem }
+.process-filters > button { justify-self: start }
 .process-note { color: #486173; margin: .8rem 0 0; font-size: .875rem }
 .process-alert { border-left: 4px solid #aa3438; border-radius: 6px; background: #fff1f1; padding: .75rem; margin: 1rem 0 }
 .process-logs { list-style: none; padding: 0 }

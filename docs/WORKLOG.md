@@ -224,3 +224,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `frontend/src/time.ts`, `frontend/src/main.tsx`, `frontend/src/ProcessMonitor.tsx`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
 - **Checks:** TypeScript `--noEmit` and Vite production build passed. Preview showed the current UTC maximum on both fields; a forced future value was marked invalid and did not filter the demo results.
 - **Open:** -
+
+### Add confirmation to process monitor filters
+- **What:** Added an Apply filters button so process-monitor changes remain pending until confirmed. The To date now has From as its minimum; moving From later clears any earlier To value. The current UTC maximum remains active.
+- **Why:** Make filter changes explicit and prevent reversed date ranges.
+- **Where:** `frontend/src/ProcessMonitor.tsx`, `frontend/src/i18n.tsx`, `frontend/src/style.css`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
+- **Checks:** TypeScript `--noEmit` and Vite production build passed. In the preview, setting From to 10:00 set To's minimum to 10:00; an earlier To value was cleared. Apply filters reduced the demo list from three jobs to two.
+- **Open:** -
