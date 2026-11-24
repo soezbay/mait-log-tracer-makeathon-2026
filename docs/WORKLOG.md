@@ -185,4 +185,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `.gitattributes`, `MAIT_Makeathon_Logpaket.zip`, `backend/src/logtracer/core/logpaket.py`, `backend/tests/test_logpaket.py`; branch `p1/ingest`.
 - **Open:** not pushed yet. The repo is still public, and an LFS object in a public repo can be downloaded by anyone. Push after the repo is private. Free GitHub LFS quota is about 1 GB storage and 1 GB download per month (≈ 12 clones of the ZIP).
 
+### Deferred decision: hosting of the log package
+- **What:** New section §17 "Deferred decisions" in `docs/plan.en.md` and `docs/plan.md` with D1: where the log package ZIP lives. Lists options A (whole repo private), B (separate private data repo), C (release asset in a private repo), D (cloud storage) with effort, a recommendation and the question to the organizers about redistribution.
+- **Why:** On GitHub, Git LFS files have the same visibility as the repo; they cannot be made private on their own. The team wants to decide later, so the LFS commit stays unpushed until then.
+- **Where:** `docs/plan.en.md` §17, `docs/plan.md` §17
+- **Open:** team decision; then push `87bfd44` (option A) or rebuild the download for the chosen option.
+
 **Open (not done by Claude):** `plan.md`/`plan.en.md` were moved to `docs/` and `docs/todo/` was added to `.gitignore` locally; not committed yet. Links to `../plan*.md` in the architecture docs and the P1 TODO need updating after that move.

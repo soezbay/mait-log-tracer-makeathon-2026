@@ -448,3 +448,23 @@ Jede Phase endet mit einem **Abschluss-Kriterium**. Erst wenn es erfüllt ist, g
 - [ ] [ING] Demo-Rechner prüfen: Backend, Frontend, DuckDB, API-Schlüssel, Internet
 - [ ] [FE] Backup-Video und Folien offline verfügbar
 - [ ] [ALLE] Pitch halten, Fragen beantworten
+
+## 17. Aufgeschobene Entscheidungen
+
+Bewusst vertagte Entscheidungen (Details und Stand in [plan.en.md](plan.en.md) §17).
+
+### D1: Wo das Logpaket liegt (Sichtbarkeit des Repos)
+
+- **Stand:** offen, entscheiden wir später im Team. Commit `87bfd44` (ZIP per Git LFS) wird bis dahin **nicht gepusht**.
+- **Problem:** Eine LFS-Datei hat bei GitHub immer dieselbe Sichtbarkeit wie das Repo; man kann sie nicht einzeln privat stellen. In einem öffentlichen Repo kann jeder die ZIP herunterladen, und einmal hochgeladen bekommt man sie nur durch Löschen des Repos oder über den GitHub-Support wieder weg.
+- **Möglichkeiten:**
+
+| Variante | Code | Logdaten | Aufwand |
+|---|---|---|---|
+| A. Ganzes Repo privat | privat | privat (LFS) | keiner, fertig gebaut |
+| B. Zweites, privates Repo nur für die Daten | öffentlich | privat | klein: Download holt die ZIP aus dem Daten-Repo statt per `git lfs pull` |
+| C. ZIP als Release-Anhang in einem privaten Repo | öffentlich | privat | klein, braucht aber ein GitHub-Token |
+| D. Cloud-Speicher (OneDrive, S3 …) | öffentlich | privat | mittel, Freigabelinks lassen sich leicht weitergeben |
+
+- **Empfehlung:** A, wenn der Code nicht öffentlich sein muss; B, wenn er öffentlich bleiben soll.
+- **Beim Veranstalter nachfragen:** Dürfen die MAIT-Logs überhaupt weitergegeben werden? Falls nein, müssen die Daten in jeder Variante privat bleiben.

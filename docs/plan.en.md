@@ -519,3 +519,23 @@ Every phase ends with an **exit criterion**. A phase is only done once it is met
 - [ ] [ING] Check the demo machine: backend, frontend, DuckDB, API key, internet
 - [ ] [EVAL] Backup video and slides available offline
 - [ ] [ALL] Deliver the pitch, answer questions
+
+## 17. Deferred decisions
+
+Decisions we postponed on purpose. Each entry says what is open, the options, and what blocks it until then.
+
+### D1: Where the log package is hosted (repo visibility)
+
+- **Status:** open, decide later as a team. Commit `87bfd44` (ZIP via Git LFS) is **not pushed** until this is decided.
+- **Problem:** on GitHub, a Git LFS file has the same visibility as its repository. LFS files cannot be made private on their own, so in a public repo anyone can download the ZIP. Once an LFS object is in a public repo, removing it means deleting the repo or asking GitHub support.
+- **Options:**
+
+| Option | Code | Log data | Effort |
+|---|---|---|---|
+| A. Make the whole repo private | private | private (LFS) | none, already built |
+| B. Second private repo only for the data | public | private | small: the start-up download fetches the ZIP from the data repo instead of `git lfs pull` |
+| C. ZIP as a release asset in a private repo | public | private | small, but needs a GitHub token to download |
+| D. Cloud storage (OneDrive, S3, …) | public | private | medium, shared links are easy to pass on |
+
+- **Recommendation:** A if the code does not need to be public (simplest; free private repos with any number of collaborators; teammates, mentors and the jury get invited). B if the code should stay public, e.g. for judging or portfolios.
+- **Also ask the organizers:** may the MAIT logs be redistributed at all? If not, the data must stay private in every option.
