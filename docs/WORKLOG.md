@@ -202,6 +202,11 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Why:** Safak decided to push everything now, knowing the repo is public; he owns `main` and asked for the merge.
 - **Open:** D1 (private repo or separate data repo) is still open; until the repo is private the ZIP can be downloaded by anyone.
 
+### Remove IDE settings from Git
+- **What:** `git rm --cached -r .idea/` (6 JetBrains files that came in with the merged PRs); `.gitignore` now ignores `.idea/`, `.vscode/` and `data/`.
+- **Why:** IDE settings are personal and cause needless conflicts; `data/` only holds derived files (DuckDB, extraction marker) that are rebuilt by script. The files stay on everyone's disk.
+- **Where:** `.gitignore`
+
 **Open (not done by Claude):** `plan.md`/`plan.en.md` were moved to `docs/` and `docs/todo/` was added to `.gitignore` locally; not committed yet. Links to `../plan*.md` in the architecture docs and the P1 TODO need updating after that move.
 
 ### Frontend API contract binding

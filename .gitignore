@@ -18,3 +18,10 @@ MAIT_Makeathon_Logpaket/
 
 # userdata
 docs/todo/
+
+# IDE settings (personal)
+.idea/
+.vscode/
+
+# derived data: DuckDB files and the log package extraction marker
+data/
