@@ -89,6 +89,9 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **What:** `AGENTS.md` at the repo root: where to start, project summary, layout, roles and file ownership, frozen interfaces and how to change them, setup commands, engineering rules (data, DuckDB, Python, API, LLM, tests), git workflow, mandatory logging in `AI_LOG.md` and `WORKLOG.md` with formats, definition of done, data quick reference. `CLAUDE.md` imports it so Claude Code sessions of all team members follow the same rules.
 - **Why:** Every person and every AI agent works and documents the same way.
 - **Where:** `AGENTS.md`, `CLAUDE.md`.
-- **Open:** `AGENTS.md` links to `docs/plan.en.md`; the move of the plans into `docs/` still has to be committed.
+
+### Plans moved into docs/
+- **What:** `plan.md` and `plan.en.md` now live in `docs/` (move by Safak, committed now). Fixed relative links in plans and architecture docs and the repo-structure blocks; `docs/todo/` is git-ignored. Checked tool support: Codex reads `AGENTS.md` natively, Claude Code reads `CLAUDE.md`, which imports `AGENTS.md`, so both follow the same rules.
+- **Where:** `docs/plan*.md`, `docs/ARCHITECTURE.md`, `docs/ARCHITEKTUR.md`, `.gitignore`.
 
 **Open (not done by Claude):** `plan.md`/`plan.en.md` were moved to `docs/` and `docs/todo/` was added to `.gitignore` locally; not committed yet. Links to `../plan*.md` in the architecture docs and the P1 TODO need updating after that move.

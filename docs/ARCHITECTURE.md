@@ -1,7 +1,7 @@
 # Architecture: Log Tracer
 
 > AI log assistant for the MAIT challenge · Status: 2026-11-23 (day 1, draft)
-> Related: [plan.en.md](../plan.en.md) · German version: [ARCHITEKTUR.md](ARCHITEKTUR.md) · Data: `MAIT_Makeathon_Logpaket/` (read only)
+> Related: [plan.en.md](plan.en.md) · German version: [ARCHITEKTUR.md](ARCHITEKTUR.md) · Data: `MAIT_Makeathon_Logpaket/` (read only)
 
 ---
 
@@ -371,7 +371,7 @@ sequenceDiagram
 
 ## 7. Data model (summary)
 
-Details in [plan.en.md §8](../plan.en.md).
+Details in [plan.en.md §8](plan.en.md).
 
 ```mermaid
 erDiagram
@@ -402,8 +402,10 @@ erDiagram
 
 ```
 makeathon/
-├── plan.md · plan.en.md
+├── AGENTS.md · CLAUDE.md
 ├── docs/
+│   ├── plan.md · plan.en.md        # plan (German, English)
+│   ├── AI_LOG.md · WORKLOG.md      # work logs
 │   ├── ARCHITEKTUR.md              # German
 │   └── ARCHITECTURE.md             # English
 ├── MAIT_Makeathon_Logpaket/        # original data (not in Git)

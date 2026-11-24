@@ -2,7 +2,7 @@
 
 > Working title: **Log Tracer** · Challenge: *Automated log file management with an AI assistant* (MAIT)
 > Schedule: Day 1 concept, user stories & ingest · Days 2–3 build · Day 4 pitch
-> German version: [plan.md](plan.md) · Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · Data: `MAIT_Makeathon_Logpaket/` (not in Git)
+> German version: [plan.md](plan.md) · Architecture: [docs/ARCHITECTURE.md](ARCHITECTURE.md) · Data: `MAIT_Makeathon_Logpaket/` (not in Git)
 
 ---
 
@@ -244,14 +244,14 @@ Further tables: `templates`, `error_groups` (group with a shared cause, with ret
 | Backend / API | FastAPI + Uvicorn, Pydantic, FastAPI's built-in SSE (`fastapi.sse`) | clear interface, OpenAPI docs, live streaming |
 | Frontend | React 19 + TypeScript (Vite), Mantine, ECharts, Cytoscape.js; Node.js 22 or 24 LTS; fallback Streamlit | separated from the backend, only via the API |
 
-Details on all frameworks and components: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Details on all frameworks and components: [docs/ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## 9. Repo structure (target)
 
 ```
 makeathon/
-├── plan.md / plan.en.md
-├── docs/ARCHITEKTUR.md · ARCHITECTURE.md
+├── AGENTS.md · CLAUDE.md     # rules for agents and humans
+├── docs/                      # plan.md, plan.en.md, ARCHITEKTUR.md, ARCHITECTURE.md, AI_LOG.md, WORKLOG.md
 ├── MAIT_Makeathon_Logpaket/   # original data, read only, in .gitignore
 ├── data/logtracer.duckdb        # derived, in .gitignore
 ├── eval/questions.yaml        # test questions + ground truth

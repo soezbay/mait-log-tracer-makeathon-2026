@@ -1,7 +1,7 @@
 # Architektur: Log Tracer
 
 > KI-Log-Assistent für die MAIT-Challenge · Stand: 23.11.2026 (Tag 1, Entwurf)
-> Bezug: [plan.md](../plan.md) · Englische Fassung: [ARCHITECTURE.md](ARCHITECTURE.md) · Datenbasis: `MAIT_Makeathon_Logpaket/` (nur lesen)
+> Bezug: [plan.md](plan.md) · Englische Fassung: [ARCHITECTURE.md](ARCHITECTURE.md) · Datenbasis: `MAIT_Makeathon_Logpaket/` (nur lesen)
 
 ---
 
@@ -371,7 +371,7 @@ sequenceDiagram
 
 ## 7. Datenmodell (Kurzfassung)
 
-Details in [plan.md §8](../plan.md).
+Details in [plan.md §8](plan.md).
 
 ```mermaid
 erDiagram
@@ -402,8 +402,10 @@ erDiagram
 
 ```
 makeathon/
-├── plan.md · plan.en.md
+├── AGENTS.md · CLAUDE.md
 ├── docs/
+│   ├── plan.md · plan.en.md        # Plan (Deutsch, Englisch)
+│   ├── AI_LOG.md · WORKLOG.md      # Arbeitslogs
 │   ├── ARCHITEKTUR.md              # Deutsch
 │   └── ARCHITECTURE.md             # Englisch
 ├── MAIT_Makeathon_Logpaket/        # Originaldaten (nicht im Git)

@@ -22,5 +22,6 @@ Roles: P1 Safak ingest/storage · P2 Harsh analysis · P3 Tarun AI assistant · 
 2026-11-24 11:30 | P1 | storage | schema.sql: servers, sources, events (no PK on events) + proposed P2/P3 tables; db.py connect/init_schema; 6 tests pass | backend/src/logtracer/storage/, backend/tests/test_schema.py | 9d90778 | freeze with Harsh+Tarun at 13:00
 2026-11-24 11:30 | P1 | contract | Example responses for P1 endpoints from the real JOB-2003 chain | contracts/examples/ | 9d90778 | httpx -> httpx2 switch not done (warning only)
 2026-11-24 11:45 | all | log | One-line AI log added; WORKLOG stays the detailed human log | docs/AI_LOG.md, docs/WORKLOG.md | a07b6bc | -
-2026-11-24 12:00 | all | docs | AGENTS.md with dev rules (ownership, interfaces, DuckDB/API/LLM rules, git, mandatory logging, DoD, data facts); CLAUDE.md imports it | AGENTS.md, CLAUDE.md | self | plans moved to docs/ locally but not committed yet; AGENTS.md links to docs/plan.en.md
+2026-11-24 12:00 | all | docs | AGENTS.md with dev rules (ownership, interfaces, DuckDB/API/LLM rules, git, mandatory logging, DoD, data facts); CLAUDE.md imports it | AGENTS.md, CLAUDE.md | 68a2cf2 | -
+2026-11-24 12:15 | all | docs | Plans moved to docs/ (by Safak, committed now); relative links and repo-structure blocks fixed; docs/todo/ git-ignored; Codex reads AGENTS.md, Claude Code reads CLAUDE.md (imports AGENTS.md) | docs/plan*.md, docs/ARCHITECTURE*.md, .gitignore | self | -
 ```
