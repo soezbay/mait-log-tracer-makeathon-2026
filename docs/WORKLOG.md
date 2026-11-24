@@ -281,3 +281,16 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `backend/src/logtracer/main.py`, `api/chat.py`, `core/config.py`, `assistant/config.py`, `assistant/providers/__init__.py`, `backend/.env.example`, `backend/tests/test_providers_and_api.py`.
 - **Checks:** 96 tests pass (P1 + P3), `ruff check` clean.
 - **Open:** for Safak: `tests/test_incremental.py::test_manager_runs_and_publishes` is flaky, it also fails about 1 in 10 runs on a clean `main` (`state["running"]` is still True right after the `done` event).
+
+### Groq as LLM provider (P3, Tarun)
+- **What:**
+  - New `GroqProvider` (`assistant/providers/groq.py`, official `groq` SDK, OpenAI-style chat completions with tool calling). `LLM_PROVIDER=groq`; default model `openai/gpt-oss-120b`, any Groq model through `LLM_MODEL` (e.g. `qwen/qwen3.8-27b`).
+  - Rate limits: on 429 the provider waits as long as Groq's `retry-after` header asks (max 60 s), otherwise exponential backoff; the SDK's own retries are off so there is one retry layer. Errors show Groq's status and message (rate limit, request too large, bad key or model, server error).
+  - A malformed tool call from the model (`tool_use_failed`) no longer fails the question: the agent asks the model again. `<think>` text of reasoning models is removed from the answer text.
+  - Optional `LLM_REASONING_EFFORT` (`low` / `medium` / `high`) for Groq reasoning models, to trade quality for speed.
+  - `ask.py --provider groq --model <id>` for comparing models from the command line.
+  - `GROQ_API_KEY` and `LLM_REASONING_EFFORT` in `.env.example`; the same two settings in `core/config.py` (P1), because `test_example_env_matches_settings` requires every documented key to be a setting. New dependency `groq`.
+- **Why:** Gemini 3.6 Flash answered `503 UNAVAILABLE` (high demand) in the UI after a long wait; Groq is built for low latency and lets us compare models.
+- **Where:** `backend/src/logtracer/assistant/providers/groq.py`, `providers/base.py` (`with_retries` takes a `delay_for` hint), `providers/__init__.py`, `assistant/config.py`, `core/config.py`, `backend/.env.example`, `backend/scripts/ask.py`, `backend/tests/test_providers_and_api.py`, `docs/ARCHITECTURE.md`, `pyproject.toml`, `uv.lock`.
+- **Checks:** 100 tests pass, `ruff check` clean. The provider was also run against the real `groq` SDK with a mock HTTP server: request shape, tool-call parsing, `retry-after` wait, `tool_use_failed` and a 401 error.
+- **Open:** live comparison of `openai/gpt-oss-120b` and `qwen/qwen3.8-27b` on the real DB. Groq's docs list 8K tokens per minute for gpt-oss-120b on the developer plan while one question uses about 40-50K tokens, so it may wait for rate limits; Groq's docs do not confirm tool use for qwen3.8-27b. Groq prices are not in `costs.py` yet (set `PRICE_*` in `.env`).

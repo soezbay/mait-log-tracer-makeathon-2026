@@ -15,6 +15,7 @@ from logtracer.core.config import BACKEND_DIR
 
 DEFAULT_MODELS = {
     "gemini": "gemini-3.6-flash",
+    "groq": "openai/gpt-oss-120b",
     "claude": "claude-sonnet-5-5",
 }
 
@@ -27,7 +28,7 @@ class Settings(BaseSettings):
         populate_by_name=True,
     )
 
-    llm_provider: str = "gemini"  # gemini | claude
+    llm_provider: str = "gemini"  # gemini | groq | claude
     llm_model: str | None = None  # default depends on provider
     db_path: Path = Path("../data/logtracer.duckdb")
 
@@ -35,6 +36,10 @@ class Settings(BaseSettings):
         default=None, validation_alias=AliasChoices("GEMINI_API_KEY", "GOOGLE_API_KEY")
     )
     anthropic_api_key: str | None = Field(default=None, validation_alias=AliasChoices("ANTHROPIC_API_KEY"))
+    groq_api_key: str | None = Field(default=None, validation_alias=AliasChoices("GROQ_API_KEY"))
+    # Groq reasoning models: how long the model thinks per call (gpt-oss: low | medium | high).
+    # Empty = the model's default. Lower is faster.
+    llm_reasoning_effort: str | None = None
 
     # Optional price override (USD per 1M tokens, as the providers list them). Use it for the pitch.
     price_input_per_mtok: float | None = None

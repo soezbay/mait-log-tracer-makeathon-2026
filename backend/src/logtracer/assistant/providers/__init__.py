@@ -5,7 +5,7 @@ from .base import Conversation, LLMProvider, LLMResponse, ProviderError, ToolCal
 
 
 def create_provider(settings: Settings) -> LLMProvider:
-    """Build the provider chosen by LLM_PROVIDER (gemini | claude)."""
+    """Build the provider chosen by LLM_PROVIDER (gemini | groq | claude)."""
     name = settings.llm_provider.lower()
     if name == "gemini":
         from .gemini import GeminiProvider
@@ -17,7 +17,18 @@ def create_provider(settings: Settings) -> LLMProvider:
         return ClaudeProvider(
             settings.anthropic_api_key, settings.model_name, max_tokens=settings.max_output_tokens
         )
-    raise ProviderError(f"Unknown LLM_PROVIDER {settings.llm_provider!r}. Use 'gemini' or 'claude'.")
+    if name == "groq":
+        from .groq import GroqProvider
+
+        return GroqProvider(
+            settings.groq_api_key,
+            settings.model_name,
+            max_tokens=settings.max_output_tokens,
+            reasoning_effort=(settings.llm_reasoning_effort or "").strip() or None,
+        )
+    raise ProviderError(
+        f"Unknown LLM_PROVIDER {settings.llm_provider!r}. Use 'gemini', 'groq' or 'claude'."
+    )
 
 
 __all__ = ["Conversation", "LLMProvider", "LLMResponse", "ProviderError", "ToolCall", "ToolSpec", "create_provider"]
