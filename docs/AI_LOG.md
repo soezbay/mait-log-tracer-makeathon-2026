@@ -24,4 +24,5 @@ Roles: P1 Safak ingest/storage · P2 Harsh analysis · P3 Tarun AI assistant · 
 2026-11-24 11:45 | all | log | One-line AI log added; WORKLOG stays the detailed human log | docs/AI_LOG.md, docs/WORKLOG.md | a07b6bc | -
 2026-11-24 12:00 | all | docs | AGENTS.md with dev rules (ownership, interfaces, DuckDB/API/LLM rules, git, mandatory logging, DoD, data facts); CLAUDE.md imports it | AGENTS.md, CLAUDE.md | 68a2cf2 | -
 2026-11-24 12:15 | all | docs | Plans moved to docs/ (by Safak, committed now); relative links and repo-structure blocks fixed; docs/todo/ git-ignored; Codex reads AGENTS.md, Claude Code reads CLAUDE.md (imports AGENTS.md) | docs/plan*.md, docs/ARCHITECTURE*.md, .gitignore | self | -
+2026-11-24 11:46 | P4 | frontend | Pulled main at 7f3e3d5; aligned Live API adapter with frozen stats, limit/offset, event and source-context shapes; default proxy localhost:8000; backend routes beyond health still unavailable | frontend/vite.config.mjs, frontend/src/api.ts, frontend/src/main.tsx, frontend/README.md | - | start remaining backend routes and verify against localhost:8000
 ```

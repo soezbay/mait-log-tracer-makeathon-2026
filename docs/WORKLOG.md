@@ -95,3 +95,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `docs/plan*.md`, `docs/ARCHITECTURE.md`, `docs/ARCHITEKTUR.md`, `.gitignore`.
 
 **Open (not done by Claude):** `plan.md`/`plan.en.md` were moved to `docs/` and `docs/todo/` was added to `.gitignore` locally; not committed yet. Links to `../plan*.md` in the architecture docs and the P1 TODO need updating after that move.
+
+### Frontend API contract binding
+- **What:** Fast-forwarded `main` to `7f3e3d5`; kept the proxy on `http://localhost:8000`, made Live the default, and normalized the frontend against the frozen API examples (`limit/offset`, stats fields, `source_path`, and context line `no`). Kept JOB-2003, JOB-2010 and the recovered retry separate in the demo.
+- **Why:** Make the P4 frontend consume the shared backend contract while the backend routes are being implemented.
+- **Where:** `frontend/vite.config.mjs`, `frontend/.env.example`, `frontend/src/api.ts`, `frontend/src/main.tsx`, `frontend/src/demo.ts`, `frontend/src/incident.ts`, `frontend/README.md`, `docs/AI_LOG.md`.
+- **Checks:** TypeScript check and Vite production build passed. `localhost:8000` did not accept a connection.
+- **Open:** This checkout registers only `GET /api/health`; stats, events, analysis, trace and chat routes remain unimplemented here.
