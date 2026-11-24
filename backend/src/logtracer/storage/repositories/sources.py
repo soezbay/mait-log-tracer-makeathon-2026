@@ -79,6 +79,28 @@ def set_formats(con: duckdb.DuckDBPyConnection, formats: dict[int, str]) -> None
         con.unregister("_formats_batch")
 
 
+def set_ingest_results(con: duckdb.DuckDBPyConnection,
+                       results: dict[int, tuple[int, int]]) -> None:
+    """Store per unique source: event_count and checkpoint (last line read; bytes for plain files).
+
+    `results` maps source_id -> (event_count, last_line). Duplicates keep event_count 0.
+    """
+    table = pa.table({
+        "source_id": pa.array(list(results), pa.int32()),
+        "event_count": pa.array([r[0] for r in results.values()], pa.int64()),
+        "last_line": pa.array([r[1] for r in results.values()], pa.int64()),
+    })
+    con.register("_ingest_results", table)
+    try:
+        con.execute(
+            "UPDATE sources SET event_count = r.event_count, checkpoint_line = r.last_line, "
+            "checkpoint_bytes = CASE WHEN sources.compressed THEN 0 ELSE sources.size END "
+            "FROM _ingest_results r WHERE sources.source_id = r.source_id"
+        )
+    finally:
+        con.unregister("_ingest_results")
+
+
 def scan_summary(con: duckdb.DuckDBPyConnection) -> dict:
     """Counts used by the ingest report and later by GET /api/stats."""
     total, unique, dupes, size_all, size_unique = con.execute(

@@ -136,4 +136,16 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `AGENTS.md`; branch `develop`.
 - **Open:** optionally make `develop` the default branch and protect `main` in the GitHub settings.
 
+### Ingest steps 6-7: normalization and writing events (P1)
+- **What:**
+  - `normalize/timestamps.py`: ISO text to naive UTC; times without a zone are read in `DEFAULT_TIMEZONE` and flagged `tz_assumed`.
+  - `normalize/levels.py`: map to `DEBUG/INFO/WARN/ERROR/FATAL` (`Critical`/`CRITICAL` → `FATAL`); unknown levels stay `NULL`, `level_raw` keeps the original.
+  - `normalize/dedupe.py`: SHA-1 fingerprint over host, event_id, UTC time and message; late detector (entry more than 60 s older than an earlier entry of the same file).
+  - `storage/repositories/events.py`: PyArrow batch insert, duplicate marking in SQL (`duplicate_of` = first id with the same fingerprint), summary for the report and later `/api/stats`.
+  - `ingest/full_ingest.py`: scan → parse → normalize → write; stores format, event count and checkpoint per source. `scripts/ingest.py` runs the full ingest by default.
+- **Checks:** 33 tests pass (normalization, full ingest with small batches, cross-file duplicate, late entry, time-only line, repeatable rebuild), ruff clean. Real run: **1,673,792 events in 53 s**, 0 unparsed, 0 without timestamp, 11,125 duplicate events, 2,379 late, 78 with assumed time zone; all hosts in the events are known servers; `JOB-2003` chain, multi-line exception and clock-skew entry come out correctly; a per-minute error query over 24 Nov runs instantly.
+- **Finding:** the `JOB-2003` chain has a fourth step: 08:30:04 `mait_win04_plm_sync` `fms/fcc` "Result upload denied for DEMO-SERVICE; permission=WRITE_DATASET" (in a `.jsonl.gz`). Plan §7 and the architecture example still show three steps.
+- **Where:** `backend/src/logtracer/normalize/`, `backend/src/logtracer/ingest/full_ingest.py`, `backend/src/logtracer/storage/repositories/events.py`, tests; branch `p1/ingest`, merged into `develop`.
+- **Open:** `scripts/make_fixture.py`; API endpoints `/stats`, `/sources`, `/events`, `/events/{id}`, `/events/{id}/context`.
+
 **Open (not done by Claude):** `plan.md`/`plan.en.md` were moved to `docs/` and `docs/todo/` was added to `.gitignore` locally; not committed yet. Links to `../plan*.md` in the architecture docs and the P1 TODO need updating after that move.
