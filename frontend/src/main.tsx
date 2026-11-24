@@ -13,7 +13,7 @@ import { IncidentDetail } from './IncidentDetail'
 import { buildProcesses } from './processes'
 import type { ImportedLogs } from './import-zip'
 import { I18nProvider, useI18n } from './i18n'
-import { currentUtcDateTimeLocal, isValidDateTimeLocal } from './time'
+import { browserTimeZone, currentLocalDateTime, isValidDateTimeLocal, localDateTimeToUtcIso, utcDateTimeToEpoch, utcDateTimeToLocal } from './time'
 
 type Mode = 'demo' | 'live' | 'import'
 const offline = window.location.protocol === 'file:'
@@ -99,11 +99,12 @@ function Heading({ caption, title, children }: React.PropsWithChildren<{ caption
 function Timeline({ mode, open, logs }: { mode: Mode; open: (id: number) => void; logs: ImportedLogs | null }) {
   const { language, t } = useI18n()
   const locale = language === 'en' ? 'en-GB' : 'de-DE'
-  const latestDateTime = currentUtcDateTimeLocal()
+  const latestDateTime = currentLocalDateTime()
+  const timeZone = browserTimeZone()
   const filters = [
     ['q', t('filter.text'), t('filter.textPlaceholder')], ['server', t('filter.server'), t('filter.serverPlaceholder')],
     ['component', t('filter.component'), t('filter.componentPlaceholder')], ['job_id', t('filter.job'), t('filter.jobPlaceholder')],
-    ['trace_id', t('filter.trace'), t('filter.tracePlaceholder')], ['from', t('filter.from'), ''], ['to', t('filter.to'), ''],
+    ['trace_id', t('filter.trace'), t('filter.tracePlaceholder')], ['from', t('filter.from', { zone: timeZone }), ''], ['to', t('filter.to', { zone: timeZone }), ''],
   ] as const
   const [params, update] = useSearchParams()
   const query = new URLSearchParams(params)
@@ -111,13 +112,17 @@ function Timeline({ mode, open, logs }: { mode: Mode; open: (id: number) => void
   function set(name: string, value: string) {
     const next = new URLSearchParams(params)
     if (name !== 'page') next.delete('page')
-    if (value) next.set(name, value)
+    if (value && (name === 'from' || name === 'to')) {
+      next.set(name, isValidDateTimeLocal(value, latestDateTime) ? localDateTimeToUtcIso(value) : '')
+    } else if (value) next.set(name, value)
     else next.delete(name)
+    if (next.get(name) === '') next.delete(name)
     update(next, { replace: true })
   }
   for (const field of ['from', 'to']) {
     const date = params.get(field)
-    if (isValidDateTimeLocal(date, latestDateTime)) query.set(field, new Date(`${date}Z`).toISOString())
+    const timestamp = utcDateTimeToEpoch(date)
+    if (timestamp !== undefined && timestamp <= Date.now()) query.set(field, new Date(timestamp).toISOString())
     else query.delete(field)
   }
   const localPageSize = 100
@@ -147,7 +152,8 @@ function Timeline({ mode, open, logs }: { mode: Mode; open: (id: number) => void
       {filters.map(([name, label, placeholder]) => {
         const dateField = name === 'from' || name === 'to'
         const value = params.get(name)
-        return <label key={name}>{label}<input type={dateField ? 'datetime-local' : 'text'} max={dateField ? latestDateTime : undefined} placeholder={placeholder} value={dateField ? (isValidDateTimeLocal(value, latestDateTime) ? value : '') : value ?? ''} onChange={e => {
+        const localValue = dateField ? utcDateTimeToLocal(value) : value
+        return <label key={name}>{label}<input type={dateField ? 'datetime-local' : 'text'} max={dateField ? latestDateTime : undefined} placeholder={placeholder} value={dateField ? (isValidDateTimeLocal(localValue, latestDateTime) ? localValue : '') : value ?? ''} onChange={e => {
           const nextValue = e.currentTarget.value
           set(name, dateField && nextValue && !isValidDateTimeLocal(nextValue, latestDateTime) ? '' : nextValue)
         }} onBlur={e => {

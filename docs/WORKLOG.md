@@ -231,3 +231,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `frontend/src/ProcessMonitor.tsx`, `frontend/src/i18n.tsx`, `frontend/src/style.css`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
 - **Checks:** TypeScript `--noEmit` and Vite production build passed. In the preview, setting From to 10:00 set To's minimum to 10:00; an earlier To value was cleared. Apply filters reduced the demo list from three jobs to two.
 - **Open:** -
+
+### Use browser-local time in date filters
+- **What:** Date/time inputs now use the browser's local wall clock and show the corresponding time zone. Timeline URL values stay canonical UTC timestamps; API filters convert local input to UTC. Process-monitor comparisons convert local boundaries to UTC instants and keep the current-time and To-after-From rules.
+- **Why:** `datetime-local` controls accept local wall-clock values. Treating them as UTC shifted selections by the browser's UTC offset, so the chosen log time could be an hour off.
+- **Where:** `frontend/src/time.ts`, `frontend/src/main.tsx`, `frontend/src/ProcessMonitor.tsx`, `frontend/src/i18n.tsx`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
+- **Checks:** TypeScript `--noEmit` and Vite production build passed. Timeline parameters are converted to UTC ISO strings before API filtering.
+- **Open:** -

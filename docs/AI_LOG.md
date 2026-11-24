@@ -48,4 +48,5 @@ Roles: P1 Safak ingest/storage · P2 Harsh analysis · P3 Tarun AI assistant · 
 2026-11-24 15:02 | P4 | frontend | Cap timeline date/time inputs at the current UTC minute; discard future values from controls and API filters | frontend/src/main.tsx | self | -
 2026-11-24 15:17 | P4 | frontend | Reuse UTC datetime validation and current-minute maximum in process monitor filters; out-of-range dates do not affect results | frontend/src/{time.ts,main.tsx,ProcessMonitor.tsx} | self | -
 2026-11-24 15:44 | P4 | frontend | Add explicit confirmation before applying process-monitor filters; set To minimum to From and clear To if From advances past it | frontend/src/{ProcessMonitor.tsx,i18n.tsx,style.css} | self | -
+2026-11-24 16:17 | P4 | frontend | Interpret date/time filter input in the browser time zone, show that zone in labels, and convert boundaries to UTC for API and process comparisons | frontend/src/{time.ts,main.tsx,ProcessMonitor.tsx,i18n.tsx} | self | -
 ```

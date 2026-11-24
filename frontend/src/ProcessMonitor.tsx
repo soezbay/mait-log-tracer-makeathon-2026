@@ -4,7 +4,7 @@ import { buildProcesses } from './processes'
 import type { Process } from './processes'
 import { useI18n } from './i18n'
 import type { MessageKey } from './i18n'
-import { currentUtcDateTimeLocal, isValidDateTimeLocal } from './time'
+import { browserTimeZone, currentLocalDateTime, isValidDateTimeLocal, localDateTimeToEpoch } from './time'
 
 const date = (value: string | undefined, locale: string) => value
   ? new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23', timeZone: 'UTC' }).format(new Date(value))
@@ -45,7 +45,8 @@ function workflowLabel(value: string, language: 'en' | 'de') {
 export function ProcessMonitor({ events, open }: { events: Entry[]; open: (id: number) => void }) {
   const { language, t } = useI18n()
   const locale = language === 'en' ? 'en-GB' : 'de-DE'
-  const latestDateTime = currentUtcDateTimeLocal()
+  const latestDateTime = currentLocalDateTime()
+  const timeZone = browserTimeZone()
   const processes = useMemo(() => buildProcesses(events), [events])
   const hosts = useMemo(() => [...new Set(processes.flatMap(process => process.hosts))].sort(), [processes])
   const workflows = useMemo(() => [...new Set(processes.map(process => process.workflow).filter(Boolean))].sort(), [processes])
@@ -57,9 +58,9 @@ export function ProcessMonitor({ events, open }: { events: Entry[]; open: (id: n
   const filtersChanged = (Object.keys(draftFilters) as (keyof ProcessFilterState)[]).some(key => draftFilters[key] !== appliedFilters[key])
   const filtered = useMemo(() => {
     const term = appliedFilters.search.trim().toLowerCase()
-    const lower = isValidDateTimeLocal(appliedFilters.from, latestDateTime) ? Date.parse(`${appliedFilters.from}Z`) : -Infinity
+    const lower = isValidDateTimeLocal(appliedFilters.from, latestDateTime) ? localDateTimeToEpoch(appliedFilters.from) : -Infinity
     const upper = isValidDateTimeLocal(appliedFilters.to, latestDateTime) && (!appliedFilters.from || appliedFilters.to >= appliedFilters.from)
-      ? Date.parse(`${appliedFilters.to}Z`) : Infinity
+      ? localDateTimeToEpoch(appliedFilters.to) : Infinity
     const list = processes.filter(process =>
       (!term || [process.job, process.trace, process.workflow].some(value => value.toLowerCase().includes(term)))
       && (!appliedFilters.host || process.hosts.includes(appliedFilters.host))
@@ -120,8 +121,8 @@ export function ProcessMonitor({ events, open }: { events: Entry[]; open: (id: n
         <label>{t('filter.server')}<select value={draftFilters.host} onChange={e => updateDraft('host', e.target.value)}><option value="">{t('process.allServers')}</option>{hosts.map(value => <option key={value}>{value}</option>)}</select></label>
         <label>{t('process.status')}<select value={draftFilters.status} onChange={e => updateDraft('status', e.target.value)}><option value="">{t('process.allStatuses')}</option>{(['Läuft', 'Erfolgreich', 'Erholt', 'Fehlgeschlagen', 'Unklar'] as const).map(value => <option key={value} value={value}>{t(statusKeys[value])}</option>)}</select></label>
         <label>{t('process.jobType')}<select value={draftFilters.kind} onChange={e => updateDraft('kind', e.target.value)}><option value="">{t('process.allJobs')}</option><option value="conversion">{t('process.conversions')}</option></select></label>
-        <label>{t('filter.from')}<input type="datetime-local" max={latestDateTime} value={isValidDateTimeLocal(draftFilters.from, latestDateTime) ? draftFilters.from : ''} onChange={e => updateDraftDate('from', e.target.value)} onBlur={e => updateDraftDate('from', e.currentTarget.value)} /></label>
-        <label>{t('filter.to')}<input type="datetime-local" min={toMinimum} max={latestDateTime} value={isValidDateTimeLocal(draftFilters.to, latestDateTime) && (!toMinimum || draftFilters.to >= toMinimum) ? draftFilters.to : ''} onChange={e => updateDraftDate('to', e.target.value)} onBlur={e => updateDraftDate('to', e.currentTarget.value)} /></label>
+        <label>{t('filter.from', { zone: timeZone })}<input type="datetime-local" max={latestDateTime} value={isValidDateTimeLocal(draftFilters.from, latestDateTime) ? draftFilters.from : ''} onChange={e => updateDraftDate('from', e.target.value)} onBlur={e => updateDraftDate('from', e.currentTarget.value)} /></label>
+        <label>{t('filter.to', { zone: timeZone })}<input type="datetime-local" min={toMinimum} max={latestDateTime} value={isValidDateTimeLocal(draftFilters.to, latestDateTime) && (!toMinimum || draftFilters.to >= toMinimum) ? draftFilters.to : ''} onChange={e => updateDraftDate('to', e.target.value)} onBlur={e => updateDraftDate('to', e.currentTarget.value)} /></label>
         <label>{t('process.sortBy')}<select value={draftFilters.sort} onChange={e => updateDraft('sort', e.target.value)}><option value="recent">{t('process.latest')}</option><option value="oldest">{t('process.oldest')}</option><option value="duration">{t('process.longest')}</option><option value="errors">{t('process.mostErrors')}</option><option value="job">{t('process.jobIdSort')}</option></select></label>
         <button type="button" disabled={!filtersChanged} onClick={applyFilters}>{t('process.applyFilters')}</button>
       </div>
