@@ -44,9 +44,10 @@ class Settings(BaseSettings):
     watch_rescan_s: float = 10.0  # safety net: full size/mtime check every N s (0 = off)
 
     # --- LLM (P3) --------------------------------------------------------------------------
-    llm_provider: str = "claude"  # claude | ollama
+    llm_provider: str = "claude"  # claude | gemini | ollama
     llm_model: str = "claude-sonnet-5-5"
     anthropic_api_key: SecretStr | None = None
+    gemini_api_key: SecretStr | None = None
     llm_max_tool_rounds: int = 8
     llm_max_output_tokens: int = 4096
     ollama_base_url: str = "http://localhost:11434"

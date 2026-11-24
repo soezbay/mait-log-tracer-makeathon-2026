@@ -20,5 +20,8 @@ The endpoint list is in [docs/ARCHITECTURE.md §5](../../docs/ARCHITECTURE.md).
 | `ingest_status.json` | `GET /api/ingest/status`, also the `202` body of `POST /api/ingest` (`{"mode": "full" \| "incremental"}`; `409` if one runs) | P1 |
 | `ingest_progress.sse.txt` | `GET /api/ingest/progress` (SSE events `state`, `started`, `progress`, `new_file`, `done`, `error`; read with `EventSource`) | P1 |
 | *to add by P2* | `/api/analysis/*`, `/api/trace/{key}` | P2 |
-| *to add by P3* | `POST /api/chat` (SSE), `GET /api/chat/{conversation_id}` | P3 |
+| `chat_request.json` | `POST /api/chat` (request body) | P3 |
+| `chat_stream.sse` | `POST /api/chat` (SSE: `token`, `step`, `answer`, `done`, `error`) | P3 |
+| `chat_answer.json` | the `answer` event's data (interface 3, `assistant/answer.py`) | P3 |
+| `chat_history.json` | `GET /api/chat/{conversation_id}` | P3 |
 | *to add by P5* | `/api/eval/*` | P5 |
