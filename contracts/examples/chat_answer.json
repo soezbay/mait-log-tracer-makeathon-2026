@@ -1,0 +1,65 @@
+{
+  "summary": "Publish of JOB-2003 failed because FMS rejected the JT upload (missing write permission).",
+  "causal_chain": [
+    {
+      "step": 1,
+      "server": "mait_win03_cad_converter",
+      "event_ids": [
+        1001
+      ],
+      "text": "Conversion succeeded"
+    },
+    {
+      "step": 2,
+      "server": "mait_linux1_teamcenter_app",
+      "event_ids": [
+        1002
+      ],
+      "text": "FMS upload rejected"
+    },
+    {
+      "step": 3,
+      "server": "mait_linux1_teamcenter_app",
+      "event_ids": [
+        1003
+      ],
+      "text": "Publish failed"
+    }
+  ],
+  "affected_systems": [
+    "mait_win03_cad_converter",
+    "mait_linux1_teamcenter_app"
+  ],
+  "evidence": [
+    {
+      "event_id": 1001,
+      "server": "mait_win03_cad_converter",
+      "file": "mait_win03_cad_converter/logs/converter/nx_jt/creative_2026-11-24.csv",
+      "line": 31,
+      "ts": "2026-11-24T08:30:00Z"
+    },
+    {
+      "event_id": 1002,
+      "server": "mait_linux1_teamcenter_app",
+      "file": "mait_linux1_teamcenter_app/logs/fms/fsc/creative_2026-11-24.txt",
+      "line": 29,
+      "ts": "2026-11-24T08:30:08Z"
+    },
+    {
+      "event_id": 1003,
+      "server": "mait_linux1_teamcenter_app",
+      "file": "mait_linux1_teamcenter_app/logs/teamcenter/workflow/creative_2026-11-24.jsonl",
+      "line": 30,
+      "ts": "2026-11-24T08:30:12Z"
+    }
+  ],
+  "confidence": 0.85,
+  "uncertainty": "No log shows why the permission is missing.",
+  "counter_evidence": [
+    "Converter reported SUCCESS."
+  ],
+  "verification_steps": [
+    "Check the FMS volume access policy."
+  ],
+  "recommendation": "Grant write permission and resubmit."
+}

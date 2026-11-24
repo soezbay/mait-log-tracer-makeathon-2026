@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from logtracer import __version__
-from logtracer.api import events, health, ingest, sources
+from logtracer.api import chat, events, health, ingest, sources
 from logtracer.core.config import Settings, get_settings
 from logtracer.core.logpaket import ensure_from_settings
 from logtracer.ingest.watcher import LogWatcher
@@ -25,6 +25,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # One connection for the whole process: DuckDB allows only one writing process.
         app.state.db = connect(settings.db_path)
         init_schema(app.state.db)
+        # The assistant (P3) reads and writes through the same connection.
+        chat.use_connection(app.state.db)
         app.state.ingest = IngestManager(app.state.db, settings)
         app.state.watcher = None
         if settings.watch_enabled and settings.log_root.is_dir():
@@ -39,6 +41,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 app.state.watcher.stop()
             app.state.ingest.stop_rescans()
             app.state.ingest.wait(timeout=30)
+            chat.use_connection(None)
             app.state.db.close()
 
     app = FastAPI(
@@ -61,6 +64,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(sources.router, prefix="/api")
     app.include_router(events.router, prefix="/api")
     app.include_router(ingest.router, prefix="/api")
+    app.include_router(chat.router, prefix="/api")
     return app
 
 
