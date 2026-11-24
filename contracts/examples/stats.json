@@ -1,0 +1,21 @@
+{
+  "servers": 14,
+  "sources": 13643,
+  "unique_sources": 5068,
+  "duplicate_sources": 8575,
+  "events": 1673912,
+  "duplicate_events": 0,
+  "unparsed_events": 0,
+  "levels": {
+    "DEBUG": 78710,
+    "INFO": 1545672,
+    "WARN": 46044,
+    "ERROR": 3345,
+    "FATAL": 2
+  },
+  "time_range": {
+    "from": "2026-10-01T00:00:29Z",
+    "to": "2026-11-24T23:59:00Z"
+  },
+  "last_ingest_at": "2026-11-24T14:05:12Z"
+}

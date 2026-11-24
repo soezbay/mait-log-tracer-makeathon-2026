@@ -1,0 +1,9 @@
+event: progress
+data: {"mode": "full", "files_done": 2410, "files_total": 13643, "unique_files": 905, "events_written": 296113, "elapsed_s": 41.7}
+
+event: new_file
+data: {"path": "mait_win02_dispatcher_worker/logs/dispatcher/module/creative_2026-11-25.txt", "events_written": 220}
+
+event: done
+data: {"mode": "incremental", "files_done": 1, "events_written": 220, "duplicates": 0, "elapsed_s": 0.4}
+

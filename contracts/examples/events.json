@@ -1,0 +1,55 @@
+{
+  "items": [
+    {
+      "id": 1001,
+      "ts_utc": "2026-11-24T08:30:00Z",
+      "host": "mait_win03_cad_converter",
+      "component": "converter/nx_jt",
+      "level": "INFO",
+      "event_id": "CREATIVE-00045769",
+      "job_id": "JOB-2003",
+      "trace_id": null,
+      "message": "Conversion succeeded; JT output=DEMO-301.jt checksum=abc123",
+      "source_path": "mait_win03_cad_converter/logs/converter/nx_jt/creative_2026-11-24.csv",
+      "line_start": 31,
+      "line_end": 31,
+      "is_duplicate": false,
+      "is_late": false
+    },
+    {
+      "id": 1002,
+      "ts_utc": "2026-11-24T08:30:08Z",
+      "host": "mait_linux1_teamcenter_app",
+      "component": "fms/fsc",
+      "level": "ERROR",
+      "event_id": "CREATIVE-00045771",
+      "job_id": "JOB-2003",
+      "trace_id": null,
+      "message": "Upload rejected; access policy lacks target volume write permission",
+      "source_path": "mait_linux1_teamcenter_app/logs/fms/fsc/creative_2026-11-24.txt",
+      "line_start": 29,
+      "line_end": 29,
+      "is_duplicate": false,
+      "is_late": false
+    },
+    {
+      "id": 1003,
+      "ts_utc": "2026-11-24T08:30:12Z",
+      "host": "mait_linux1_teamcenter_app",
+      "component": "teamcenter/workflow",
+      "level": "ERROR",
+      "event_id": "CREATIVE-00045772",
+      "job_id": "JOB-2003",
+      "trace_id": null,
+      "message": "Publish task failed: no registered result; converter status=SUCCESS",
+      "source_path": "mait_linux1_teamcenter_app/logs/teamcenter/workflow/creative_2026-11-24.jsonl",
+      "line_start": 30,
+      "line_end": 30,
+      "is_duplicate": false,
+      "is_late": false
+    }
+  ],
+  "total": 3,
+  "limit": 50,
+  "offset": 0
+}

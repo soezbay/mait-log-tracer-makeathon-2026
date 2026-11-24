@@ -1,0 +1,17 @@
+{
+  "id": 1002,
+  "source_path": "mait_linux1_teamcenter_app/logs/fms/fsc/creative_2026-11-24.txt",
+  "format": "bracket_json",
+  "encoding": "utf-8",
+  "line_start": 29,
+  "line_end": 29,
+  "lines": [
+    { "no": 26, "is_event": false, "text": "2026-11-24T08:27:06Z [INFO] host=mait_linux1_teamcenter_app component=fms/fsc event_id=CREATIVE-00024666 job_id=OK-02187 | {\"message\": \"Cache hit; requested file already available\", \"duration_ms\": 345, \"session_id\": \"DEMO-S-36\"}" },
+    { "no": 27, "is_event": false, "text": "2026-11-24T08:28:01Z [INFO] host=mait_linux1_teamcenter_app component=fms/fsc event_id=CREATIVE-00024667 job_id=OK-09967 | {\"message\": \"Cache hit; requested file already available\", \"duration_ms\": 350, \"session_id\": \"DEMO-S-35\"}" },
+    { "no": 28, "is_event": false, "text": "2026-11-24T08:29:22Z [INFO] host=mait_linux1_teamcenter_app component=fms/fsc event_id=CREATIVE-00024668 job_id=OK-03156 | {\"message\": \"Dataset transferred; bytes=842991 checksum_verified=true\", \"duration_ms\": 343, \"session_id\": \"DEMO-S-06\"}" },
+    { "no": 29, "is_event": true, "text": "2026-11-24T08:30:08Z [ERROR] host=mait_linux1_teamcenter_app component=fms/fsc event_id=CREATIVE-00045771 job_id=JOB-2003 | {\"message\": \"Upload rejected; access policy lacks target volume write permission\"}" },
+    { "no": 30, "is_event": false, "text": "2026-11-24T08:30:38Z [INFO] host=mait_linux1_teamcenter_app component=fms/fsc event_id=CREATIVE-00024669 job_id=OK-07325 | {\"message\": \"Dataset transferred; bytes=842991 checksum_verified=true\", \"duration_ms\": 681, \"session_id\": \"DEMO-S-32\"}" },
+    { "no": 31, "is_event": false, "text": "2026-11-24T08:31:13Z [INFO] host=mait_linux1_teamcenter_app component=fms/fsc event_id=CREATIVE-00024670 job_id=OK-00669 | {\"message\": \"Cache hit; requested file already available\", \"duration_ms\": 544, \"session_id\": \"DEMO-S-24\"}" },
+    { "no": 32, "is_event": false, "text": "2026-11-24T08:32:49Z [INFO] host=mait_linux1_teamcenter_app component=fms/fsc event_id=CREATIVE-00024671 job_id=OK-01878 | {\"message\": \"Dataset transferred; bytes=842991 checksum_verified=true\", \"duration_ms\": 426, \"session_id\": \"DEMO-S-37\"}" }
+  ]
+}

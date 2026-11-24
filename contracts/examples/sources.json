@@ -1,0 +1,43 @@
+{
+  "items": [
+    {
+      "source_id": 812,
+      "path": "mait_linux1_teamcenter_app/logs/fms/fsc/creative_2026-11-24.txt",
+      "server": "mait_linux1_teamcenter_app",
+      "os": "Linux",
+      "application": "fms",
+      "component": "fsc",
+      "format": "bracket_json",
+      "encoding": "utf-8",
+      "compressed": false,
+      "size": 52251,
+      "sha256": "c984c859df7046d5…",
+      "duplicate_of": null,
+      "event_count": 220,
+      "checkpoint_bytes": 52251,
+      "checkpoint_line": 221,
+      "ingested_at": "2026-11-24T14:03:40Z"
+    },
+    {
+      "source_id": 813,
+      "path": "mait_linux1_teamcenter_app/logs/fms/fsc/creative_2026-11-24_run01.txt",
+      "server": "mait_linux1_teamcenter_app",
+      "os": "Linux",
+      "application": "fms",
+      "component": "fsc",
+      "format": "bracket_json",
+      "encoding": "utf-8",
+      "compressed": false,
+      "size": 52251,
+      "sha256": "c984c859df7046d5…",
+      "duplicate_of": 812,
+      "event_count": 0,
+      "checkpoint_bytes": 0,
+      "checkpoint_line": 0,
+      "ingested_at": "2026-11-24T14:03:40Z"
+    }
+  ],
+  "total": 13643,
+  "limit": 2,
+  "offset": 0
+}
