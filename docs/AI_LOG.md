@@ -24,4 +24,8 @@ Roles: P1 Safak ingest/storage · P2 Harsh analysis · P3 Tarun AI assistant · 
 2026-11-24 11:45 | all | log | One-line AI log added; WORKLOG stays the detailed human log | docs/AI_LOG.md, docs/WORKLOG.md | a07b6bc | -
 2026-11-24 12:00 | all | docs | AGENTS.md with dev rules (ownership, interfaces, DuckDB/API/LLM rules, git, mandatory logging, DoD, data facts); CLAUDE.md imports it | AGENTS.md, CLAUDE.md | 68a2cf2 | -
 2026-11-24 12:15 | all | docs | Plans moved to docs/ (by Safak, committed now); relative links and repo-structure blocks fixed; docs/todo/ git-ignored; Codex reads AGENTS.md, Claude Code reads CLAUDE.md (imports AGENTS.md) | docs/plan*.md, docs/ARCHITECTURE*.md, .gitignore | self | -
+2026-11-24 13:00 | P1 | ingest | Steps 1-3: scanner (servers + log files, multi-level components, metadata skipped), reader (gz in memory, utf-8/utf-8-sig/cp1252, 
+-only line split), file sha256 + duplicate index; scan_sources writes servers+sources via PyArrow; scripts/ingest.py --scan-only | backend/src/logtracer/ingest/{scanner,reader,fingerprint,pipeline}.py, storage/repositories/sources.py, backend/scripts/ingest.py | self | next: format detector + parsers
+2026-11-24 13:00 | P1 | storage | sources.source_id now assigned by pipeline (sequence default removed, avoids id collisions) | backend/src/logtracer/storage/schema.sql | self | -
+2026-11-24 13:00 | P1 | data | Real scan: 14 servers, 13643 files, 5068 unique, 8575 duplicates, 867 MB on disk, 460 MB unique decompressed, 1 cp1252 original (+49 copies), all 1750 .gz unique, 0 read errors, 18.6 s | data/logtracer.duckdb (git-ignored) | - | -
 ```

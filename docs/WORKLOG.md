@@ -94,4 +94,18 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **What:** `plan.md` and `plan.en.md` now live in `docs/` (move by Safak, committed now). Fixed relative links in plans and architecture docs and the repo-structure blocks; `docs/todo/` is git-ignored. Checked tool support: Codex reads `AGENTS.md` natively, Claude Code reads `CLAUDE.md`, which imports `AGENTS.md`, so both follow the same rules.
 - **Where:** `docs/plan*.md`, `docs/ARCHITECTURE.md`, `docs/ARCHITEKTUR.md`, `.gitignore`.
 
+### Ingest steps 1-3: scan, read, file dedupe (P1)
+- **What:**
+  - `ingest/scanner.py`: finds all servers (`<server>/logs/…`, folders starting with `_` are skipped) and log files; reads `server_info.json`; derives application and component (components can have two levels, e.g. `translators/nx_jt`); skips `README.md` and `server_info.json`.
+  - `ingest/reader.py`: decompresses `.gz` in memory, decodes UTF-8 (with/without BOM) with Windows-1252 fallback, splits lines on `
+` only and strips ``.
+  - `ingest/fingerprint.py`: SHA-256 over the decompressed bytes and a duplicate index (first file per hash is the original).
+  - `ingest/pipeline.py` + `storage/repositories/sources.py`: full scan writes `servers` and `sources` in one PyArrow batch; duplicates get `duplicate_of` and are not decoded.
+  - `backend/scripts/ingest.py --scan-only` prints a JSON summary.
+  - Schema: `sources.source_id` is now assigned by the pipeline (sequence default removed) so explicit IDs and defaults cannot collide.
+- **Why:** Foundation for the parsers; confirms file counts, duplicates and encodings before parsing.
+- **Checks:** 12 tests pass (layout, multi-level components, gz, cp1252, BOM, CRLF, duplicate detection incl. `.gz` vs plain, idempotent rescan), ruff clean. Real run: 14 servers, 13,643 files, 5,068 unique, 8,575 duplicates, 460 MB unique decompressed, 1 cp1252 original, 0 errors, 18.6 s. Matches the earlier analysis.
+- **Where:** `backend/src/logtracer/ingest/`, `backend/src/logtracer/storage/`, `backend/scripts/ingest.py`, `backend/tests/test_scan.py`; branch `p1/ingest`.
+- **Open:** format detector and the 6 parsers are next.
+
 **Open (not done by Claude):** `plan.md`/`plan.en.md` were moved to `docs/` and `docs/todo/` was added to `.gitignore` locally; not committed yet. Links to `../plan*.md` in the architecture docs and the P1 TODO need updating after that move.
