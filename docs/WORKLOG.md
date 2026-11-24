@@ -217,3 +217,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `frontend/src/main.tsx`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
 - **Checks:** TypeScript `--noEmit` and Vite production build passed. In the preview, a five-digit-year query rendered blank and the date control exposed the current UTC minute as its maximum.
 - **Open:** -
+
+### Apply the UTC date limit to the process monitor
+- **What:** Moved date/time validation into a shared frontend helper and applied the same current UTC minute maximum to both process monitor filters. Out-of-range values are excluded from process results.
+- **Why:** Keep date filtering consistent between the process monitor and event timeline when investigating logs from multiple systems.
+- **Where:** `frontend/src/time.ts`, `frontend/src/main.tsx`, `frontend/src/ProcessMonitor.tsx`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
+- **Checks:** TypeScript `--noEmit` and Vite production build passed. Preview showed the current UTC maximum on both fields; a forced future value was marked invalid and did not filter the demo results.
+- **Open:** -

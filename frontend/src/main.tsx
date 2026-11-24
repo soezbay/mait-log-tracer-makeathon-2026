@@ -13,19 +13,12 @@ import { IncidentDetail } from './IncidentDetail'
 import { buildProcesses } from './processes'
 import type { ImportedLogs } from './import-zip'
 import { I18nProvider, useI18n } from './i18n'
+import { currentUtcDateTimeLocal, isValidDateTimeLocal } from './time'
 
 type Mode = 'demo' | 'live' | 'import'
 const offline = window.location.protocol === 'file:'
 const formatTime = (timestamp: string) => timestamp.replace('T', ' ').replace(/(?:\.\d+)?Z$/, ' UTC')
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error)
-function currentUtcDateTimeLocal() {
-  return new Date().toISOString().slice(0, 16)
-}
-function isValidDateTimeLocal(value: string | null, max: string): value is string {
-  if (!value || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return false
-  const date = new Date(`${value}Z`)
-  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 16) === value && value <= max
-}
 
 function useData<T>(path: string, mode: Mode, sample: T) {
   const { language } = useI18n()
@@ -157,6 +150,9 @@ function Timeline({ mode, open, logs }: { mode: Mode; open: (id: number) => void
         return <label key={name}>{label}<input type={dateField ? 'datetime-local' : 'text'} max={dateField ? latestDateTime : undefined} placeholder={placeholder} value={dateField ? (isValidDateTimeLocal(value, latestDateTime) ? value : '') : value ?? ''} onChange={e => {
           const nextValue = e.currentTarget.value
           set(name, dateField && nextValue && !isValidDateTimeLocal(nextValue, latestDateTime) ? '' : nextValue)
+        }} onBlur={e => {
+          const nextValue = e.currentTarget.value
+          if (dateField && nextValue && !isValidDateTimeLocal(nextValue, latestDateTime)) set(name, '')
         }} /></label>
       })}
       <label>{t('filter.level')}<select value={params.get('level') ?? ''} onChange={e => set('level', e.target.value)}><option value="">{t('filter.all')}</option>{['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'].map(level => <option key={level}>{level}</option>)}</select></label>

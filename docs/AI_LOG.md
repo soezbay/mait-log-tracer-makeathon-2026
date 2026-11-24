@@ -46,4 +46,5 @@ Roles: P1 Safak ingest/storage · P2 Harsh analysis · P3 Tarun AI assistant · 
 2026-11-24 14:51 | P4 | frontend | Reduced cards, notices, form controls, table spacing and body copy again; kept the centered heading at its current size | frontend/src/style.css | self | -
 2026-11-24 14:57 | P4 | frontend | Validate date-filter query values as four-digit local datetimes; malformed dates render empty and are omitted from API filters | frontend/src/main.tsx | self | -
 2026-11-24 15:02 | P4 | frontend | Cap timeline date/time inputs at the current UTC minute; discard future values from controls and API filters | frontend/src/main.tsx | self | -
+2026-11-24 15:17 | P4 | frontend | Reuse UTC datetime validation and current-minute maximum in process monitor filters; out-of-range dates do not affect results | frontend/src/{time.ts,main.tsx,ProcessMonitor.tsx} | self | -
 ```

@@ -4,6 +4,7 @@ import { buildProcesses } from './processes'
 import type { Process } from './processes'
 import { useI18n } from './i18n'
 import type { MessageKey } from './i18n'
+import { currentUtcDateTimeLocal, isValidDateTimeLocal } from './time'
 
 const date = (value: string | undefined, locale: string) => value
   ? new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23', timeZone: 'UTC' }).format(new Date(value))
@@ -29,6 +30,7 @@ function workflowLabel(value: string, language: 'en' | 'de') {
 export function ProcessMonitor({ events, open }: { events: Entry[]; open: (id: number) => void }) {
   const { language, t } = useI18n()
   const locale = language === 'en' ? 'en-GB' : 'de-DE'
+  const latestDateTime = currentUtcDateTimeLocal()
   const processes = useMemo(() => buildProcesses(events), [events])
   const hosts = useMemo(() => [...new Set(processes.flatMap(process => process.hosts))].sort(), [processes])
   const workflows = useMemo(() => [...new Set(processes.map(process => process.workflow).filter(Boolean))].sort(), [processes])
@@ -44,8 +46,8 @@ export function ProcessMonitor({ events, open }: { events: Entry[]; open: (id: n
   const [selected, setSelected] = useState<string | null>(null)
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()
-    const lower = from ? Date.parse(from + 'Z') : -Infinity
-    const upper = to ? Date.parse(to + 'Z') : Infinity
+    const lower = isValidDateTimeLocal(from, latestDateTime) ? Date.parse(`${from}Z`) : -Infinity
+    const upper = isValidDateTimeLocal(to, latestDateTime) ? Date.parse(`${to}Z`) : Infinity
     const list = processes.filter(process =>
       (!term || [process.job, process.trace, process.workflow].some(value => value.toLowerCase().includes(term)))
       && (!host || process.hosts.includes(host))
@@ -61,7 +63,7 @@ export function ProcessMonitor({ events, open }: { events: Entry[]; open: (id: n
       if (sort === 'oldest') return a.first.localeCompare(b.first)
       return b.last.localeCompare(a.last)
     })
-  }, [processes, search, host, workflow, status, kind, from, to, sort])
+  }, [processes, search, host, workflow, status, kind, from, to, sort, latestDateTime])
   const pageSize = 25
   const maxPage = Math.max(1, Math.ceil(filtered.length / pageSize))
   const current = Math.min(page, maxPage)
@@ -72,6 +74,9 @@ export function ProcessMonitor({ events, open }: { events: Entry[]; open: (id: n
   function filter(setter: (value: string) => void, value: string) {
     setter(value)
     setPage(1)
+  }
+  function filterDate(setter: (value: string) => void, value: string) {
+    filter(setter, value && !isValidDateTimeLocal(value, latestDateTime) ? '' : value)
   }
 
   return <>
@@ -91,8 +96,8 @@ export function ProcessMonitor({ events, open }: { events: Entry[]; open: (id: n
         <label>{t('filter.server')}<select value={host} onChange={e => filter(setHost, e.target.value)}><option value="">{t('process.allServers')}</option>{hosts.map(value => <option key={value}>{value}</option>)}</select></label>
         <label>{t('process.status')}<select value={status} onChange={e => filter(setStatus, e.target.value)}><option value="">{t('process.allStatuses')}</option>{(['Läuft', 'Erfolgreich', 'Erholt', 'Fehlgeschlagen', 'Unklar'] as const).map(value => <option key={value} value={value}>{t(statusKeys[value])}</option>)}</select></label>
         <label>{t('process.jobType')}<select value={kind} onChange={e => filter(setKind, e.target.value)}><option value="">{t('process.allJobs')}</option><option value="conversion">{t('process.conversions')}</option></select></label>
-        <label>{t('filter.from')}<input type="datetime-local" value={from} onChange={e => filter(setFrom, e.target.value)} /></label>
-        <label>{t('filter.to')}<input type="datetime-local" value={to} onChange={e => filter(setTo, e.target.value)} /></label>
+        <label>{t('filter.from')}<input type="datetime-local" max={latestDateTime} value={isValidDateTimeLocal(from, latestDateTime) ? from : ''} onChange={e => filterDate(setFrom, e.target.value)} onBlur={e => filterDate(setFrom, e.currentTarget.value)} /></label>
+        <label>{t('filter.to')}<input type="datetime-local" max={latestDateTime} value={isValidDateTimeLocal(to, latestDateTime) ? to : ''} onChange={e => filterDate(setTo, e.target.value)} onBlur={e => filterDate(setTo, e.currentTarget.value)} /></label>
         <label>{t('process.sortBy')}<select value={sort} onChange={e => filter(setSort, e.target.value)}><option value="recent">{t('process.latest')}</option><option value="oldest">{t('process.oldest')}</option><option value="duration">{t('process.longest')}</option><option value="errors">{t('process.mostErrors')}</option><option value="job">{t('process.jobIdSort')}</option></select></label>
       </div>
       {!filtered.length ? <p className="notice">{processes.length ? t('process.noMatches') : t('process.noIds')}</p> :
