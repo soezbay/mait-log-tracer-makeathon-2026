@@ -208,22 +208,23 @@ function Assistant({ mode, open }: { mode: Mode; open: (id: number) => void }) {
   const [step, setStep] = useState('')
   const [error, setError] = useState('')
   const active = React.useRef<{ target: AssistantTarget; controller: AbortController } | null>(null)
-  const lastOpened = React.useRef<AssistantTarget | null>(null)
+  const opened = React.useRef({ questions: new Set<string>(), jobIds: new Set<string>() })
   useEffect(() => () => { active.current?.controller.abort(); active.current = null }, [])
   function isAlreadyOpen(prompt: string) {
     const target = assistantTarget(prompt)
-    return !!lastOpened.current && sameAssistantTarget(lastOpened.current, target)
+    return opened.current.questions.has(target.question)
+      || target.jobIds.some(id => opened.current.jobIds.has(id))
+      || (!!active.current && sameAssistantTarget(active.current.target, target))
   }
   async function ask(prompt: string, clearComposer = false) {
     const cleanPrompt = prompt.trim()
     const target = assistantTarget(cleanPrompt)
-    if (!cleanPrompt || (lastOpened.current && sameAssistantTarget(lastOpened.current, target))) return
+    if (!cleanPrompt || isAlreadyOpen(cleanPrompt)) return
     if (clearComposer) setQuestion('')
     active.current?.controller.abort()
     const controller = new AbortController()
     const request = { target, controller }
     active.current = request
-    lastOpened.current = target
     setResult(null)
     setError('')
     setStep(t('assistant.searching'))
@@ -231,12 +232,13 @@ function Assistant({ mode, open }: { mode: Mode; open: (id: number) => void }) {
       const answer = mode === 'demo'
         ? demoAnswer(cleanPrompt, language)
         : await chat(cleanPrompt, message => { if (active.current === request) setStep(message) }, controller.signal)
-      if (active.current === request) setResult({ question: cleanPrompt, answer })
-    } catch (error) {
-      if (!controller.signal.aborted && active.current === request) {
-        lastOpened.current = null
-        setError(errorText(error))
+      if (active.current === request) {
+        setResult({ question: cleanPrompt, answer })
+        opened.current.questions.add(target.question)
+        target.jobIds.forEach(id => opened.current.jobIds.add(id))
       }
+    } catch (error) {
+      if (!controller.signal.aborted && active.current === request) setError(errorText(error))
     } finally {
       if (active.current === request) {
         active.current = null

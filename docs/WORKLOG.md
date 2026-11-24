@@ -252,3 +252,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `frontend/src/main.tsx`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
 - **Checks:** TypeScript `--noEmit` and Vite production build passed.
 - **Open:** -
+
+### Remember previously answered assistant targets
+- **What:** The Assistant now remembers successfully answered normalized questions and job IDs for the current session. Reopening a previous target stays disabled after another answer replaces it; failed requests can still be retried.
+- **Why:** Keep the same question or job from being opened again after switching to another answer.
+- **Where:** `frontend/src/main.tsx`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
+- **Checks:** TypeScript `--noEmit` and Vite production build passed.
+- **Open:** -
