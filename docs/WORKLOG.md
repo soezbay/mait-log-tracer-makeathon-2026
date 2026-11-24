@@ -189,3 +189,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `frontend/src/i18n.tsx`, `frontend/src/main.tsx`, `frontend/src/style.css`, `frontend/src/ProcessMonitor.tsx`, `frontend/src/IncidentDetail.tsx`, `frontend/src/api.ts`, `frontend/src/demo.ts`, `frontend/src/import-zip.ts`, `frontend/src/incident.ts`, `frontend/README.md`; commit `self`.
 - **Checks:** TypeScript `--noEmit` and Vite production build passed. Checked the responsive Demo preview; Vite reports existing dependency `use client` warnings. No automated tests run.
 - **Open:** During preview, Live `/stats` and `/events` requests returned HTTP 500. P2 groups/trace and P3 chat routes are still absent from `develop` and need integration for full Live functionality.
+
+### Compact page layout and centered headings
+- **What:** Reduced main page padding, card spacing, notice height and heading/metric type sizes. Centered page headings and their descriptions, with a comfortable description width on large screens.
+- **Why:** Make the dashboard and other screens less oversized while keeping the page hierarchy easy to scan.
+- **Where:** `frontend/src/style.css`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
+- **Checks:** TypeScript `--noEmit` and Vite production build passed.
+- **Open:** -
