@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import logging
+import os
+import re
 import time
 import uuid
 from collections.abc import Iterator
@@ -23,8 +25,8 @@ log = logging.getLogger(__name__)
 SUBMIT_SPEC = ToolSpec(
     name=SUBMIT_TOOL_NAME,
     description=(
-        "Deliver the final answer. Call this exactly once when you have enough evidence (or have found that "
-        "the logs cannot answer the question). Cite only event ids returned by tools."
+        "Deliver the final answer once you have enough evidence, or have found that the logs cannot "
+        "answer. Cite only event ids returned by tools."
     ),
     parameters=SUBMIT_ANSWER_PARAMETERS,
 )
@@ -178,6 +180,27 @@ class LogTracerAgent:
                 "instruction": "Cite only `id` values that tools returned in this conversation. Fix and call "
                                f"{SUBMIT_TOOL_NAME} again.",
             }
+        if not [c for c in sub.counter_evidence if c.strip()]:
+            return None, {
+                "error": "counter_evidence is empty.",
+                "instruction": "Add at least one item: a fact from the logs that argues against your "
+                               "hypothesis or an alternative cause you ruled out (say how). If you found "
+                               "none, say which checks found nothing. Then call "
+                               f"{SUBMIT_TOOL_NAME} again with the same evidence.",
+            }
+        missed = _unmentioned_related(sub, box.related_failures)
+        if missed:
+            key, info = missed
+            keys = info["keys"]
+            span = f"{keys[0]} ... {keys[-1]}" if len(keys) > 1 else (keys[0] if keys else "")
+            return None, {
+                "error": "The answer ignores related jobs that also logged errors.",
+                "facts": f"trace({key}) found {info['events']} log lines of {info['count']} other "
+                         f"jobs/traces ({span}) that mention {key} with WARN/ERROR.",
+                "instruction": "Say in summary or uncertainty whether they failed the same way (e.g. "
+                               "re-runs) and how many there are. Keep the rest of the answer and call "
+                               f"{SUBMIT_TOOL_NAME} again.",
+            }
         if not cited and sub.confidence > 0.2:
             return None, {
                 "error": "No evidence cited.",
@@ -215,5 +238,32 @@ class LogTracerAgent:
             step.event_ids = [i for i in step.event_ids if i in valid]
         sub.evidence_event_ids = [i for i in sub.evidence_event_ids if i in valid]
         sub.confidence = min(sub.confidence, 0.3)
+        if not [c for c in sub.counter_evidence if c.strip()]:
+            sub.counter_evidence = ["The assistant gave no counter-evidence; treat the hypothesis with care."]
         sub.uncertainty += " [Automatic check: some cited event ids could not be verified and were removed.]"
         return self._build(sub, valid)
+
+
+_RERUN_WORDS = ("re-run", "rerun", "re run", "other job", "repeated", "recurr")
+
+
+def _unmentioned_related(
+    sub: AnswerSubmission, related: dict[str, dict[str, Any]]
+) -> tuple[str, dict[str, Any]] | None:
+    """The first traced key whose failing related jobs the answer does not mention at all."""
+    text = " ".join([
+        sub.summary, sub.uncertainty, sub.recommendation, *sub.counter_evidence,
+        *sub.verification_steps, *(step.text for step in sub.causal_chain),
+    ]).lower()
+    for key, info in related.items():
+        keys = [k.lower() for k in info.get("keys") or []]
+        prefix = os.path.commonprefix(keys) if len(keys) > 1 else ""
+        mentioned = (
+            any(k in text for k in keys)
+            or (len(prefix) > len(key) and prefix in text)
+            or re.search(rf"\b{int(info.get('count') or 0)}\b", text) is not None
+            or any(w in text for w in _RERUN_WORDS)
+        )
+        if not mentioned:
+            return key, info
+    return None

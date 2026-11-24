@@ -66,8 +66,13 @@ def with_retries[T](
     attempts: int = 4,
     base_delay: float = 2.0,
     sleep: Callable[[float], None] = time.sleep,
+    delay_for: Callable[[Exception], float | None] | None = None,
 ) -> T:
-    """Retry rate limits / overload with exponential backoff (free tiers hit 429 often)."""
+    """Retry rate limits / overload with exponential backoff (free tiers hit 429 often).
+
+    ``delay_for`` can return the wait the provider asked for (e.g. a ``retry-after`` header);
+    the longer of that and the backoff is used.
+    """
     for attempt in range(1, attempts + 1):
         try:
             return fn()
@@ -75,6 +80,9 @@ def with_retries[T](
             if attempt == attempts or not is_retryable(exc):
                 raise
             delay = base_delay * 2 ** (attempt - 1)
+            hint = delay_for(exc) if delay_for else None
+            if hint is not None:
+                delay = max(delay, hint)
             code = getattr(exc, "code", None) or getattr(exc, "status_code", None)
             log.warning(
                 "LLM call failed (%s%s), retrying in %.0fs",

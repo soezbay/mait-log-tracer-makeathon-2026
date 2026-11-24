@@ -249,3 +249,108 @@ def test_app_start_shares_the_db_connection_with_chat(tmp_path):
         assert chat_api._cursor_factory is None  # released on shutdown
     finally:
         chat_api.configure()
+
+
+# ----------------------------------------------------------------- Groq
+def groq_message(text=None, calls=()):
+    tool_calls = [
+        SimpleNamespace(id=cid, function=SimpleNamespace(name=name, arguments=args))
+        for cid, name, args in calls
+    ]
+    return SimpleNamespace(
+        choices=[SimpleNamespace(message=SimpleNamespace(content=text, tool_calls=tool_calls or None))],
+        usage=SimpleNamespace(prompt_tokens=12, completion_tokens=4),
+    )
+
+
+class FakeGroq:
+    def __init__(self, *responses):
+        self.responses, self.calls = list(responses), []
+        self.chat = SimpleNamespace(completions=self)
+
+    def create(self, **kwargs):
+        self.calls.append({**kwargs, "messages": [dict(m) for m in kwargs["messages"]]})
+        r = self.responses.pop(0)
+        if isinstance(r, Exception):
+            raise r
+        return r
+
+
+class _GroqError(Exception):
+    def __init__(self, status, code=None, message="boom", retry_after=None):
+        super().__init__(message)
+        self.status_code = status
+        self.body = {"error": {"message": message, "code": code}}
+        self.response = SimpleNamespace(headers={"retry-after": retry_after} if retry_after else {})
+
+
+def test_groq_roundtrip_with_tool_call_and_results():
+    from logtracer.assistant.providers.groq import GroqProvider
+
+    client = FakeGroq(
+        groq_message("<think>plan</think>Let me check.",
+                     [("c1", "trace", '{"key": "JOB-2003"}')]),
+        groq_message("done"),
+    )
+    conv = GroqProvider(None, "openai/gpt-oss-120b", client=client,
+                        reasoning_effort="low").start("SYS", ALL_TOOLS, "Question?")
+    r = conv.generate()
+    assert r.text == "Let me check."  # thinking stripped
+    assert r.tool_calls == [ToolCall("trace", {"key": "JOB-2003"}, "c1")]
+    assert (r.input_tokens, r.output_tokens) == (12, 4)
+    first = client.calls[0]
+    assert first["model"] == "openai/gpt-oss-120b" and first["tool_choice"] == "auto"
+    assert first["reasoning_effort"] == "low"
+    assert first["messages"][0] == {"role": "system", "content": "SYS"}
+    assert {t["function"]["name"] for t in first["tools"]} == {t.name for t in ALL_TOOLS}
+
+    conv.add_tool_results([(r.tool_calls[0], {"rows": [1]})])
+    conv.generate(force_tool="submit_answer")
+    second = client.calls[1]
+    assert second["tool_choice"] == {"type": "function", "function": {"name": "submit_answer"}}
+    roles = [m["role"] for m in second["messages"]]
+    assert roles == ["system", "user", "assistant", "tool"]
+    assert second["messages"][2]["tool_calls"][0]["id"] == "c1"
+    assert second["messages"][3]["tool_call_id"] == "c1"
+
+
+def test_groq_waits_for_retry_after_then_gives_readable_errors():
+    from logtracer.assistant.providers.groq import GroqProvider
+
+    sleeps = []
+    ok = groq_message("fine")
+    c = GroqProvider(None, "m", client=FakeGroq(_GroqError(429, retry_after="7.5"), ok),
+                     sleep=sleeps.append).start("S", ALL_TOOLS, "Q")
+    assert c.generate().text == "fine" and sleeps == [7.5]  # Groq's wait, longer than the 2 s backoff
+
+    limited = FakeGroq(*[_GroqError(429, message="Rate limit reached: tokens per minute")] * 4)
+    c2 = GroqProvider(None, "m", client=limited, sleep=lambda s: None).start("S", ALL_TOOLS, "Q")
+    with pytest.raises(ProviderError, match="Groq rate limit.*tokens per minute"):
+        c2.generate()
+    c3 = GroqProvider(None, "m", client=FakeGroq(_GroqError(404, message="model not found")),
+                      sleep=lambda s: None).start("S", ALL_TOOLS, "Q")
+    with pytest.raises(ProviderError, match="GROQ_API_KEY and LLM_MODEL.*model not found"):
+        c3.generate()
+
+
+def test_groq_malformed_tool_call_is_asked_again_not_fatal():
+    from logtracer.assistant.providers.groq import GroqProvider
+
+    client = FakeGroq(_GroqError(400, code="tool_use_failed"), groq_message("ok"))
+    c = GroqProvider(None, "m", client=client, sleep=lambda s: None).start("S", ALL_TOOLS, "Q")
+    r = c.generate()
+    assert r.tool_calls == [] and r.text == ""
+    c.add_user_text("Use the tools.")
+    assert c.generate().text == "ok"
+    assert client.calls[1]["messages"][-1] == {"role": "user", "content": "Q\n\nUse the tools."}
+
+
+def test_groq_provider_from_settings():
+    from logtracer.assistant.config import Settings
+    from logtracer.assistant.providers import create_provider
+
+    with pytest.raises(ProviderError, match="GROQ_API_KEY"):
+        create_provider(Settings(_env_file=None, llm_provider="groq"))
+    p = create_provider(Settings(_env_file=None, llm_provider="groq", GROQ_API_KEY="gsk_test",
+                                 llm_reasoning_effort=""))
+    assert p.name == "groq" and p.model == "openai/gpt-oss-120b" and p.reasoning_effort is None

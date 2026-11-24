@@ -303,3 +303,35 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `backend/src/logtracer/main.py`, `api/chat.py`, `core/config.py`, `assistant/config.py`, `assistant/providers/__init__.py`, `backend/.env.example`, `backend/tests/test_providers_and_api.py`.
 - **Checks:** 96 tests pass (P1 + P3), `ruff check` clean.
 - **Open:** for Safak: `tests/test_incremental.py::test_manager_runs_and_publishes` is flaky, it also fails about 1 in 10 runs on a clean `main` (`state["running"]` is still True right after the `done` event).
+
+### Groq as LLM provider (P3, Tarun)
+- **What:**
+  - New `GroqProvider` (`assistant/providers/groq.py`, official `groq` SDK, OpenAI-style chat completions with tool calling). `LLM_PROVIDER=groq`; default model `openai/gpt-oss-120b`, any Groq model through `LLM_MODEL` (e.g. `qwen/qwen3.8-27b`).
+  - Rate limits: on 429 the provider waits as long as Groq's `retry-after` header asks (max 60 s), otherwise exponential backoff; the SDK's own retries are off so there is one retry layer. Errors show Groq's status and message (rate limit, request too large, bad key or model, server error).
+  - A malformed tool call from the model (`tool_use_failed`) no longer fails the question: the agent asks the model again. `<think>` text of reasoning models is removed from the answer text.
+  - Optional `LLM_REASONING_EFFORT` (`low` / `medium` / `high`) for Groq reasoning models, to trade quality for speed.
+  - `ask.py --provider groq --model <id>` for comparing models from the command line.
+  - `GROQ_API_KEY` and `LLM_REASONING_EFFORT` in `.env.example`; the same two settings in `core/config.py` (P1), because `test_example_env_matches_settings` requires every documented key to be a setting. New dependency `groq`.
+- **Why:** Gemini 3.6 Flash answered `503 UNAVAILABLE` (high demand) in the UI after a long wait; Groq is built for low latency and lets us compare models.
+- **Where:** `backend/src/logtracer/assistant/providers/groq.py`, `providers/base.py` (`with_retries` takes a `delay_for` hint), `providers/__init__.py`, `assistant/config.py`, `core/config.py`, `backend/.env.example`, `backend/scripts/ask.py`, `backend/tests/test_providers_and_api.py`, `docs/ARCHITECTURE.md`, `pyproject.toml`, `uv.lock`.
+- **Checks:** 100 tests pass, `ruff check` clean. The provider was also run against the real `groq` SDK with a mock HTTP server: request shape, tool-call parsing, `retry-after` wait, `tool_use_failed` and a 401 error.
+- **Open:** live comparison of `openai/gpt-oss-120b` and `qwen/qwen3.8-27b` on the real DB. Groq's docs list 8K tokens per minute for gpt-oss-120b on the developer plan while one question uses about 40-50K tokens, so it may wait for rate limits; Groq's docs do not confirm tool use for qwen3.8-27b. Groq prices are not in `costs.py` yet (set `PRICE_*` in `.env`).
+
+### Fewer tokens per question without missing logs; counter-evidence required (P3, Tarun)
+- **What:**
+  - Measured on the real database (P1 ingest, 1.67 M events): the system prompt and tool definitions were 91% of the input, because every model call resends them. Tool definitions went from 5,463 to 2,771 characters (time format explained once in the prompt), `submit_answer` from 1,614 to about 700.
+  - Recall fixes found while measuring: `search_events(text="JOB-2003")` returned 0 events because it only searched `message`, while the job id sits in its own field. It now searches the whole original line (`raw`) and finds all 102. `trace("JOB-2003")` showed 4 events and nothing about the 49 re-runs `JOB-2003-R01..R49` (98 more events with the same failure); it now adds `related`: the related keys and groups with counts and citable sample ids.
+  - Compact results: event lists are tables (`cols` once, `rows` as lists; empty columns left out). When more events match than fit, the listed rows are different lines (max 2 per host/component/level/message pattern) and `groups` summarises ALL matches with counts, time range and sample ids, so no matching line silently disappears. The evidence check reads ids from the table format too.
+  - Prompt: trace first for a named job, then follow the chain across servers; read `groups` and `related`; 2 to 5 tool calls are usually enough.
+  - `counter_evidence` must not be empty: the backend sends the answer back to the model with a clear instruction (the answer format, interface 3, is unchanged).
+- **Why:** On Groq's free plan (8K tokens per minute for gpt-oss-120b) one question (13.9K tokens) waited up to 47 s for rate limits, and the earlier answers missed that the failure repeated in 49 re-runs.
+- **Where:** `backend/src/logtracer/assistant/data_access.py`, `tools.py`, `prompt.py`, `answer.py`, `agent.py`, `backend/tests/test_tools_and_agent.py`, `backend/tests/fixtures.py`.
+- **Checks:** 104 tests pass (new: text search in the raw line, related re-runs are reported and citable, truncated results count all matches and avoid repeats, answer without counter-evidence is sent back), `ruff check` clean. Simulation of the JOB-2003 question on the real DB through the Groq provider and the agent: about 7.8K input tokens instead of 13.9K, same 4 evidence lines (csv:31, fcc jsonl.gz:29, fsc txt:29, workflow jsonl:30).
+- **Open:** live run with Groq; at about 7.8K tokens a question is still close to the 8K-per-minute limit, so a second question within the same minute can wait. For Safak: `data/logpaket.extracted.json` (extraction marker) is not git-ignored and shows up in `git status`.
+
+### Related re-runs are always reported (P3, Tarun)
+- **What:** `trace` now starts with `related_summary`, a plain sentence such as "ALSO: 98 log lines of 49 OTHER jobs (JOB-2003-R01 ... JOB-2003-R49) mention JOB-2003: 49x ERROR mait_win04_plm_sync fms/fcc ...". The ToolBox remembers related jobs that logged WARN/ERROR/FATAL, and an answer that mentions none of them (no related key, no shared prefix such as JOB-2003-R, no count, no word like re-run) is sent back to the model with the facts. Related lines with only INFO do not force a mention.
+- **Why:** The first live run with Groq gpt-oss-120b after the token cut (7.4 s, 3 LLM calls, 6,489 input + 1,171 output tokens, no rate-limit waits, all 4 evidence lines correct, counter-evidence present) did not mention that the same failure happened in 49 re-runs, although trace returned them in a nested table at the end.
+- **Where:** `backend/src/logtracer/assistant/data_access.py`, `tools.py`, `agent.py`, `backend/tests/test_tools_and_agent.py`.
+- **Checks:** 108 tests pass (4 new), `ruff check` clean. Replay on the real DB: the answer from the live run is sent back with "98 log lines of 49 other jobs"; the corrected answer is accepted with the same 4 evidence lines.
+- **Open:** Groq prices for gpt-oss-120b in `costs.py`.

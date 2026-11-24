@@ -2,6 +2,7 @@
 
     python scripts/ask.py "Why did the publish of JOB-2003 fail on 24 Nov?"
     python scripts/ask.py --provider claude "..."          # needs ANTHROPIC_API_KEY
+    python scripts/ask.py --provider groq --model qwen/qwen3.8-27b "..."   # needs GROQ_API_KEY
     python scripts/ask.py --db ../data/standin.duckdb --json "..."
 Run it from the backend/ folder (it reads backend/.env).
 """
@@ -32,7 +33,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("question")
     ap.add_argument("--db")
-    ap.add_argument("--provider", choices=["gemini", "claude"])
+    ap.add_argument("--provider", choices=["gemini", "groq", "claude"])
     ap.add_argument("--model")
     ap.add_argument("--json", action="store_true", help="print the raw answer JSON only")
     ap.add_argument("--no-persist", action="store_true", help="do not store messages/hypotheses")
