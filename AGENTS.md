@@ -131,6 +131,8 @@ Flow:
 3. When the task is done and `pytest` + `ruff check` pass: merge your branch into `develop` (pull request or merge), push `develop`.
 4. Never rewrite pushed history on `develop` (no force push).
 
+`main` stays the default branch on GitHub, so a new pull request targets `main` by default. **Always set the base branch to `develop`** when you open a pull request.
+
 Rules:
 - Small, focused commits. Message: imperative English subject (≤ 72 chars), body with bullets for what and why.
 - An AI agent asked to "merge into main" merges into `develop` instead and points to this rule.
