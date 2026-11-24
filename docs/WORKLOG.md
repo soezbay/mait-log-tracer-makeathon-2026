@@ -2,6 +2,7 @@
 
 English log of what was done, written after every task or change. Newest entries at the bottom.
 Format: date · what · why · where (files, commits) · open points.
+For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 
 ---
 
@@ -78,5 +79,10 @@ Format: date · what · why · where (files, commits) · open points.
 - **Checks:** 6 tests passed (schema creates all tables, idempotent, insert/select with JSON `attrs`, `UPDATE` on events works), ruff clean, all example JSONs parse.
 - **Where:** `backend/src/logtracer/storage/`, `backend/tests/test_schema.py`, `contracts/examples/`.
 - **Open:** walk the team through schema and examples and freeze them; `starlette.testclient` warns that `httpx` should be replaced by `httpx2` (switch was not done, harmless for now).
+
+### One-line AI log
+- **What:** Added `docs/AI_LOG.md` with one line per change (`date time | role | area | change | files | commit | open`) and back-filled all work so far. This file stays the detailed human log.
+- **Why:** AI agents can read the project state quickly and cheaply from one compact file.
+- **Where:** `docs/AI_LOG.md`, `docs/WORKLOG.md`.
 
 **Open (not done by Claude):** `plan.md`/`plan.en.md` were moved to `docs/` and `docs/todo/` was added to `.gitignore` locally; not committed yet. Links to `../plan*.md` in the architecture docs and the P1 TODO need updating after that move.
