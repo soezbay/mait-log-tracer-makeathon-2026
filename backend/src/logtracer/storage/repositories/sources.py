@@ -59,6 +59,26 @@ def replace_sources(con: duckdb.DuckDBPyConnection, rows: list[SourceRow]) -> No
         con.unregister("_sources_batch")
 
 
+def set_formats(con: duckdb.DuckDBPyConnection, formats: dict[int, str]) -> None:
+    """Store the detected format per unique source; duplicates inherit it from their original."""
+    table = pa.table({
+        "source_id": pa.array(list(formats), pa.int32()),
+        "format": list(formats.values()),
+    })
+    con.register("_formats_batch", table)
+    try:
+        con.execute(
+            "UPDATE sources SET format = f.format FROM _formats_batch f "
+            "WHERE sources.source_id = f.source_id"
+        )
+        con.execute(
+            "UPDATE sources SET format = o.format FROM sources o "
+            "WHERE sources.duplicate_of = o.source_id"
+        )
+    finally:
+        con.unregister("_formats_batch")
+
+
 def scan_summary(con: duckdb.DuckDBPyConnection) -> dict:
     """Counts used by the ingest report and later by GET /api/stats."""
     total, unique, dupes, size_all, size_unique = con.execute(
