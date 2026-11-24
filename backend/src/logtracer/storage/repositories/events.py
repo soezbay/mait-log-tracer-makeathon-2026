@@ -154,6 +154,49 @@ def get_event(con: duckdb.DuckDBPyConnection, event_pk: int) -> dict | None:
     return _row_to_dict(DETAIL_COLUMNS, row) if row else None
 
 
+def next_id(con: duckdb.DuckDBPyConnection) -> int:
+    return con.execute("SELECT coalesce(max(id), 0) + 1 FROM events").fetchone()[0]
+
+
+def delete_for_source(con: duckdb.DuckDBPyConnection, source_id: int) -> None:
+    con.execute("DELETE FROM events WHERE source_id = ?", [source_id])
+
+
+def newest_ts_for_source(con: duckdb.DuckDBPyConnection, source_id: int):
+    return con.execute(
+        "SELECT max(ts_utc) FROM events WHERE source_id = ?", [source_id]
+    ).fetchone()[0]
+
+
+def most_common_assumed_date(con: duckdb.DuckDBPyConnection) -> str | None:
+    """Date of most events without a source time zone (fallback for time-only lines)."""
+    row = con.execute(
+        "SELECT strftime(ts_utc, '%Y-%m-%d') FROM events WHERE tz_assumed "
+        "GROUP BY 1 ORDER BY count(*) DESC LIMIT 1"
+    ).fetchone()
+    return row[0] if row else None
+
+
+def mark_duplicates_since(con: duckdb.DuckDBPyConnection, first_new_id: int) -> int:
+    """Flag duplicates among events with id >= first_new_id only (incremental ingest)."""
+    con.execute(
+        """
+        UPDATE events SET duplicate_of = d.first_id
+        FROM (
+            SELECT fingerprint, min(id) AS first_id FROM events
+            WHERE fingerprint IN (SELECT fingerprint FROM events WHERE id >= ?)
+            GROUP BY fingerprint HAVING count(*) > 1
+        ) d
+        WHERE events.id >= ? AND events.fingerprint = d.fingerprint
+          AND events.id <> d.first_id
+        """,
+        [first_new_id, first_new_id],
+    )
+    return con.execute(
+        "SELECT count(*) FROM events WHERE id >= ? AND duplicate_of IS NOT NULL", [first_new_id]
+    ).fetchone()[0]
+
+
 def events_summary(con: duckdb.DuckDBPyConnection) -> dict:
     """Counts for the ingest report and GET /api/stats."""
     total, dupes, late, tz_assumed, errors, no_ts, ts_min, ts_max = con.execute(

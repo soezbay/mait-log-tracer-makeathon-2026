@@ -1,9 +1,21 @@
-event: progress
-data: {"mode": "full", "files_done": 2410, "files_total": 13643, "unique_files": 905, "events_written": 296113, "elapsed_s": 41.7}
+event: state
+data: {"running": false, "mode": "incremental", "started_at": "2026-11-24T11:56:32.687Z", "finished_at": "2026-11-24T11:56:34.730Z", "last_result": {"mode": "incremental", "files_checked": 1, "files_new": 1, "files_appended": 0, "files_rewritten": 0, "files_duplicate": 0, "events_written": 222, "duplicates": 0, "elapsed_s": 2.04}, "error": null, "watcher_enabled": true}
 
-event: new_file
-data: {"path": "mait_win02_dispatcher_worker/logs/dispatcher/module/creative_2026-11-25.txt", "events_written": 220}
+event: started
+data: {"mode": "full", "files": null}
+
+event: progress
+data: {"mode": "full", "files_done": 2500, "files_total": 5068, "events_written": 812345, "elapsed_s": 26.4}
 
 event: done
-data: {"mode": "incremental", "files_done": 1, "events_written": 220, "duplicates": 0, "elapsed_s": 0.4}
+data: {"mode": "full", "files": 5068, "events_written": 1673792, "duplicates": 11125, "elapsed_s": 53.4}
+
+event: new_file
+data: {"path": "mait_linux1_teamcenter_app/logs/fms/fsc/creative_2026-11-24.txt", "action": "new", "events_written": 222}
+
+event: done
+data: {"mode": "incremental", "files_checked": 1, "files_new": 1, "files_appended": 0, "files_rewritten": 0, "files_duplicate": 0, "events_written": 222, "duplicates": 0, "elapsed_s": 2.04}
+
+event: error
+data: {"mode": "incremental", "error": "OSError: …"}
 

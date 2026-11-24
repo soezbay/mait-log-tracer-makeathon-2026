@@ -160,4 +160,16 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `backend/src/logtracer/api/`, `backend/src/logtracer/services/`, `backend/src/logtracer/main.py`, `backend/scripts/make_fixture.py`, `contracts/examples/`; branch `p1/ingest`, merged into `develop`.
 - **Open:** day 3: checkpoints, watcher, `POST /api/ingest` + `GET /api/ingest/progress` (SSE). Demo docs still show the `JOB-2003` chain with 3 steps.
 
+### Continuous ingest: checkpoints, watcher and /ingest API (P1, MAIT step 3)
+- **What:**
+  - `ingest/incremental.py`: per file the checkpoint decides: unknown → all events; grown → only entries after `checkpoint_line` (the whole file is parsed again so CSV headers and multi-line entries stay correct); shrunk or previously a copy → its events are replaced; byte-identical to another file → duplicate; only touched → skipped. Event duplicates are flagged for the new ids only. Deleted files keep their events.
+  - `ingest/event_writer.py`: row building shared by full and incremental ingest.
+  - `services/ingest_service.py`: one ingest at a time in a background thread through a cursor of the single DuckDB connection; changes arriving during a run are queued; progress is pushed to SSE subscribers.
+  - `ingest/watcher.py`: watchdog observer with debounce. **Safety net** `WATCH_RESCAN_S` (default 10 s): a quiet size/mtime check of the whole package, because in the live test Windows delivered change notifications for shell appends late or not at all. Watcher and rescan runs stay silent when nothing changed.
+  - API: `POST /api/ingest` (`full` | `incremental`, 202 / 409), `GET /api/ingest/status`, `GET /api/ingest/progress` (SSE: `state`, `started`, `progress`, `new_file`, `done`, `error`).
+  - Contract examples `ingest_status.json` and `ingest_progress.sse.txt`; `AGENTS.md` ownership extended.
+- **Checks:** 51 tests pass (new file, append, CSV append keeps header mapping, rewrite, copy, cross-file duplicate, watcher, manager events, quiet rescan, endpoints), ruff clean. Live on a temporary copy of scenario files (original package untouched): new `.txt` and `.gz` files and four shell appends each became queryable in about 5 s; the SSE stream showed `new_file` and `done`; a line that the watcher had missed earlier was picked up by the rescan.
+- **Where:** `backend/src/logtracer/ingest/`, `backend/src/logtracer/services/ingest_service.py`, `backend/src/logtracer/api/ingest.py`, `backend/src/logtracer/main.py`, `backend/.env.example`, `contracts/examples/`; branch `p1/ingest`, merged into `develop`.
+- **Open:** for the pitch demo, copy new files into a watched folder (a copy of the package or a separate demo folder), never edit the original package.
+
 **Open (not done by Claude):** `plan.md`/`plan.en.md` were moved to `docs/` and `docs/todo/` was added to `.gitignore` locally; not committed yet. Links to `../plan*.md` in the architecture docs and the P1 TODO need updating after that move.

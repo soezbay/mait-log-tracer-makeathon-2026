@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     # --- Continuous ingest (P1, day 3) -----------------------------------------------------
     watch_enabled: bool = False
     watch_debounce_s: float = 1.5
+    watch_rescan_s: float = 10.0  # safety net: full size/mtime check every N s (0 = off)
 
     # --- LLM (P3) --------------------------------------------------------------------------
     llm_provider: str = "claude"  # claude | ollama

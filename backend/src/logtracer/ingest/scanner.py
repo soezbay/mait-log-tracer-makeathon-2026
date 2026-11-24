@@ -53,6 +53,30 @@ def _server_dirs(log_root: Path) -> list[Path]:
     )
 
 
+def scan_file(log_root: Path, file: Path) -> ScannedFile | None:
+    """Describe one file, or None if it is not a log file of a server (metadata, other folder)."""
+    log_root, file = Path(log_root).resolve(), Path(file).resolve()
+    try:
+        parts = file.relative_to(log_root).parts  # server, "logs", application, ..., name
+    except ValueError:
+        return None
+    if (len(parts) < 4 or parts[1] != "logs" or parts[0].startswith(("_", "."))
+            or file.name in METADATA_FILES or not file.is_file()):
+        return None
+    stat = file.stat()
+    inner = parts[2:]
+    return ScannedFile(
+        path="/".join(parts),
+        abs_path=file,
+        server=parts[0],
+        application=inner[0] if len(inner) > 1 else None,
+        component="/".join(inner[1:-1]) or None,
+        compressed=file.suffix == ".gz",
+        size=stat.st_size,
+        mtime=datetime.fromtimestamp(stat.st_mtime, UTC).replace(tzinfo=None),
+    )
+
+
 def scan(log_root: Path) -> tuple[list[ServerInfo], list[ScannedFile]]:
     """Return all servers and all log files, sorted by path (stable source IDs)."""
     log_root = Path(log_root)
