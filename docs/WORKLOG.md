@@ -130,4 +130,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **What:** Checked the repository via the public GitHub API: public repo, `main` is not protected, no rulesets. Teammates cannot push because the repo belongs to a personal account and only the owner and invited collaborators may push.
 - **Open:** Safak adds Harsh, Tarun and Adnan under Settings → Collaborators; they accept the invitation.
 
+### develop branch and branch rules
+- **What:** Created the integration branch `develop` (from `p1/ingest`, i.e. `main` plus ingest steps 1-5) and pushed it. `AGENTS.md` §8 now says: work only on `develop` or your own `p<N>/<topic>` branch, start every task from the latest `develop`, merge back into `develop` when tests pass, never commit, merge or push to `main`; `main` is updated only by Safak from a green `develop`. Start-here list and definition of done updated accordingly.
+- **Why:** `main` stays stable for the demo and the pitch while everyone integrates on `develop`.
+- **Where:** `AGENTS.md`; branch `develop`.
+- **Open:** optionally make `develop` the default branch and protect `main` in the GitHub settings.
+
 **Open (not done by Claude):** `plan.md`/`plan.en.md` were moved to `docs/` and `docs/todo/` was added to `.gitignore` locally; not committed yet. Links to `../plan*.md` in the architecture docs and the P1 TODO need updating after that move.
