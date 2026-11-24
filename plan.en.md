@@ -248,6 +248,7 @@ makeathon/
 ├── MAIT_Makeathon_Logpaket/   # original data, read only, in .gitignore
 ├── data/logtracer.duckdb        # derived, in .gitignore
 ├── eval/questions.yaml        # test questions + ground truth
+├── contracts/examples/        # one JSON example response per API endpoint (frozen interface)
 ├── backend/                   # Python + FastAPI
 │   └── src/logtracer/
 │       ├── api/               # REST + SSE endpoints
@@ -268,7 +269,7 @@ makeathon/
 |---|---|---|
 | Morning | Briefing, questions for the mentor (§13), request missing docs | clarity on data & judging |
 | | Personas, user stories, MVP cut; **pick the demo scenario from §7** | prioritized backlog, demo case |
-| Midday | Lock data model + parser list, assign roles | schema, tasks |
+| Midday | Assign the 5 roles (§11); **freeze the three interfaces by 13:00** (DB schema, API contract with example JSONs, answer format) | frozen interfaces, tasks |
 | Afternoon | Scanner + file dedupe + 6 parsers + writing to DuckDB | **Milestone: everything in DuckDB** |
 | Evening | Sanity check (events per server, level distribution); draft test questions + ground truth | `eval/questions.yaml` v1 |
 
@@ -291,14 +292,75 @@ makeathon/
 - Morning: final run-through, DuckDB pre-built, backup video ready
 - Deliver the pitch, answer questions
 
-## 11. Roles (assumption: 4 people)
+## 11. Roles & work split (5 people)
 
-| Role | Responsibility |
-|---|---|
-| **Ingest** | scanner, parsers, encoding, DuckDB, checkpoints, dedupe |
-| **Analytics** | templates, error groups, anomalies, clock correction, correlation |
-| **AI & evaluation** | LLM tools, prompt, answer format, test questions, quality & cost |
-| **Frontend & pitch** | React frontend, graph, demo script, slides, story |
+**Principle:** every person owns a vertical slice, from the database up to their API endpoint, with **their own folders**. People can work independently because **three interfaces are frozen on day 1 by 13:00**, and everyone uses **stand-in data** until the real parts of the others are ready.
+
+### Roles
+
+| # | Person | Role | Tag | Responsibility | Owned folders/files |
+|---|---|---|---|---|---|
+| **P1** | Safak | **Ingest & storage** | [ING] | backend skeleton, scanner, reader, 6 parsers, normalization (time, level, dedupe), DuckDB schema, checkpoints, watcher; API `/ingest`, `/sources`, `/events`, `/stats`; fixture script | `backend/src/logtracer/ingest/`, `normalize/` (except `clock.py`), `storage/`, `api/ingest.py`, `api/events.py`, `scripts/ingest.py`, `scripts/make_fixture.py` |
+| **P2** | Harsh | **Analysis & correlation** | [ANA] | Drain3, error groups (recovered/failed), anomalies, clock correction, correlation, incidents, graph; API `/analysis/*`, `/trace` | `analysis/`, `normalize/clock.py`, `api/analysis.py` |
+| **P3** | Tarun | **AI assistant** | [AI] | LLM providers, tools, prompt, answer schema with evidence validation, tool-use loop, cost logging, optional summary of the top incidents; API `/chat` (SSE) | `assistant/`, `api/chat.py` |
+| **P4** | Adnan | **Frontend** | [FE] | all pages and components: overview, timeline, error groups, graph, chat, source view, quality & cost; mock API | `frontend/` |
+| **P5** | *open* | **Data, evaluation & pitch** | [EVAL] | mentor questions, trace the demo scenario in the logs, test questions with ground truth, evaluation script, metrics, slides, demo script, backup video, README | `eval/`, `scripts/evaluate.py`, `api/eval.py`, `docs/`, `README.md` |
+
+P5 matters because without someone who understands the data in depth there is no ground truth to measure against and no convincing demo. P5 can start immediately, without anyone else's code.
+
+**P5 is not assigned yet.** Until it is, the P5 tasks are split as a fallback: test questions and ground truth go to Tarun (P3) and Harsh (P2), since they need them first; slides, demo script and README go to Adnan (P4) from day 3 noon; the dress rehearsal is led by Safak (P1).
+
+### The three interfaces (freeze on day 1 by 13:00)
+
+| Interface | Content | Owner | Used by |
+|---|---|---|---|
+| **1. DB schema** `storage/schema.sql` | tables `sources`, `events`, plus the analysis tables from the start: `templates`, `error_groups`, `group_members`, `correlations`, `incidents`, `hypotheses`, `llm_calls` | P1 writes, P2 confirms the analysis tables | P2, P3 |
+| **2. API contract** | endpoints from `docs/ARCHITECTURE.md` §5 plus **one JSON example response per endpoint** in `contracts/examples/` | P1–P3, each for their own endpoints | P4, P5 |
+| **3. Assistant answer format** | Pydantic schema `answer.py`: summary, causal chain, evidence, uncertainty, verification steps | P3 | P4 (display), P5 (scoring) |
+
+After that: **interface changes only after a short team agreement**, and the example JSONs in `contracts/examples/` are updated in the same commit.
+
+### Stand-in data while others are still building
+
+| Who | Actually waits for | Stand-in until then |
+|---|---|---|
+| **P1** | nothing | works directly on the log package |
+| **P2** | the finished ingest from P1 | the `.jsonl` files already contain all fields: load them with `duckdb.read_json_auto()` into an `events` table that follows the schema, in a few minutes |
+| **P3** | analysis tables from P2 | the same JSONL stand-in DB; a few hand-written `error_groups` rows for the demo scenario |
+| **P4** | all endpoints | **mock API** from `contracts/examples/` (e.g. with MSW); later only the base URL changes |
+| **P5** | `/chat` for the evaluation | work out test questions and ground truth directly from the logs; test `evaluate.py` against an example answer from interface 3 |
+
+By day 1 evening P1 also delivers **`scripts/make_fixture.py`**, which builds a small test database from the demo scenario's files only. The DuckDB file itself stays out of Git, only the script is committed, so everyone has the same test data.
+
+### Plan per person
+
+| | **Day 1** | **Day 2** | **Day 3** |
+|---|---|---|---|
+| **P1 · Safak** | backend skeleton + `/health`; schema; scanner, reader, parsers + tests; full ingest | normalization done, dedupe; API `/events`, `/context`, `/stats`; performance | checkpoints, watcher, `/ingest` + SSE; pre-build the DB for the pitch, demo machine |
+| **P2 · Harsh** | stand-in DB from JSONL; tune Drain3 masking on real messages | error groups, anomalies, clock correction, correlation; API `/analysis/*` | incidents for the overview, graph, late entries; polish together with P5 |
+| **P3 · Tarun** | provider + API key; answer schema; tools against the stand-in DB | prompt, tool-use loop, evidence validation, cost; `/chat` with SSE | summary of the top incidents; improve the prompt based on the evaluation |
+| **P4 · Adnan** | Vite skeleton, navigation, mock API; overview with mock data | timeline, event table, source view, chat page (mocks first, then real) | error groups, graph, ingest progress, quality & cost; polish the demo path |
+| **P5 · open** | mentor questions; trace the demo scenario in the logs; 10–15 test questions with ground truth | `evaluate.py`; first run in the evening; report failures back to P2/P3 | final numbers, slides, demo script, backup video, README; leads the dress rehearsal |
+
+### Syncs (short, max. 10 minutes)
+
+- **Daily 9:00, 14:00, 19:00:** what is done, who blocks whom, does an interface change?
+- **Day 1, 13:00:** interfaces are frozen.
+- **Day 1, evening:** full ingest runs, fixture script is in the repo.
+- **Day 2, evening:** the demo question works once end-to-end in the real frontend (integration milestone).
+- **Day 3, 16:00:** feature freeze, then only bug fixes and the pitch.
+
+### Rules against merge conflicts
+
+- Everyone works only in **their own folders**, on **their own feature branches**, with small and frequent merges.
+- **Shared files** such as `main.py` (registering routers), `pyproject.toml` and `package.json`: small changes only, tell the team before merging.
+- Whoever changes an interface updates `contracts/examples/` in the same commit.
+
+### Remaining dependencies (highest risk)
+
+1. **P2 → P3:** the quality of the AI answer depends on good error groups and correlations. Real analysis tables for the demo scenario are needed by day 2 noon at the latest.
+2. **P1 → everyone:** if a parser reads lines wrongly, everything downstream is wrong. Parser tests with real sample lines are mandatory.
+3. **P3 → P5:** real evaluation numbers need the `/chat` endpoint. P5 can still have the test questions and ground truth ready before that.
 
 ## 12. Pitch structure (5 min)
 
@@ -346,7 +408,7 @@ makeathon/
 
 ## 16. TODO by phase
 
-Role tags: **[ING]** ingest · **[ANA]** analytics · **[AI]** AI & evaluation · **[FE]** frontend & pitch · **[ALL]** whole team.
+Role tags (see §11): **[ING]** P1 Safak, ingest & storage · **[ANA]** P2 Harsh, analysis & correlation · **[AI]** P3 Tarun, AI assistant · **[FE]** P4 Adnan, frontend · **[EVAL]** P5 *open*, data, evaluation & pitch (fallback split in §11) · **[ALL]** whole team.
 Every phase ends with an **exit criterion**. A phase is only done once it is met.
 
 ### Phase 0: Setup (day 1, early)
@@ -354,18 +416,22 @@ Every phase ends with an **exit criterion**. A phase is only done once it is met
 - [ ] [ING] Create `backend/`: `pyproject.toml` (uv), FastAPI skeleton, `/api/health`, `.env.example`
 - [ ] [FE] Create `frontend/`: Vite + React + TypeScript, Mantine, router, proxy `/api` → `:8000`
 - [ ] [AI] Get a Claude API key, put it in `backend/.env` (never commit it)
-- [ ] [ALL] Agree on branch rules (e.g. feature branches, short review before merge)
+- [ ] [EVAL] Read the log package README and `_dokumentation/`, prepare the mentor questions (§13)
+- [ ] [ALL] Agree on branch rules (feature branch per person, short review before merge)
 
 **Exit:** backend and frontend start locally, the frontend shows the response of `/api/health`.
 
-### Phase 1: Concept & user stories (day 1, morning)
+### Phase 1: Concept, user stories & interfaces (day 1, morning)
 - [ ] [ALL] Briefing, ask the mentor the questions (§13), request missing docs
 - [ ] [ALL] Confirm personas and user stories, define the MVP cut
-- [ ] [ALL] Pick the demo scenario from §7 and trace it in the logs
-- [ ] [ALL] Assign roles, confirm team size
-- [ ] [ALL] Walk through the API contract in `docs/ARCHITECTURE.md` §5 and freeze it (changes only by agreement)
+- [ ] [ALL] Assign the 5 roles (§11)
+- [ ] [EVAL] Pick the demo scenario from §7 and trace it in the logs (files, lines, servers)
+- [ ] [ING] Interface 1: `storage/schema.sql` incl. analysis tables; [ANA] confirms the analysis tables
+- [ ] [ING] [ANA] [AI] Interface 2: one example JSON per own endpoint in `contracts/examples/`
+- [ ] [AI] Interface 3: answer schema `answer.py` with an example answer
+- [ ] [ALL] **Freeze the three interfaces by 13:00** (changes only by agreement)
 
-**Exit:** prioritized backlog, chosen demo scenario, frozen API contract.
+**Exit:** prioritized backlog, chosen demo scenario, three frozen interfaces.
 
 ### Phase 2: Ingest & normalization (day 1, afternoon/evening)
 - [ ] [ING] `scanner.py`: scan recursively, separate metadata (`server_info.json`, `README.md`), server/application/component from the path
@@ -373,13 +439,16 @@ Every phase ends with an **exit criterion**. A phase is only done once it is met
 - [ ] [ING] `reader.py`: `.gz` in memory, UTF-8 with Windows-1252 fallback, CRLF
 - [ ] [ING] Parsers `kv_log`, `bracket_json`, `csv_semicolon` (multi-line), `jsonl`, `xml_events`, `freetext`
 - [ ] [ING] Parser tests with real sample lines per format
-- [ ] [ING] `storage/schema.sql` + `db.py`: tables `sources`, `events`; Arrow batch insert
-- [ ] [ANA] `timestamps.py` (UTC) and `levels.py` (level mapping)
-- [ ] [ANA] `dedupe.py`: event fingerprint, flag duplicates
-- [ ] [AI] `eval/questions.yaml` v1: 10–15 test questions with expected cause, servers and evidence
-- [ ] [FE] Page skeleton with navigation; overview with mock data
+- [ ] [ING] `db.py`: tables `sources`, `events`; Arrow batch insert
+- [ ] [ING] `timestamps.py` (UTC), `levels.py` (level mapping), `dedupe.py` (event fingerprint, flag duplicates)
+- [ ] [ING] `scripts/make_fixture.py`: small test DB from the demo scenario's files
+- [ ] [ANA] Stand-in DB from the `.jsonl` files via `duckdb.read_json_auto()`, following the schema
+- [ ] [ANA] Tune the Drain3 masking on real messages (order of the rules, `sim_th`)
+- [ ] [AI] `providers/` (`ClaudeProvider`, interface for Ollama); first tools against the stand-in DB
+- [ ] [EVAL] `eval/questions.yaml` v1: 10–15 test questions with expected cause, servers and evidence
+- [ ] [FE] Page skeleton with navigation; mock API from `contracts/examples/`; overview with mock data
 
-**Exit:** a full ingest runs through, all events are in DuckDB. Sanity check: events per server, level distribution and number of duplicates roughly match the analysis in §3.
+**Exit:** a full ingest runs through, all events are in DuckDB. Sanity check: events per server, level distribution and number of duplicates roughly match the analysis in §3. The fixture script is in the repo.
 
 ### Phase 3: Analysis (day 2, morning)
 - [ ] [ANA] `templates.py`: Drain3 with masking, `template_id` per event
@@ -387,21 +456,21 @@ Every phase ends with an **exit criterion**. A phase is only done once it is met
 - [ ] [ANA] `anomalies.py`: error rate vs. baseline, new/rare templates, duration outliers
 - [ ] [ANA] `clock.py`: detect clock skew (`mait_win02_dispatcher_worker`), set `clock_offset_s`
 - [ ] [ING] API: `/stats`, `/sources`, `/events`, `/events/{id}`, `/events/{id}/context`
-- [ ] [FE] Connect the timeline (ECharts) and event table to the real API
+- [ ] [AI] `tools.py`: `search_events`, `get_error_groups`, `get_anomalies`, `trace`, `correlate`, `get_context`
+- [ ] [EVAL] `scripts/evaluate.py`: scoring against the ground truth, tested with the example answer from interface 3
+- [ ] [FE] Timeline (ECharts) and event table, first against mocks, then against the real API
 - [ ] [FE] `SourceViewer`: show the original lines around an event
 
 **Exit:** error groups for the demo scenario are correct; harmless ERRORs end up as "recovered"; the timeline shows real data.
 
 ### Phase 4: Correlation & AI assistant (day 2, afternoon/evening)
-- [ ] [ANA] `correlation.py`: hard (trace, job within a time window, object ID, `INC-xx`) and soft links
+- [ ] [ANA] `correlation.py`: hard (trace, job within a time window, object ID, `INC-xx`) and soft links; fill `incidents`
 - [ ] [ANA] `graph.py` + API `/analysis/graph`, `/analysis/groups`, `/analysis/anomalies`, `/analysis/timeseries`, `/trace/{key}`
-- [ ] [AI] `providers/`: `ClaudeProvider` (and the interface for Ollama)
-- [ ] [AI] `tools.py`: `search_events`, `get_error_groups`, `get_anomalies`, `trace`, `correlate`, `get_context`
-- [ ] [AI] `prompt.py` + `answer.py`: answer format with evidence, uncertainty, verification steps; validate event IDs
+- [ ] [AI] `prompt.py` + evidence validation in `answer.py` (every cited event ID must exist)
 - [ ] [AI] `agent.py`: tool-use loop with a round limit; `costs.py` writes `llm_calls`
 - [ ] [AI] API `/chat` with SSE (`step`, `token`, `answer`, `done`)
 - [ ] [FE] Chat page with intermediate steps, `AnswerCard`, `EvidenceChip` → `SourceViewer`
-- [ ] [AI] `scripts/evaluate.py`: first evaluation run
+- [ ] [EVAL] First evaluation run against `/chat`; report wrong causes and missing evidence to [ANA] and [AI]
 
 **Exit (milestone):** the demo question works once fully end-to-end in the frontend. First numbers on hit rate and cost are available.
 
@@ -409,14 +478,16 @@ Every phase ends with an **exit criterion**. A phase is only done once it is met
 - [ ] [ING] `checkpoint.py`: byte offset/line per file, incremental ingest
 - [ ] [ING] `watcher.py`: watchdog inside the backend process, ingest new files automatically
 - [ ] [ING] API `/ingest` and `/ingest/progress` (SSE)
-- [ ] [ANA] Flag late entries; make the clock correction visible in the timeline
-- [ ] [FE] Error groups page, dependency graph (Cytoscape.js), `IngestProgress`
-- [ ] [AI] Improve the prompt based on the evaluation (wrong causes, missing evidence)
+- [ ] [ANA] Flag late entries; make the clock correction visible in the timeline; incidents for the overview
+- [ ] [AI] Optional: automatic summary of the top 3–5 incidents, stored in `hypotheses`
+- [ ] [AI] Improve the prompt based on the evaluation
+- [ ] [FE] Error groups page, dependency graph (Cytoscape.js), `IngestProgress`, overview with incidents
+- [ ] [EVAL] Second evaluation run, track progress
 
 **Exit:** a log file newly copied into the folder appears in the UI without a restart and without duplicates.
 
 ### Phase 6: Evaluation & polish (day 3, midday)
-- [ ] [AI] Final evaluation run; compare "whole logs" vs. "tools" for cost
+- [ ] [EVAL] Final evaluation run; compare "whole logs" vs. "tools" for cost; API `/eval/results`
 - [ ] [FE] "Quality & cost" page with the numbers from `/eval/results`
 - [ ] [ALL] Could-stories only once all must-stories are done (ticket draft, "happened before?", masking)
 - [ ] [ALL] Bug fixing, click through the demo path several times
@@ -425,17 +496,17 @@ Every phase ends with an **exit criterion**. A phase is only done once it is met
 **Exit:** every item of the definition of done (§15) is checked.
 
 ### Phase 7: Pitch preparation (day 3, afternoon/evening)
-- [ ] [FE] Step-by-step demo script (which clicks, which question, which evidence)
-- [ ] [FE] Slides following §12, with real numbers from the evaluation
+- [ ] [EVAL] Step-by-step demo script (which clicks, which question, which evidence)
+- [ ] [EVAL] Slides following §12, with real numbers from the evaluation
+- [ ] [EVAL] Repo README: project, how to run, architecture links
 - [ ] [ALL] Record a backup video of the demo
 - [ ] [ING] Pre-build and back up DuckDB; test startup without internet (except the LLM)
-- [ ] [ALL] Repo README: project, how to run, architecture links
-- [ ] [ALL] Timed dress rehearsal, practice jury questions
+- [ ] [ALL] Timed dress rehearsal led by [EVAL], practice jury questions
 
 **Exit:** the pitch fits in 5 minutes, the demo runs twice in a row without errors.
 
 ### Phase 8: Pitch day (day 4)
 - [ ] [ALL] Final run-through in the morning
 - [ ] [ING] Check the demo machine: backend, frontend, DuckDB, API key, internet
-- [ ] [FE] Backup video and slides available offline
+- [ ] [EVAL] Backup video and slides available offline
 - [ ] [ALL] Deliver the pitch, answer questions
