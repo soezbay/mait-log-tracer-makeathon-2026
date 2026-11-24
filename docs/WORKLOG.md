@@ -245,3 +245,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** Local runtime in `backend/.venv`; generated database in `data/logtracer.duckdb`; no backend source files changed.
 - **Checks:** `GET /api/health` returns `status: ok` and `db_found: true`.
 - **Open:** `log_root_found: false`; `MAIT_Makeathon_Logpaket/` is absent from this checkout, so the local database is empty until the log package is provided.
+
+### Prevent duplicate assistant answers
+- **What:** Kept only one assistant answer visible. Repeated normalized questions and repeated job IDs are ignored; a new question aborts an in-flight search and replaces the previous answer.
+- **Why:** Avoid duplicate answer cards and requests when the same question or job is clicked again.
+- **Where:** `frontend/src/main.tsx`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
+- **Checks:** TypeScript `--noEmit` and Vite production build passed.
+- **Open:** -

@@ -19,6 +19,17 @@ type Mode = 'demo' | 'live' | 'import'
 const offline = window.location.protocol === 'file:'
 const formatTime = (timestamp: string) => timestamp.replace('T', ' ').replace(/(?:\.\d+)?Z$/, ' UTC')
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error)
+type AssistantTarget = { question: string; jobIds: string[] }
+
+function assistantTarget(question: string): AssistantTarget {
+  const normalized = question.trim().replace(/\s+/g, ' ').toLowerCase()
+  const jobIds = [...new Set((normalized.match(/\b[a-z][a-z0-9]*[-_ ]\d+[a-z0-9._-]*\b/g) ?? []).map(id => id.replace(/[\s_]+/g, '-')))]
+  return { question: normalized, jobIds }
+}
+
+function sameAssistantTarget(first: AssistantTarget, second: AssistantTarget) {
+  return first.question === second.question || first.jobIds.some(id => second.jobIds.includes(id))
+}
 
 function useData<T>(path: string, mode: Mode, sample: T) {
   const { language } = useI18n()
@@ -193,44 +204,62 @@ function ErrorGroups({ mode, open }: { mode: Mode; open: (id: number) => void })
 function Assistant({ mode, open }: { mode: Mode; open: (id: number) => void }) {
   const { language, t } = useI18n()
   const [question, setQuestion] = useState('')
-  const [history, setHistory] = useState<{ question: string; answer: Answer }[]>([])
+  const [result, setResult] = useState<{ question: string; answer: Answer } | null>(null)
   const [step, setStep] = useState('')
   const [error, setError] = useState('')
-  const active = React.useRef<AbortController>()
-  useEffect(() => () => active.current?.abort(), [])
-  async function ask(prompt: string) {
-    if (!prompt.trim() || active.current) return
+  const active = React.useRef<{ target: AssistantTarget; controller: AbortController } | null>(null)
+  const lastOpened = React.useRef<AssistantTarget | null>(null)
+  useEffect(() => () => { active.current?.controller.abort(); active.current = null }, [])
+  function isAlreadyOpen(prompt: string) {
+    const target = assistantTarget(prompt)
+    return !!lastOpened.current && sameAssistantTarget(lastOpened.current, target)
+  }
+  async function ask(prompt: string, clearComposer = false) {
+    const cleanPrompt = prompt.trim()
+    const target = assistantTarget(cleanPrompt)
+    if (!cleanPrompt || (lastOpened.current && sameAssistantTarget(lastOpened.current, target))) return
+    if (clearComposer) setQuestion('')
+    active.current?.controller.abort()
     const controller = new AbortController()
-    active.current = controller
+    const request = { target, controller }
+    active.current = request
+    lastOpened.current = target
+    setResult(null)
     setError('')
     setStep(t('assistant.searching'))
     try {
-      const answer = mode === 'demo' ? demoAnswer(prompt, language) : await chat(prompt, setStep, controller.signal)
-      setHistory(previous => [...previous, { question: prompt, answer }])
-      setQuestion('')
+      const answer = mode === 'demo'
+        ? demoAnswer(cleanPrompt, language)
+        : await chat(cleanPrompt, message => { if (active.current === request) setStep(message) }, controller.signal)
+      if (active.current === request) setResult({ question: cleanPrompt, answer })
     } catch (error) {
-      if (!controller.signal.aborted) setError(errorText(error))
+      if (!controller.signal.aborted && active.current === request) {
+        lastOpened.current = null
+        setError(errorText(error))
+      }
     } finally {
-      active.current = undefined
-      setStep('')
+      if (active.current === request) {
+        active.current = null
+        setStep('')
+      }
     }
   }
   return <>
     <Heading caption={t('assistant.caption')} title={t('assistant.title')}>{mode === 'demo' ? t('assistant.demoDescription') : t('assistant.liveDescription')}</Heading>
-    <div className="actions">{[t('assistant.prompt2003'), t('assistant.prompt2010'), t('assistant.promptSync')].map(prompt => <button type="button" key={prompt} className="secondary" disabled={!!step} onClick={() => void ask(prompt)}>{prompt}</button>)}</div>
-    {history.map(({ question: asked, answer }, index) => <article className="panel answer" key={index}>
-      <p className="question">{asked}</p><h2>{t('assistant.hypothesis')}</h2><p>{answer.summary}</p>
-      <h3>{t('assistant.causalChain')}</h3><ol>{answer.causal_chain.map(item => <li key={item.step}><strong>{item.server}</strong> · {item.text}</li>)}</ol>
-      <h3>{t('assistant.evidence')}</h3><div className="evidence">{answer.evidence.map((item, index) => <button key={index} className="secondary" onClick={() => open(item.event_id)} title={item.file}>{item.file.split('/').at(-1)}:{item.line} <small>{formatTime(item.ts)}</small></button>)}</div>
-      <h3>{t('assistant.uncertainty')}{typeof answer.confidence === 'number' ? ' · ' + t('assistant.confidence', { percent: Math.round(answer.confidence * 100) }) : ''}</h3><p>{answer.uncertainty}</p>
-      {!!answer.counter_evidence?.length && <><h3>{t('assistant.counterEvidence')}</h3><ul>{answer.counter_evidence.map(text => <li key={text}>{text}</li>)}</ul></>}
-      <h3>{t('assistant.verification')}</h3><ul>{answer.verification_steps.map(text => <li key={text}>{text}</li>)}</ul>
-    </article>)}
+    <div className="actions">{[t('assistant.prompt2003'), t('assistant.prompt2010'), t('assistant.promptSync')].map(prompt => <button type="button" key={prompt} className="secondary" disabled={isAlreadyOpen(prompt)} onClick={() => void ask(prompt)}>{prompt}</button>)}</div>
+    {result && <article className="panel answer">
+      <p className="question">{result.question}</p><h2>{t('assistant.hypothesis')}</h2><p>{result.answer.summary}</p>
+      <h3>{t('assistant.causalChain')}</h3><ol>{result.answer.causal_chain.map(item => <li key={item.step}><strong>{item.server}</strong> · {item.text}</li>)}</ol>
+      <h3>{t('assistant.evidence')}</h3><div className="evidence">{result.answer.evidence.map((item, index) => <button key={index} className="secondary" onClick={() => open(item.event_id)} title={item.file}>{item.file.split('/').at(-1)}:{item.line} <small>{formatTime(item.ts)}</small></button>)}</div>
+      <h3>{t('assistant.uncertainty')}{typeof result.answer.confidence === 'number' ? ' · ' + t('assistant.confidence', { percent: Math.round(result.answer.confidence * 100) }) : ''}</h3><p>{result.answer.uncertainty}</p>
+      {!!result.answer.counter_evidence?.length && <><h3>{t('assistant.counterEvidence')}</h3><ul>{result.answer.counter_evidence.map(text => <li key={text}>{text}</li>)}</ul></>}
+      <h3>{t('assistant.verification')}</h3><ul>{result.answer.verification_steps.map(text => <li key={text}>{text}</li>)}</ul>
+    </article>}
     <Feedback pending={false} error={error} />
     {step && <p className="notice" role="status">{step}</p>}
-    <form className="panel composer" onSubmit={event => { event.preventDefault(); void ask(question) }}>
+    <form className="panel composer" onSubmit={event => { event.preventDefault(); void ask(question, true) }}>
       <label>{t('assistant.question')}<input value={question} onChange={event => setQuestion(event.target.value)} placeholder={t('assistant.placeholder')} /></label>
-      <button disabled={!question.trim() || !!step}>{t('assistant.ask')}</button>
+      <button disabled={!question.trim() || isAlreadyOpen(question)}>{t('assistant.ask')}</button>
     </form>
   </>
 }

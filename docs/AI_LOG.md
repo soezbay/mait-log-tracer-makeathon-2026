@@ -50,4 +50,5 @@ Roles: P1 Safak ingest/storage · P2 Harsh analysis · P3 Tarun AI assistant · 
 2026-11-24 15:44 | P4 | frontend | Add explicit confirmation before applying process-monitor filters; set To minimum to From and clear To if From advances past it | frontend/src/{ProcessMonitor.tsx,i18n.tsx,style.css} | self | -
 2026-11-24 16:17 | P4 | frontend | Interpret date/time filter input in the browser time zone, show that zone in labels, and convert boundaries to UTC for API and process comparisons | frontend/src/{time.ts,main.tsx,ProcessMonitor.tsx,i18n.tsx} | self | -
 2026-11-24 16:22 | all | backend | Pulled feature branch (already current), installed Python 3.12.10, synced locked dependencies and started API; health ok, expected log root missing | backend/.venv, data/logtracer.duckdb | self | add MAIT_Makeathon_Logpaket to run with real data
+2026-11-24 16:58 | P4 | frontend | Keep one Assistant answer open; ignore repeated question/job targets, cancel superseded searches and replace the previous answer | frontend/src/main.tsx | self | -
 ```
