@@ -198,8 +198,36 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Also:** Safak invited Harsh, Tarun and Adnan as GitHub collaborators.
 
 ### Push incl. the log package ZIP; main updated
-- **What:** Pushed `p1/ingest` and `develop`, fast-forwarded `main` to `develop` and pushed it. This includes the Git LFS ZIP (`87bfd44`), uploaded to the repo while it is still public. Plan §17 D1 status updated.
+- **What:** Pushed `p1/ingest` and `develop`. `main` had two pull requests the team merged directly into it (#1 P4 frontend integration, #2 P2 analysis integration); merged `origin/main` into `develop` (conflict only in `docs/AI_LOG.md`, both sides kept), then set `main` to `develop` and pushed both. This includes the Git LFS ZIP (`87bfd44`), uploaded to the repo while it is still public. Plan §17 D1 status updated.
 - **Why:** Safak decided to push everything now, knowing the repo is public; he owns `main` and asked for the merge.
 - **Open:** D1 (private repo or separate data repo) is still open; until the repo is private the ZIP can be downloaded by anyone.
 
 **Open (not done by Claude):** `plan.md`/`plan.en.md` were moved to `docs/` and `docs/todo/` was added to `.gitignore` locally; not committed yet. Links to `../plan*.md` in the architecture docs and the P1 TODO need updating after that move.
+
+### Frontend API contract binding
+- **What:** Fast-forwarded `main` to `7f3e3d5`; kept the proxy on `http://localhost:8000`, made Live the default, and normalized the frontend against the frozen API examples (`limit/offset`, stats fields, `source_path`, and context line `no`). Kept JOB-2003, JOB-2010 and the recovered retry separate in the demo.
+- **Why:** Make the P4 frontend consume the shared backend contract while the backend routes are being implemented.
+- **Where:** `frontend/vite.config.mjs`, `frontend/.env.example`, `frontend/src/api.ts`, `frontend/src/main.tsx`, `frontend/src/demo.ts`, `frontend/src/incident.ts`, `frontend/README.md`, `docs/AI_LOG.md`.
+- **Checks:** TypeScript check and Vite production build passed. `localhost:8000` did not accept a connection.
+- **Open (at the time of this entry):** The checkout then registered only `GET /api/health`. The later develop merge below added P1 stats, sources, events and context routes.
+
+### Frontend branch synced with develop
+- **What:** Merged the latest `origin/develop` (`cb794f2`) into the frontend branch. The branch now includes P1 stats, sources, event and source-context APIs plus the fixture database builder. Opened the built frontend in Demo mode at `http://127.0.0.1:4173/`.
+- **Why:** Bring the frontend branch up to date with the team's integration work and make the UI reviewable without a running backend.
+- **Where:** Backend/API and fixture files from `develop`, updated project logs; branch `codex/frontend-backend-integration`.
+- **Checks:** Static preview returned HTTP 200 and the Demo dashboard loaded in the browser. Automated tests were not run.
+- **Open:** `localhost:8000` did not respond here. P2 groups/trace routes are not in `develop`; P3 chat exists on a separate branch and still needs integration.
+
+### Frontend README reflects merged backend APIs
+- **What:** Updated the frontend setup notes to distinguish P1 endpoints now included in the branch from P2 groups/trace routes still missing in `develop` and the P3 chat endpoint still on its separate branch.
+- **Why:** Keep the API status and live setup instructions accurate after syncing with `develop`.
+- **Where:** `frontend/README.md`, `docs/WORKLOG.md`, `docs/AI_LOG.md`.
+- **Checks:** Reviewed the current router registrations and branch contents; no automated tests run.
+- **Open:** Start the backend with its fixture database and integrate P2/P3 routes before all Live screens work.
+
+### English and German language settings
+- **What:** Added English and German UI translations, with English as the default. The Settings control stays at the bottom of the desktop sidebar and floats at the bottom left on narrow screens; the choice persists in browser storage. The ZIP picker uses a translated button instead of the browser's native-language label.
+- **Why:** Let users use the frontend in English by default or switch to German from anywhere in the app.
+- **Where:** `frontend/src/i18n.tsx`, `frontend/src/main.tsx`, `frontend/src/style.css`, `frontend/src/ProcessMonitor.tsx`, `frontend/src/IncidentDetail.tsx`, `frontend/src/api.ts`, `frontend/src/demo.ts`, `frontend/src/import-zip.ts`, `frontend/src/incident.ts`, `frontend/README.md`; commit `self`.
+- **Checks:** TypeScript `--noEmit` and Vite production build passed. Checked the responsive Demo preview; Vite reports existing dependency `use client` warnings. No automated tests run.
+- **Open:** During preview, Live `/stats` and `/events` requests returned HTTP 500. P2 groups/trace and P3 chat routes are still absent from `develop` and need integration for full Live functionality.
