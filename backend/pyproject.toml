@@ -1,0 +1,41 @@
+[project]
+name = "logtracer"
+version = "0.1.0"
+description = "Log Tracer backend: cross-system log ingest, analysis and AI assistant (MAIT Makeathon 2026)"
+readme = "README.md"
+authors = [
+    { name = "Log Tracer team" }
+]
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "duckdb>=2.0.1",
+    "fastapi>=0.165.0",
+    "pandas>=3.1.1",
+    "pyarrow>=26.0.1",
+    "pydantic>=2.14.4",
+    "pydantic-settings>=2.16.3",
+    "tzdata>=2026.6",
+    "uvicorn[standard]>=0.54.0",
+    "watchdog>=7.1.1",
+]
+
+[project.scripts]
+logtracer = "logtracer:main"
+
+[build-system]
+requires = ["uv_build>=0.13.9,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.2.0",
+    "ruff>=0.17.6",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
