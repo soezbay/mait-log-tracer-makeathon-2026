@@ -143,7 +143,7 @@ def test_watcher_reports_changed_files(tmp_path):
 
 def test_manager_runs_and_publishes(env):
     con, root, comp = env
-    settings = Settings(_env_file=None, log_root=root, db_path=":memory:")
+    settings = Settings(_env_file=None, auto_extract=False, log_root=root, db_path=":memory:")
     manager = IngestManager(con, settings)
 
     async def scenario():
@@ -165,7 +165,7 @@ def test_manager_runs_and_publishes(env):
 
 def test_rescan_picks_up_changes_without_watcher_and_stays_quiet(env):
     con, root, comp = env
-    settings = Settings(_env_file=None, log_root=root, db_path=":memory:")
+    settings = Settings(_env_file=None, auto_extract=False, log_root=root, db_path=":memory:")
     manager = IngestManager(con, settings)
 
     async def scenario():
@@ -199,7 +199,7 @@ def test_ingest_endpoints(tmp_path, env):
     init_schema(con)
     full_ingest(con, root)
     con.close()
-    settings = Settings(_env_file=None, log_root=root, db_path=db, watch_enabled=False)
+    settings = Settings(_env_file=None, auto_extract=False, log_root=root, db_path=db, watch_enabled=False)
     with TestClient(create_app(settings)) as client:
         assert client.get("/api/ingest/status").json()["running"] is False
         (comp / "added.log").write_text(kv(30) + kv(31), encoding="utf-8")

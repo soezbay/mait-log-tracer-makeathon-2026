@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from logtracer import __version__
 from logtracer.api import events, health, ingest, sources
 from logtracer.core.config import Settings, get_settings
+from logtracer.core.logpaket import ensure_from_settings
 from logtracer.ingest.watcher import LogWatcher
 from logtracer.services.ingest_service import IngestManager
 from logtracer.storage.db import connect, init_schema
@@ -19,6 +20,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        # Extract the log package from the LFS ZIP once if it is not there yet.
+        app.state.logpaket = ensure_from_settings(settings)
         # One connection for the whole process: DuckDB allows only one writing process.
         app.state.db = connect(settings.db_path)
         init_schema(app.state.db)

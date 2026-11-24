@@ -15,6 +15,7 @@ import tempfile
 from pathlib import Path
 
 from logtracer.core.config import get_settings
+from logtracer.core.logpaket import ensure_from_settings
 from logtracer.ingest.full_ingest import full_ingest
 from logtracer.storage.db import connect, init_schema
 from logtracer.storage.repositories.events import events_summary
@@ -47,6 +48,9 @@ def main() -> None:
     parser.add_argument("--out", help="override FIXTURE_DB_PATH")
     args = parser.parse_args()
     settings = get_settings()
+    package = ensure_from_settings(settings)
+    if not package.ok:
+        raise SystemExit(package.message)
     out = Path(args.out) if args.out else settings.fixture_db_path
 
     files = select_files(settings.log_root)

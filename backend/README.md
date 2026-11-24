@@ -4,6 +4,8 @@ Python 3.12 + FastAPI. See [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) for c
 
 ## Setup
 
+The log package comes as `MAIT_Makeathon_Logpaket.zip` via Git LFS (`git lfs install` once per machine). The backend downloads (`git lfs pull`) and extracts it automatically on start if needed.
+
 ```powershell
 python -m pip install --user uv
 uv sync

@@ -172,4 +172,17 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `backend/src/logtracer/ingest/`, `backend/src/logtracer/services/ingest_service.py`, `backend/src/logtracer/api/ingest.py`, `backend/src/logtracer/main.py`, `backend/.env.example`, `contracts/examples/`; branch `p1/ingest`, merged into `develop`.
 - **Open:** for the pitch demo, copy new files into a watched folder (a copy of the package or a separate demo folder), never edit the original package.
 
+### Log package via Git LFS with download and extraction on start (P1)
+- **What:**
+  - `MAIT_Makeathon_Logpaket.zip` (83 MB, 13,836 files) is tracked with Git LFS (`.gitattributes`); the extracted folder stays git-ignored.
+  - `core/logpaket.py`, called on every program start (API lifespan, `scripts/ingest.py`, `scripts/make_fixture.py`):
+    - ZIP missing or only an LFS pointer → `git lfs pull --include <zip>` (`AUTO_DOWNLOAD`, uses the same Git login as push, so it works for a private repo).
+    - Marker `data/logpaket.extracted.json` matches the ZIP (size + mtime) → nothing to do.
+    - Otherwise → extract only missing or different files (`AUTO_EXTRACT`); existing files are never rewritten; entries with `..`, absolute paths or drive letters are rejected (zip slip).
+  - Settings `LOGPAKET_ZIP`, `AUTO_EXTRACT`, `AUTO_DOWNLOAD` in `config.py` and `.env.example`; `AGENTS.md` (layout, setup) and `backend/README.md` updated.
+- **Why:** Everyone gets the same log package with `git clone` and a program start, without putting 867 MB of files into normal Git history.
+- **Checks:** 60 tests pass (first extraction, fast second start, repair of a missing file without touching others, new ZIP version, LFS pointer, download then extract, failed download message, missing ZIP with existing folder, zip slip), ruff clean. Real ZIP: existing folder fully compared in 1.25 s, next start 0.00 s; fresh extraction of all 13,836 files in 50 s, content identical to the original.
+- **Where:** `.gitattributes`, `MAIT_Makeathon_Logpaket.zip`, `backend/src/logtracer/core/logpaket.py`, `backend/tests/test_logpaket.py`; branch `p1/ingest`.
+- **Open:** not pushed yet. The repo is still public, and an LFS object in a public repo can be downloaded by anyone. Push after the repo is private. Free GitHub LFS quota is about 1 GB storage and 1 GB download per month (≈ 12 clones of the ZIP).
+
 **Open (not done by Claude):** `plan.md`/`plan.en.md` were moved to `docs/` and `docs/todo/` was added to `.gitignore` locally; not committed yet. Links to `../plan*.md` in the architecture docs and the P1 TODO need updating after that move.

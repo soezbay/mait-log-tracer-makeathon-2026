@@ -31,8 +31,9 @@ backend/                   Python 3.12, uv, FastAPI
   tests/
 frontend/                  React 19 + TypeScript (Vite)   [planned]
 eval/                      test questions + ground truth   [planned]
-MAIT_Makeathon_Logpaket/   original log data, READ ONLY, git-ignored
-data/                      derived DuckDB files, git-ignored
+MAIT_Makeathon_Logpaket.zip  the log package, versioned with Git LFS (never edit)
+MAIT_Makeathon_Logpaket/   extracted log data, READ ONLY, git-ignored (created from the ZIP)
+data/                      derived DuckDB files and the extraction marker, git-ignored
 ```
 
 ## 4. Roles and ownership
@@ -59,6 +60,13 @@ data/                      derived DuckDB files, git-ignored
 Changing an interface: agree with the affected roles first, then change schema/code **and** the example in `contracts/examples/` **and** `docs/ARCHITECTURE.md` in the same commit, and note it in both logs.
 
 ## 6. Development setup
+
+Log package (Git LFS):
+```powershell
+git lfs install                     # once per machine (Git for Windows ships Git LFS)
+git clone <repo>                    # LFS pulls MAIT_Makeathon_Logpaket.zip (~83 MB)
+```
+On every program start (API server, `scripts/ingest.py`, `scripts/make_fixture.py`) the backend checks the package: if the ZIP is missing or only an LFS pointer it runs `git lfs pull` for it (`AUTO_DOWNLOAD`), and if `MAIT_Makeathon_Logpaket/` is missing or incomplete it extracts the missing files once (`AUTO_EXTRACT`, first time ~1 min). Later starts take no time (marker in `data/logpaket.extracted.json`).
 
 Backend:
 ```powershell
