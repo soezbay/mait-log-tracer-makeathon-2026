@@ -218,6 +218,12 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `AGENTS.md`
 - **Open:** teammates run `git switch main`, `git pull`, `git fetch --prune`; anyone with local work on `develop` merges it into `main` first. `frontend/README.md` (P4) still mentions `develop`.
 
+### One-command start for backend + frontend
+- **What:** `dev.cmd` in the repo root (calls `scripts/dev.ps1` with the execution policy bypassed). `.\dev` checks Python, uv and Node, creates `backend/.env` from the example if missing, runs `npm install --no-package-lock` on the first run, refuses to start if port 8000 or 5173 is busy, starts the backend, waits for `/api/health` (up to 5 min, first start may extract the log package), then starts Vite and opens the browser. Ctrl+C (or one side exiting) stops both process trees. Options `-NoBrowser`, `-Install`. `.gitattributes` keeps `*.cmd`/`*.ps1` in CRLF.
+- **Why:** Starting two servers in two terminals was error-prone for the team and for the demo.
+- **Where:** `dev.cmd`, `scripts/dev.ps1`, `.gitattributes`, `AGENTS.md` §3, §6
+- **Checks:** started twice from PowerShell: backend healthy, frontend 200, `/api/stats` through the Vite proxy returns the real numbers, no proxy errors with the new start order, both ports free after stopping.
+
 **Open (not done by Claude):** `plan.md`/`plan.en.md` were moved to `docs/` and `docs/todo/` was added to `.gitignore` locally; not committed yet. Links to `../plan*.md` in the architecture docs and the P1 TODO need updating after that move.
 
 ### Frontend API contract binding

@@ -17,6 +17,7 @@ Log Tracer is our solution for the MAIT Makeathon 2026 challenge "automated log 
 
 ```
 AGENTS.md                  this file
+dev.cmd, scripts/dev.ps1   start backend + frontend with one command (`.\dev`)
 CLAUDE.md                  imports this file for Claude Code
 docs/
   AI_LOG.md                one-line change log for agents (append after every change)
@@ -77,7 +78,15 @@ python -m uv run logtracer          # API on http://localhost:8000, docs at /doc
 python -m uv run pytest
 python -m uv run ruff check .
 ```
-Frontend (when it exists): Node.js 22 or 24 LTS, `npm install`, `npm run dev` (port 5173, proxies `/api` to `:8000`).
+Frontend: Node.js 22 or 24 LTS, `npm install --no-package-lock` (the team lockfile is `pnpm-lock.yaml`), `npm run dev` (port 5173, proxies `/api` to `:8000`).
+
+Whole app with one command (repo root, Windows, cmd or PowerShell):
+```powershell
+.\dev                 # backend :8000 + frontend :5173, opens the browser; Ctrl+C stops both
+.\dev -NoBrowser      # same without opening the browser
+.\dev -Install        # also re-run npm install
+```
+`dev.cmd` calls `scripts/dev.ps1` (execution policy bypassed). It creates `backend/.env` from the example if missing, installs frontend packages on the first run, starts the backend, waits for `/api/health`, then starts Vite.
 
 Configuration comes from `backend/.env` (see `backend/.env.example`). Relative paths resolve against `backend/`.
 
