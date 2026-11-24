@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from logtracer import __version__
-from logtracer.api import health
+from logtracer.api import chat, health
 from logtracer.core.config import get_settings
 
 settings = get_settings()
@@ -24,3 +24,4 @@ app.add_middleware(
 
 # Routers (prefix /api). Owners: health/ingest/events = P1, analysis = P2, chat = P3, eval = P5.
 app.include_router(health.router, prefix="/api")
+app.include_router(chat.router, prefix="/api")

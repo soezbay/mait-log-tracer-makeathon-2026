@@ -95,3 +95,17 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `docs/plan*.md`, `docs/ARCHITECTURE.md`, `docs/ARCHITEKTUR.md`, `.gitignore`.
 
 **Open (not done by Claude):** `plan.md`/`plan.en.md` were moved to `docs/` and `docs/todo/` was added to `.gitignore` locally; not committed yet. Links to `../plan*.md` in the architecture docs and the P1 TODO need updating after that move.
+
+### AI assistant and /api/chat (P3, Tarun)
+- **What:**
+  - `assistant/`: provider interface with Gemini (`google-genai`) and Claude (`anthropic`), switch with `LLM_PROVIDER`; 8 SQL tools with `LIMIT` (`get_stats`, `get_incidents`, `get_error_groups`, `get_anomalies`, `search_events`, `trace`, `correlate`, `get_context`); system prompt; answer schema (`answer.py`, interface 3); tool-use loop (`agent.py`, max 8 rounds / 14 tool calls) that ends with `submit_answer`.
+  - Evidence check: every cited event id must exist and must have been returned by a tool in this conversation; `file`/`line`/`ts` always come from the database. Invalid answers are retried twice, then degraded to verified evidence with confidence <= 0.3.
+  - `api/chat.py`: `POST /api/chat` streams SSE with FastAPI's built-in `fastapi.sse` (`token`, `step`, `answer`, `done`, `error`); `GET /api/chat/{conversation_id}` returns the history. Registered in `main.py` (2 lines, shared file).
+  - All SQL in `assistant/data_access.py` follows `storage/schema.sql`; error group titles come from `templates.template`. Every LLM call is written to `llm_calls` with tokens, duration and cost in EUR (list prices in USD, converted with `EUR_PER_USD`, default 0.86).
+  - `assistant/config.py` reads `backend/.env` and resolves `DB_PATH` against `backend/`, same rules as `core/config.py`.
+  - `scripts/make_standin_db.py` builds a stand-in DB with the real schema from the log package until the full ingest exists; `scripts/ask.py` asks one question from the command line.
+  - New dependencies: `google-genai`, `anthropic` (pyproject.toml, uv.lock). `GEMINI_API_KEY` added to `.env.example`; Gemini added to `docs/ARCHITECTURE.md`. Contract examples: `chat_request.json`, `chat_stream.sse`, `chat_answer.json`, `chat_history.json`.
+- **Why:** P3 deliverable from plan.en.md §11: the assistant explains root causes as hypotheses with checked evidence, and the cost per question is measurable.
+- **Where:** `backend/src/logtracer/assistant/`, `backend/src/logtracer/api/chat.py`, `backend/src/logtracer/main.py`, `backend/scripts/`, `backend/tests/`, `contracts/examples/`.
+- **Checks:** 39 tests pass (33 new, no network, providers stubbed with real SDK types), `ruff check` clean, end-to-end check of `/api/chat` through `main.app` (stream, history, `llm_calls`, `hypotheses`).
+- **Open:** Harsh to confirm the analysis table columns the tools read; Safak to share the single DB connection with `chat.configure(cursor_factory=...)`; first call against the live Gemini API; verify prices and `EUR_PER_USD` before quoting cost in the pitch; Ollama provider and `masking.py` not written.

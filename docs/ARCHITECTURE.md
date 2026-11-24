@@ -104,6 +104,7 @@ flowchart LR
 | Service | Role | Note |
 |---|---|---|
 | **Claude API** (Anthropic) | LLM for the assistant (tool use) | e.g. `claude-sonnet-5-5`; key in the backend only (`.env`) |
+| **Gemini API** (Google) | alternative LLM provider (tool use), free tier for development | e.g. `gemini-2.5-flash`; key in the backend only (`.env`) |
 | **Ollama** (optional) | local LLM | privacy argument: no logs leave the premises |
 
 ---
@@ -178,7 +179,7 @@ Thin layer: accepts requests, validates them with Pydantic and calls services. N
 
 | Component | What it does |
 |---|---|
-| `providers/` | common `LLMProvider` interface with `ClaudeProvider` (default) and `OllamaProvider` (local). Switchable via `.env` |
+| `providers/` | common `LLMProvider` interface with `ClaudeProvider` (default), `GeminiProvider` and `OllamaProvider` (local, planned). Switchable via `.env` |
 | `tools.py` | tool definitions for the LLM, each calling into `services/`: `search_events`, `get_error_groups`, `get_anomalies`, `trace`, `correlate`, `get_context` |
 | `prompt.py` | system prompt: role, rules (answer only with evidence, state uncertainty, recognize harmless ERRORs as such), answer format |
 | `answer.py` | Pydantic schema of the answer: `summary`, `causal_chain[]`, `affected_systems[]`, `evidence[]` (event IDs), `uncertainty`, `counter_evidence[]`, `verification_steps[]`, `recommendation`. Checks that every cited event ID exists |
@@ -450,8 +451,9 @@ The frontend runs on `http://localhost:5173` and proxies `/api` to the backend. 
 |---|---|
 | `LOG_ROOT` | path to the log package (e.g. `../MAIT_Makeathon_Logpaket`) |
 | `DB_PATH` | path to the DuckDB file (`../data/logtracer.duckdb`) |
-| `LLM_PROVIDER` | `claude` or `ollama` |
+| `LLM_PROVIDER` | `claude`, `gemini` or `ollama` |
 | `ANTHROPIC_API_KEY` | key for the Claude API (backend only, never in Git) |
+| `GEMINI_API_KEY` | key for the Gemini API (backend only, never in Git) |
 | `LLM_MODEL` | model ID, e.g. `claude-sonnet-5-5` |
 | `WATCH_ENABLED` | watcher on/off |
 
