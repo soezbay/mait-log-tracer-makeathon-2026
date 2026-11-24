@@ -196,3 +196,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `frontend/src/style.css`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
 - **Checks:** TypeScript `--noEmit` and Vite production build passed.
 - **Open:** -
+
+### Smaller dashboard content
+- **What:** Reduced card and notice padding, form control and body-copy sizes, table cell spacing, and metric values. Kept the page heading and its centered alignment unchanged.
+- **Why:** Make the dashboard content more compact while preserving the heading treatment the user approved.
+- **Where:** `frontend/src/style.css`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
+- **Checks:** TypeScript `--noEmit` and Vite production build passed.
+- **Open:** -

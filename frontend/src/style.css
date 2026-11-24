@@ -33,28 +33,28 @@ main { padding: clamp(.9rem, 3vw, 2.5rem); max-width: 1380px; margin: auto; min-
 h1 { font-size: clamp(1.8rem, 3.25vw, 2.5rem); line-height: 1.1; letter-spacing: -.035em; margin: .25rem 0 }
 .heading p, small { color: #486173 }
 .heading p { max-width: 720px; margin: .35rem auto .6rem; font-size: .95rem }
-.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .75rem; margin-bottom: .75rem }
-.metric, .panel { background: white; border: 1px solid #d3dfe7; border-radius: 10px; padding: 1rem }
-.metric strong { display: block; font-size: 1.7rem; letter-spacing: -.04em }
-.panel { margin-bottom: .75rem; min-width: 0 }
-h2 { margin: 0 0 .5rem; font-size: 1.1rem }
-h3 { margin: 1rem 0 .3rem; font-size: 1rem }
-p { margin: .3rem 0 .65rem }
-.shortcuts { display: grid; gap: .7rem; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)) }
-.shortcuts a { background: #f3f8f8; border: 1px solid #d8e7e8; padding: .8rem; border-radius: 8px; text-decoration: none; color: #085b51; font-weight: 700 }
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .55rem; margin-bottom: .6rem }
+.metric, .panel { background: white; border: 1px solid #d3dfe7; border-radius: 9px; padding: .75rem }
+.metric strong { display: block; font-size: 1.45rem; letter-spacing: -.04em }
+.panel { margin-bottom: .6rem; min-width: 0 }
+h2 { margin: 0 0 .35rem; font-size: 1rem }
+h3 { margin: .75rem 0 .25rem; font-size: .95rem }
+p { margin: .25rem 0 .5rem }
+.shortcuts { display: grid; gap: .55rem; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)) }
+.shortcuts a { background: #f3f8f8; border: 1px solid #d8e7e8; padding: .65rem; border-radius: 8px; text-decoration: none; color: #085b51; font-weight: 700 }
 .shortcuts a:hover { background: #e1f0ed }
 .shortcuts span { display: block; color: #455c6d; font-size: .9rem; font-weight: 450 }
-.filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); align-items: end; gap: .75rem }
-label { display: grid; gap: .25rem; font-size: .9rem; font-weight: 650; min-width: 0 }
-input, select { width: 100%; min-width: 0; padding: .45rem .55rem; border: 1px solid #b5c7d4; border-radius: 7px; color: inherit; background: white }
+.filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); align-items: end; gap: .6rem }
+label { display: grid; gap: .2rem; font-size: .85rem; font-weight: 650; min-width: 0 }
+input, select { width: 100%; min-width: 0; padding: .35rem .45rem; border: 1px solid #b5c7d4; border-radius: 7px; color: inherit; background: white }
 .table { overflow-x: auto }
 table { border-collapse: collapse; width: 100%; text-align: left }
-td, th { border-bottom: 1px solid #e0e8ee; padding: .65rem .55rem; vertical-align: top }
-th { background: #f1f6f8; color: #405d70; font-size: .875rem }
+td, th { border-bottom: 1px solid #e0e8ee; padding: .5rem .45rem; vertical-align: top }
+th { background: #f1f6f8; color: #405d70; font-size: .8rem }
 td:nth-child(1) { white-space: nowrap; font-variant-numeric: tabular-nums }
 td small { display: block }
 h2 small { font-size: .85rem; font-weight: 500; margin-left: .4rem }
-.badge { display: inline-block; border-radius: 7px; background: #edf2f5; color: #324a5a; font-size: .875rem; font-weight: 700; padding: .1rem .5rem }
+.badge { display: inline-block; border-radius: 7px; background: #edf2f5; color: #324a5a; font-size: .8rem; font-weight: 700; padding: .1rem .4rem }
 .badge.error, .badge.fatal, .notice.error { background: #ffeded; color: #98292d }
 .badge.info { background: #e4f5ee; color: #15614c }
 .badge.warn { background: #fff2d9; color: #744800 }
@@ -63,7 +63,7 @@ h2 small { font-size: .85rem; font-weight: 500; margin-left: .4rem }
 .actions { margin: .55rem 0 .9rem }
 .section-title { justify-content: space-between; margin-bottom: .65rem }
 .section-title h2 { margin: 0 }
-.notice { background: #e4edf5; border-radius: 8px; padding: .6rem .8rem; margin-bottom: .75rem; font-size: .95rem }
+.notice { background: #e4edf5; border-radius: 8px; padding: .45rem .65rem; margin-bottom: .6rem; font-size: .875rem }
 .question { color: #085b51; font-weight: 700; border-bottom: 1px solid #dce5eb; padding-bottom: .6rem }
 .answer ol, .answer ul { margin: .35rem 0 .85rem; padding-left: 1.45rem }
 .evidence small { display: block; font-size: .8rem }
