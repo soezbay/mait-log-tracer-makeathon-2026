@@ -7,7 +7,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from fixtures import build
-from google.genai import types
+from google.genai import errors, types
 from helpers import ScriptedProvider, call, good_submission, resp
 
 from logtracer.api import chat as chat_api
@@ -96,6 +96,16 @@ def test_gemini_retries_429_then_gives_readable_error():
     c3 = GeminiProvider(None, "m", client=FakeGemini(_Code(403)), sleep=lambda s: None).start("S", ALL_TOOLS, "Q")
     with pytest.raises(ProviderError, match="GEMINI_API_KEY"):
         c3.generate()
+
+
+def test_gemini_server_error_shows_googles_message():
+    overloaded = errors.ServerError(
+        503, {"error": {"code": 503, "message": "The model is overloaded.", "status": "UNAVAILABLE"}}
+    )
+    fake = FakeGemini(*[overloaded] * 4)
+    c = GeminiProvider(None, "m", client=fake, sleep=lambda s: None).start("S", ALL_TOOLS, "Q")
+    with pytest.raises(ProviderError, match="503 UNAVAILABLE: The model is overloaded"):
+        c.generate()
 
 
 def test_missing_keys_give_clear_errors():

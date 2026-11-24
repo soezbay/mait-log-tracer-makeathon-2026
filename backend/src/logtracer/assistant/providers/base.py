@@ -75,6 +75,10 @@ def with_retries[T](
             if attempt == attempts or not is_retryable(exc):
                 raise
             delay = base_delay * 2 ** (attempt - 1)
-            log.warning("LLM call failed (%s), retrying in %.0fs", type(exc).__name__, delay)
+            code = getattr(exc, "code", None) or getattr(exc, "status_code", None)
+            log.warning(
+                "LLM call failed (%s%s), retrying in %.0fs",
+                type(exc).__name__, f" {code}" if code else "", delay,
+            )
             sleep(delay)
     raise AssertionError("unreachable")

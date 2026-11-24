@@ -35,6 +35,14 @@ def _gemini_schema(schema: Any) -> Any:
     return schema
 
 
+def _describe(exc: Exception) -> str:
+    """HTTP code, status and Google's message of an SDK error (never contains the API key)."""
+    parts = [str(getattr(exc, "code", "") or ""), str(getattr(exc, "status", "") or "")]
+    message = getattr(exc, "message", None) or str(exc)
+    head = " ".join(p for p in parts if p) or type(exc).__name__
+    return f"{head}: {' '.join(str(message).split())[:300]}"
+
+
 class GeminiProvider(LLMProvider):
     name = "gemini"
 
@@ -101,11 +109,22 @@ class GeminiConversation(Conversation):
             )
         except Exception as exc:
             code = getattr(exc, "code", None)
+            detail = _describe(exc)
             if code == 429:
-                raise ProviderError("Gemini rate limit reached (free tier). Wait a minute and try again.") from exc
-            if code in (400, 401, 403):
-                raise ProviderError(f"Gemini rejected the request ({code}). Check GEMINI_API_KEY and LLM_MODEL.") from exc
-            raise ProviderError(f"Gemini call failed: {type(exc).__name__}") from exc
+                raise ProviderError(
+                    f"Gemini rate limit reached (free tier). Wait a minute and try again. [{detail}]"
+                ) from exc
+            if code in (400, 401, 403, 404):
+                raise ProviderError(
+                    f"Gemini rejected the request. Check GEMINI_API_KEY and LLM_MODEL "
+                    f"(now {self.p.model!r}). [{detail}]"
+                ) from exc
+            if code in (500, 502, 503, 504):
+                raise ProviderError(
+                    f"Gemini server error, usually temporary (model overloaded). Try again in a few "
+                    f"minutes or set another LLM_MODEL (now {self.p.model!r}). [{detail}]"
+                ) from exc
+            raise ProviderError(f"Gemini call failed. [{detail}]") from exc
 
         usage = getattr(resp, "usage_metadata", None)
         out = LLMResponse(

@@ -109,3 +109,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `backend/src/logtracer/assistant/`, `backend/src/logtracer/api/chat.py`, `backend/src/logtracer/main.py`, `backend/scripts/`, `backend/tests/`, `contracts/examples/`.
 - **Checks:** 39 tests pass (33 new, no network, providers stubbed with real SDK types), `ruff check` clean, end-to-end check of `/api/chat` through `main.app` (stream, history, `llm_calls`, `hypotheses`).
 - **Open:** Harsh to confirm the analysis table columns the tools read; Safak to share the single DB connection with `chat.configure(cursor_factory=...)`; first call against the live Gemini API; verify prices and `EUR_PER_USD` before quoting cost in the pitch; Ollama provider and `masking.py` not written.
+
+### Readable Gemini errors (P3, Tarun)
+- **What:** Gemini errors now include the HTTP code, status and Google's own message, e.g. `503 UNAVAILABLE: The model is overloaded.`, and say what to try (wait, or change `LLM_MODEL`). The retry warning shows the code too. New test for a 503 from the real `google-genai` error type.
+- **Why:** The first live run against the full log package (stand-in DB: 1,666,054 events, 3,338 ERROR, 446 naive error groups) failed with only `ServerError` after 3 retries, which did not say whether Google was overloaded or rejected the request.
+- **Where:** `backend/src/logtracer/assistant/providers/gemini.py`, `backend/src/logtracer/assistant/providers/base.py`, `backend/tests/test_providers_and_api.py`.
+- **Checks:** 40 tests pass, `ruff check` clean.
+- **Open:** rerun `scripts/ask.py` to see Google's message; first successful live Gemini answer.
