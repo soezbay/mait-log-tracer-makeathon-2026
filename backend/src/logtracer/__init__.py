@@ -4,7 +4,16 @@ __version__ = "0.1.0"
 
 
 def main() -> None:
-    """Start the API server: `uv run logtracer`."""
+    """Start the API server with the settings from backend/.env: `uv run logtracer`."""
     import uvicorn
 
-    uvicorn.run("logtracer.main:app", host="127.0.0.1", port=8000, reload=True)
+    from logtracer.core.config import get_settings
+
+    settings = get_settings()
+    uvicorn.run(
+        "logtracer.main:app",
+        host=settings.api_host,
+        port=settings.api_port,
+        reload=settings.api_reload,
+        log_level=settings.log_level,
+    )

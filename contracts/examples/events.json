@@ -1,7 +1,7 @@
 {
   "items": [
     {
-      "id": 1001,
+      "id": 1161083,
       "ts_utc": "2026-11-24T08:30:00Z",
       "host": "mait_win03_cad_converter",
       "component": "converter/nx_jt",
@@ -17,7 +17,23 @@
       "is_late": false
     },
     {
-      "id": 1002,
+      "id": 1276026,
+      "ts_utc": "2026-11-24T08:30:04Z",
+      "host": "mait_win04_plm_sync",
+      "component": "fms/fcc",
+      "level": "ERROR",
+      "event_id": "CREATIVE-00045770",
+      "job_id": "JOB-2003",
+      "trace_id": null,
+      "message": "Result upload denied for DEMO-SERVICE; permission=WRITE_DATASET",
+      "source_path": "mait_win04_plm_sync/logs/fms/fcc/creative_2026-11-24.jsonl.gz",
+      "line_start": 29,
+      "line_end": 29,
+      "is_duplicate": false,
+      "is_late": false
+    },
+    {
+      "id": 129110,
       "ts_utc": "2026-11-24T08:30:08Z",
       "host": "mait_linux1_teamcenter_app",
       "component": "fms/fsc",
@@ -33,7 +49,7 @@
       "is_late": false
     },
     {
-      "id": 1003,
+      "id": 205678,
       "ts_utc": "2026-11-24T08:30:12Z",
       "host": "mait_linux1_teamcenter_app",
       "component": "teamcenter/workflow",
@@ -49,7 +65,7 @@
       "is_late": false
     }
   ],
-  "total": 3,
+  "total": 4,
   "limit": 50,
   "offset": 0
 }
