@@ -7,7 +7,7 @@ Instructions for AI coding agents and humans working in this repository. Written
 1. Read [docs/AI_LOG.md](docs/AI_LOG.md): one line per change, newest at the bottom. It tells you the current state and what is open.
 2. Read your role in [docs/plan.en.md](docs/plan.en.md) §11 and the components in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 3. Check the frozen interfaces before you change anything that others use (§5 below).
-4. Work on `develop` or your own branch only, never on `main` (§8).
+4. Pull `main` before you start; commit and push to `main` or merge your short-lived branch into it (§8).
 
 ## 2. Project in one paragraph
 
@@ -17,6 +17,7 @@ Log Tracer is our solution for the MAIT Makeathon 2026 challenge "automated log 
 
 ```
 AGENTS.md                  this file
+dev.cmd, scripts/dev.ps1   start backend + frontend with one command (`.\dev`)
 CLAUDE.md                  imports this file for Claude Code
 docs/
   AI_LOG.md                one-line change log for agents (append after every change)
@@ -77,7 +78,15 @@ python -m uv run logtracer          # API on http://localhost:8000, docs at /doc
 python -m uv run pytest
 python -m uv run ruff check .
 ```
-Frontend (when it exists): Node.js 22 or 24 LTS, `npm install`, `npm run dev` (port 5173, proxies `/api` to `:8000`).
+Frontend: Node.js 22 or 24 LTS, `npm install --no-package-lock` (the team lockfile is `pnpm-lock.yaml`), `npm run dev` (port 5173, proxies `/api` to `:8000`).
+
+Whole app with one command (repo root, Windows, cmd or PowerShell):
+```powershell
+.\dev                 # backend :8000 + frontend :5173, opens the browser; Ctrl+C stops both
+.\dev -NoBrowser      # same without opening the browser
+.\dev -Install        # also re-run npm install
+```
+`dev.cmd` calls `scripts/dev.ps1` (execution policy bypassed). It creates `backend/.env` from the example if missing, installs frontend packages on the first run, starts the backend, waits for `/api/health`, then starts Vite.
 
 Configuration comes from `backend/.env` (see `backend/.env.example`). Relative paths resolve against `backend/`.
 
@@ -117,23 +126,22 @@ Configuration comes from `backend/.env` (see `backend/.env.example`). Relative p
 
 ## 8. Git workflow
 
-**Only work on `develop` or on your own branches. Never commit, merge or push to `main`.**
+**`main` is the only shared branch.** There is no `develop` branch any more (removed on 2026-11-24 to avoid merge conflicts between two long-lived branches).
 
 | Branch | Purpose | Who writes to it |
 |---|---|---|
-| `main` | stable state for the demo and the pitch | only Safak (P1), by merging `develop` when it is green |
-| `develop` | integration branch, base for all work | everyone, by merging their own branch |
-| `p<N>/<topic>` | your own work, e.g. `p2/drain3-templates`, `p4/timeline` | only the owner of the role |
+| `main` | shared state of the project, demo and pitch | everyone |
+| `p<N>/<topic>` | optional short-lived branch for bigger changes, e.g. `p2/drain3-templates` | only the owner of the role |
 
 Flow:
-1. Start every task from the latest `develop`: `git switch develop`, `git pull`, `git switch -c p<N>/<topic>`.
-2. Commit on your own branch; pull `develop` into it often to stay close to the others.
-3. When the task is done and `pytest` + `ruff check` pass: merge your branch into `develop` (pull request or merge), push `develop`.
-4. Never rewrite pushed history on `develop` (no force push).
+1. Before you start: `git switch main`, `git pull`.
+2. Small change in your own folders: commit on `main`. Bigger change: `git switch -c p<N>/<topic>`, and merge it back into `main` the same day (pull request with base `main`, or local merge).
+3. Before every push: `pytest` + `ruff check` pass, then `git pull --rebase` (rebases only your unpushed commits) and `git push`.
+4. Never rewrite pushed history on `main` (no force push, no reset of pushed commits).
 
 Rules:
 - Small, focused commits. Message: imperative English subject (≤ 72 chars), body with bullets for what and why.
-- An AI agent asked to "merge into main" merges into `develop` instead and points to this rule.
+- Pull often (at least before every push) so conflicts stay small; touch only files your role owns.
 - Never commit: `.env`, API keys, `*.duckdb`, `MAIT_Makeathon_Logpaket/`, `docs/todo/`.
 
 ## 9. Documentation and work logging (mandatory)
@@ -177,7 +185,7 @@ Decisions that change no file (e.g. "no Docker") are logged too, with `area` = `
 - [ ] `pytest` passes, `ruff check` clean
 - [ ] Interfaces unchanged, or changed with agreement + updated examples + docs
 - [ ] One line in `docs/AI_LOG.md`, entry in `docs/WORKLOG.md`
-- [ ] Committed on your own branch with an English message and merged into `develop` (never into `main`)
+- [ ] Committed with an English message and pushed to `main` (directly or via your short-lived branch)
 
 ## 11. Data quick reference
 

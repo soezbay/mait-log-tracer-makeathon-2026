@@ -202,6 +202,28 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Why:** Safak decided to push everything now, knowing the repo is public; he owns `main` and asked for the merge.
 - **Open:** D1 (private repo or separate data repo) is still open; until the repo is private the ZIP can be downloaded by anyone.
 
+### Remove IDE settings from Git
+- **What:** `git rm --cached -r .idea/` (6 JetBrains files that came in with the merged PRs); `.gitignore` now ignores `.idea/`, `.vscode/` and `data/`.
+- **Why:** IDE settings are personal and cause needless conflicts; `data/` only holds derived files (DuckDB, extraction marker) that are rebuilt by script. Note: pulling this commit deletes the local `.idea/` folder once (Git removes files that a pulled commit stops tracking); JetBrains IDEs recreate it on the next start, and from then on it stays untracked.
+- **Where:** `.gitignore`
+
+### Decision: main stays the default branch
+- **What:** `main` remains the GitHub default branch (Safak). `AGENTS.md` §8 now says to set the base branch to `develop` when opening a pull request.
+- **Why:** PRs #1 and #2 went into `main` because GitHub targets the default branch; the rule makes the base choice explicit.
+- **Where:** `AGENTS.md` §8
+
+### Branch model: only main
+- **What:** Merged `develop` into `main` (contents were identical apart from one PR merge commit), then deleted `develop` locally and on GitHub. `AGENTS.md` §1, §8 and §10 now say: `main` is the only shared branch; small changes are committed on `main`, bigger ones on a short-lived `p<N>/<topic>` branch that is merged back into `main` the same day; `pytest` + `ruff check`, then `git pull --rebase` before every push; no force push.
+- **Why:** Safak's decision. Two long-lived branches caused PRs to land in the wrong one (#1, #2 into `main`, #4 `develop` into `main`) and extra merges.
+- **Where:** `AGENTS.md`
+- **Open:** teammates run `git switch main`, `git pull`, `git fetch --prune`; anyone with local work on `develop` merges it into `main` first. `frontend/README.md` (P4) still mentions `develop`.
+
+### One-command start for backend + frontend
+- **What:** `dev.cmd` in the repo root (calls `scripts/dev.ps1` with the execution policy bypassed). `.\dev` checks Python, uv and Node, creates `backend/.env` from the example if missing, runs `npm install --no-package-lock` on the first run, refuses to start if port 8000 or 5173 is busy, starts the backend, waits for `/api/health` (up to 5 min, first start may extract the log package), then starts Vite and opens the browser. Ctrl+C (or one side exiting) stops both process trees. Options `-NoBrowser`, `-Install`. `.gitattributes` keeps `*.cmd`/`*.ps1` in CRLF.
+- **Why:** Starting two servers in two terminals was error-prone for the team and for the demo.
+- **Where:** `dev.cmd`, `scripts/dev.ps1`, `.gitattributes`, `AGENTS.md` §3, §6
+- **Checks:** started twice from PowerShell: backend healthy, frontend 200, `/api/stats` through the Vite proxy returns the real numbers, no proxy errors with the new start order, both ports free after stopping.
+
 **Open (not done by Claude):** `plan.md`/`plan.en.md` were moved to `docs/` and `docs/todo/` was added to `.gitignore` locally; not committed yet. Links to `../plan*.md` in the architecture docs and the P1 TODO need updating after that move.
 
 ### Frontend API contract binding
