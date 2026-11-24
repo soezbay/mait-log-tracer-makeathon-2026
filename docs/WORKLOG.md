@@ -167,7 +167,7 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Why:** Make the P4 frontend consume the shared backend contract while the backend routes are being implemented.
 - **Where:** `frontend/vite.config.mjs`, `frontend/.env.example`, `frontend/src/api.ts`, `frontend/src/main.tsx`, `frontend/src/demo.ts`, `frontend/src/incident.ts`, `frontend/README.md`, `docs/AI_LOG.md`.
 - **Checks:** TypeScript check and Vite production build passed. `localhost:8000` did not accept a connection.
-- **Open:** This checkout registers only `GET /api/health`; stats, events, analysis, trace and chat routes remain unimplemented here.
+- **Open (at the time of this entry):** The checkout then registered only `GET /api/health`. The later develop merge below added P1 stats, sources, events and context routes.
 
 ### Frontend branch synced with develop
 - **What:** Merged the latest `origin/develop` (`cb794f2`) into the frontend branch. The branch now includes P1 stats, sources, event and source-context APIs plus the fixture database builder. Opened the built frontend in Demo mode at `http://127.0.0.1:4173/`.
@@ -175,3 +175,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** Backend/API and fixture files from `develop`, updated project logs; branch `codex/frontend-backend-integration`.
 - **Checks:** Static preview returned HTTP 200 and the Demo dashboard loaded in the browser. Automated tests were not run.
 - **Open:** `localhost:8000` did not respond here. P2 groups/trace routes are not in `develop`; P3 chat exists on a separate branch and still needs integration.
+
+### Frontend README reflects merged backend APIs
+- **What:** Updated the frontend setup notes to distinguish P1 endpoints now included in the branch from P2 groups/trace routes still missing in `develop` and the P3 chat endpoint still on its separate branch.
+- **Why:** Keep the API status and live setup instructions accurate after syncing with `develop`.
+- **Where:** `frontend/README.md`, `docs/WORKLOG.md`, `docs/AI_LOG.md`.
+- **Checks:** Reviewed the current router registrations and branch contents; no automated tests run.
+- **Open:** Start the backend with its fixture database and integrate P2/P3 routes before all Live screens work.
