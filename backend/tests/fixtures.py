@@ -35,7 +35,7 @@ def build(con: duckdb.DuckDBPyConnection | None = None) -> duckdb.DuckDBPyConnec
         "INSERT INTO events (id, source_id, line_start, line_end, ts_utc, ingest_seq, host, component, "
         "level, event_id, job_id, message, raw) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [
-            (i, s, ln, ln, d(ts), i, h, c, lv, code, job, msg, msg)
+            (i, s, ln, ln, d(ts), i, h, c, lv, code, job, msg, f"{ts} {lv} job={job} {msg}")
             for i, s, ln, ts, h, c, lv, code, job, msg in ev
         ],
     )

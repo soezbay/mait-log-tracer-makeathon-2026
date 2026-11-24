@@ -71,6 +71,13 @@ def _short(text: str | None, n: int = MSG_CHARS) -> str | None:
     return text if len(text) <= n else text[: n - 1] + "…"
 
 
+def _compress_keys(keys: list[str], show: int = 6) -> dict[str, Any]:
+    """Many related keys (JOB-2003-R01 ... R49) as a short list plus the total count."""
+    if len(keys) <= show:
+        return {"count": len(keys), "list": keys}
+    return {"count": len(keys), "first": keys[:3], "last": keys[-2:]}
+
+
 class LogStore:
     """Read/write access for the assistant on top of a DuckDB connection or cursor."""
 
@@ -90,29 +97,107 @@ class LogStore:
     def _next_id(self, table: str, column: str) -> int:
         return int(self._scalar(f"SELECT COALESCE(MAX({column}), 0) + 1 FROM {table}"))
 
+    # ------------------------------------------------------------------ compact event tables
+    # Events go to the LLM as a table: column names once, then one list per event. Same facts as
+    # one JSON object per event, but far fewer tokens. A column is left out when it is empty for
+    # every row. Truncated results always carry `groups`, a summary of ALL matches, so no matching
+    # log line silently disappears.
+    _EVENT_KEYS = ("id", "ts", "host", "component", "level", "job_id", "trace_id", "clock_offset_s",
+                   "message")
+
     @staticmethod
-    def _event(r: dict[str, Any]) -> dict[str, Any]:
-        out = {
+    def _event_values(r: dict[str, Any]) -> dict[str, Any]:
+        return {
             "id": r["id"],
             "ts": iso(r["ts_utc"]),
             "host": r["host"],
             "component": r["component"],
             "level": r["level"],
-            "log_event_code": r.get("event_id"),
             "job_id": r.get("job_id"),
             "trace_id": r.get("trace_id"),
+            "clock_offset_s": r.get("clock_offset_s") or None,  # time was corrected by this much
             "message": _short(r.get("message")),
         }
-        off = r.get("clock_offset_s")
-        if off:
-            out["clock_offset_s"] = off  # time was corrected by this many seconds
-        return {k: v for k, v in out.items() if v is not None}
+
+    @classmethod
+    def _event(cls, r: dict[str, Any]) -> dict[str, Any]:
+        """One event as a small dict (used for a single event, e.g. the centre of get_context)."""
+        return {k: v for k, v in cls._event_values(r).items() if v is not None}
+
+    @classmethod
+    def _table(cls, rows: list[dict[str, Any]]) -> dict[str, Any]:
+        values = [cls._event_values(r) for r in rows]
+        cols = [k for k in cls._EVENT_KEYS if any(v[k] is not None for v in values)] or ["id"]
+        return {"cols": cols, "rows": [[v[k] for k in cols] for v in values]}
 
     _EVENT_COLS = (
         "e.id, e.ts_utc, e.host, e.component, e.level, e.event_id, e.job_id, e.trace_id, "
         "e.message, e.clock_offset_s"
     )
     _EVENT_FROM = "FROM events e LEFT JOIN sources s ON s.source_id = e.source_id"
+    # Messages that differ only in numbers belong to one pattern (e.g. retry counters, sizes).
+    _PATTERN = "regexp_replace(coalesce(e.message, ''), '[0-9]+', '#', 'g')"
+
+    def _groups(self, clause: str, params: list[Any], limit: int = 15) -> dict[str, Any]:
+        """Summary of ALL events matching ``clause``: one row per host/component/level/message pattern."""
+        rows = self.cur.execute(
+            f"SELECT count(*) AS n, min(e.ts_utc) AS first_ts, max(e.ts_utc) AS last_ts, e.host, "
+            f"e.component, e.level, any_value(e.message) AS example, "
+            f"list(e.id ORDER BY e.ts_utc, e.id)[1:2] AS sample_event_ids, "
+            f"count(DISTINCT e.job_id) AS jobs "
+            f"{self._EVENT_FROM} WHERE {clause} GROUP BY e.host, e.component, e.level, {self._PATTERN} "
+            f"ORDER BY n DESC, first_ts LIMIT {int(limit) + 1}",
+            params,
+        ).fetchall()
+        more = len(rows) > limit
+        cols = ["count", "first_ts", "last_ts", "host", "component", "level", "message_example",
+                "sample_event_ids", "distinct_jobs"]
+        table = [
+            [n, iso(f), iso(lt), h, c, lv, _short(ex, 160), list(ids or []), jobs]
+            for n, f, lt, h, c, lv, ex, ids, jobs in rows[:limit]
+        ]
+        out: dict[str, Any] = {"cols": cols, "rows": table}
+        if more:
+            out["more_groups"] = True
+        return out
+
+    def _event_result(self, clause: str, params: list[Any], limit: int) -> dict[str, Any]:
+        total = self._scalar(f"SELECT count(*) {self._EVENT_FROM} WHERE {clause}", params)
+        limit = int(limit)
+        if total <= limit:
+            rows = self._rows(
+                f"SELECT {self._EVENT_COLS} {self._EVENT_FROM} WHERE {clause} ORDER BY e.ts_utc, e.id",
+                params,
+            )
+        else:
+            # More matches than room: list DIFFERENT lines (max 2 per host/component/level/message
+            # pattern, in time order). Repeats are counted in `groups`, so nothing is lost.
+            candidates = self._rows(
+                f"SELECT {self._EVENT_COLS}, e.host || '|' || coalesce(e.component, '') || '|' || "
+                f"coalesce(e.level, '') || '|' || {self._PATTERN} AS _pattern "
+                f"{self._EVENT_FROM} WHERE {clause} ORDER BY e.ts_utc, e.id LIMIT {limit * 20}",
+                params,
+            )
+            seen: dict[str, int] = {}
+            rows = []
+            for r in candidates:
+                k = r.pop("_pattern")
+                seen[k] = seen.get(k, 0) + 1
+                if seen[k] <= 2 and len(rows) < limit:
+                    rows.append(r)
+        out: dict[str, Any] = {
+            "total_matches": total,
+            "returned": len(rows),
+            "truncated": total > len(rows),
+            **self._table(rows),
+        }
+        if out["truncated"]:
+            out["groups"] = self._groups(clause, params)
+            out["note"] = (
+                "More events match than are listed. `groups` summarises ALL matches; narrow the "
+                "filters (server, level, time) to list a group's events."
+            )
+        return out
 
     # -------------------------------------------------- events
     def search_events(
@@ -146,72 +231,82 @@ class LogStore:
             where.append("e.ts_utc <= ?")
             params.append(t)
         if text:
-            where.append("e.message ILIKE ?")
-            params.append(_like(text))
+            # The whole original line, not only the message: ids like JOB-2003 often sit in other fields.
+            where.append("(e.message ILIKE ? OR e.raw ILIKE ?)")
+            params += [_like(text)] * 2
         if job_id:
             where.append("upper(e.job_id) = upper(?)")
             params.append(job_id.strip())
         if trace_id:
             where.append("e.trace_id = ?")
             params.append(trace_id.strip())
-        clause = " AND ".join(where)
-        total = self._scalar(f"SELECT count(*) {self._EVENT_FROM} WHERE {clause}", params)
-        n = _clip(limit)
-        rows = self._rows(
-            f"SELECT {self._EVENT_COLS} {self._EVENT_FROM} WHERE {clause} ORDER BY e.ts_utc, e.id LIMIT {n}",
-            params,
-        )
-        return {
-            "total_matches": total,
-            "returned": len(rows),
-            "truncated": total > len(rows),
-            "rows": [self._event(r) for r in rows],
-        }
+        return self._event_result(" AND ".join(where), params, _clip(limit))
 
     def trace(self, key: str, limit: int | None = None) -> dict[str, Any]:
         key = key.strip()
         n = _clip(limit, 40)
-        clause = (
-            "e.duplicate_of IS NULL AND (upper(e.job_id) = upper(?) OR e.trace_id = ? OR e.session_id = ? "
-            "OR e.message ILIKE ? OR e.attrs ILIKE ?)"
-        )
+        exact = "(upper(e.job_id) = upper(?) OR e.trace_id = ? OR e.session_id = ?)"
+        mentions = "(e.message ILIKE ? OR CAST(e.attrs AS VARCHAR) ILIKE ?)"
+        clause = f"e.duplicate_of IS NULL AND ({exact} OR {mentions})"
         params = [key, key, key, _like(key), _like(key)]
-        total = self._scalar(f"SELECT count(*) {self._EVENT_FROM} WHERE {clause}", params)
-        rows = self._rows(
-            f"SELECT {self._EVENT_COLS} {self._EVENT_FROM} WHERE {clause} ORDER BY e.ts_utc, e.id LIMIT {n}",
+        out: dict[str, Any] = {"key": key, **self._event_result(clause, params, n)}
+
+        # Same job number does not always mean the same job: split into time clusters.
+        times = self._rows(
+            f"SELECT e.ts_utc, e.host {self._EVENT_FROM} WHERE {clause} AND e.ts_utc IS NOT NULL "
+            "ORDER BY e.ts_utc",
             params,
         )
-        # Same job number does not always mean the same job: split into time clusters.
         clusters: list[dict[str, Any]] = []
-        for r in rows:
+        for r in times:
             ts = r["ts_utc"]
-            if clusters and ts is not None and ts - clusters[-1]["_last"] <= CLUSTER_GAP:
+            if clusters and ts - clusters[-1]["_last"] <= CLUSTER_GAP:
                 c = clusters[-1]
                 c["_last"], c["end"], c["events"] = ts, iso(ts), c["events"] + 1
                 c["hosts"].add(r["host"])
-            elif ts is not None:
-                clusters.append({"_last": ts, "start": iso(ts), "end": iso(ts), "events": 1, "hosts": {r["host"]}})
+            else:
+                clusters.append({"_last": ts, "start": iso(ts), "end": iso(ts), "events": 1,
+                                 "hosts": {r["host"]}})
         for c in clusters:
             c.pop("_last")
             c["hosts"] = sorted(h for h in c["hosts"] if h)
-        out: dict[str, Any] = {
-            "key": key,
-            "total_matches": total,
-            "returned": len(rows),
-            "truncated": total > len(rows),
-            "time_clusters": clusters,
-            "rows": [self._event(r) for r in rows],
-        }
+        out["time_clusters"] = clusters
         if len(clusters) > 1:
             out["warning"] = (
-                "Events with this key fall into several separate time clusters. The same job number does not "
-                "always mean the same job: check host, time and object before treating them as one chain."
+                "Events with this key fall into several separate time clusters. The same job number "
+                "does not always mean the same job: check host, time and object before treating "
+                "them as one chain."
             )
+
+        # Related keys: lines whose original text contains the key but that belong to another
+        # job/trace (re-runs like JOB-2003-R01, child jobs, ...). Summarised, never dropped.
+        # coalesce: a NULL job_id/trace_id must count as "not this key", not as unknown.
+        related = (f"e.duplicate_of IS NULL AND e.raw ILIKE ? "
+                   f"AND NOT coalesce({exact} OR {mentions}, false)")
+        rparams = [_like(key), *params[:5]]
+        n_related = self._scalar(f"SELECT count(*) {self._EVENT_FROM} WHERE {related}", rparams)
+        if n_related:
+            keys = [
+                r[0] for r in self.cur.execute(
+                    f"SELECT DISTINCT coalesce(e.job_id, e.trace_id, e.session_id) AS k "
+                    f"{self._EVENT_FROM} WHERE {related} ORDER BY k",
+                    rparams,
+                ).fetchall()
+                if r[0]
+            ]
+            out["related"] = {
+                "events": n_related,
+                "keys": _compress_keys(keys),
+                "groups": self._groups(related, rparams),
+                "note": "Other jobs/traces whose log lines mention this key (e.g. re-runs). "
+                        "Check whether they failed the same way before naming a cause.",
+            }
         return out
 
     def context(self, event_id: int, n: int = 5, window_seconds: int = 0) -> dict[str, Any]:
         center = self._rows(
-            f"SELECT {self._EVENT_COLS}, e.source_id, e.line_start {self._EVENT_FROM} WHERE e.id = ?", [event_id]
+            f"SELECT {self._EVENT_COLS}, e.source_id, e.line_start {self._EVENT_FROM} WHERE e.id = ?",
+            [event_id],
         )
         if not center:
             return {"error": f"No event with id {event_id}."}
@@ -220,23 +315,23 @@ class LogStore:
         same_file: list[dict[str, Any]] = []
         if c.get("source_id") is not None and c.get("line_start") is not None:
             same_file = self._rows(
-                f"SELECT {self._EVENT_COLS} {self._EVENT_FROM} WHERE e.source_id = ? AND e.line_start BETWEEN ? AND ? "
-                "AND e.id <> ? ORDER BY e.line_start",
+                f"SELECT {self._EVENT_COLS} {self._EVENT_FROM} WHERE e.source_id = ? "
+                "AND e.line_start BETWEEN ? AND ? AND e.id <> ? ORDER BY e.line_start",
                 [c["source_id"], c["line_start"] - n, c["line_start"] + n, event_id],
             )
         out: dict[str, Any] = {
             "event": self._event(c),
-            "same_file_neighbours": [self._event(r) for r in same_file],
+            "same_file_neighbours": self._table(same_file),
         }
         window = max(0, min(int(window_seconds or 0), 3600))
         if window and c["ts_utc"] is not None:
-            others = self._rows(
-                f"SELECT {self._EVENT_COLS} {self._EVENT_FROM} WHERE e.duplicate_of IS NULL AND e.host <> ? "
-                "AND e.ts_utc BETWEEN ? AND ? AND upper(e.level) IN ('WARN','ERROR','FATAL') "
-                "ORDER BY e.ts_utc, e.id LIMIT 15",
-                [c["host"], c["ts_utc"] - timedelta(seconds=window), c["ts_utc"] + timedelta(seconds=window)],
+            clause = (
+                "e.duplicate_of IS NULL AND e.host <> ? AND e.ts_utc BETWEEN ? AND ? "
+                "AND upper(e.level) IN ('WARN','ERROR','FATAL')"
             )
-            out["other_servers_warn_error_in_window"] = [self._event(r) for r in others]
+            params = [c["host"], c["ts_utc"] - timedelta(seconds=window),
+                      c["ts_utc"] + timedelta(seconds=window)]
+            out["other_servers_warn_error_in_window"] = self._event_result(clause, params, 15)
         return out
 
     def stats(self, time_from: str | None = None, time_to: str | None = None) -> dict[str, Any]:

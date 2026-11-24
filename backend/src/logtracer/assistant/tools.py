@@ -19,12 +19,12 @@ log = logging.getLogger(__name__)
 
 MAX_RESULT_CHARS = 9000
 
-_TIME = (
-    "ISO-8601 UTC, e.g. 2026-11-24T08:30:00Z. A bare date like 2026-11-24 means that whole day."
-)
+_TIME = {"type": "string", "description": "UTC time or date"}
+_LIMIT = {"type": "integer", "description": "max rows (default 20)"}
 
 
-def _spec(name: str, description: str, properties: dict[str, Any], required: list[str] | None = None) -> ToolSpec:
+def _spec(name: str, description: str, properties: dict[str, Any],
+          required: list[str] | None = None) -> ToolSpec:
     return ToolSpec(
         name=name,
         description=description,
@@ -35,85 +35,62 @@ def _spec(name: str, description: str, properties: dict[str, Any], required: lis
 TOOL_SPECS: list[ToolSpec] = [
     _spec(
         "get_stats",
-        "Overview of the logs in a time range: events, errors and warnings per server and the noisiest "
-        "components. Good first step when the question names no job, ID or server.",
-        {
-            "time_from": {"type": "string", "description": _TIME},
-            "time_to": {"type": "string", "description": _TIME},
-        },
+        "Events, errors and warnings per server and the noisiest components. First step when the "
+        "question names no job, id or server.",
+        {"time_from": _TIME, "time_to": _TIME},
     ),
     _spec(
         "get_incidents",
-        "Incidents = error groups from several servers that were linked as one problem. Start here for "
-        "'what went wrong' questions.",
-        {
-            "time_from": {"type": "string", "description": _TIME},
-            "time_to": {"type": "string", "description": _TIME},
-            "limit": {"type": "integer", "description": "max rows, default 20"},
-        },
+        "Incidents: error groups from several servers linked as one problem.",
+        {"time_from": _TIME, "time_to": _TIME, "limit": _LIMIT},
     ),
     _spec(
         "get_error_groups",
-        "Error groups: many ERROR/WARN lines that share one cause, with status 'recovered' (a retry "
-        "succeeded, NOT the cause of a failure) or 'failed'. Use instead of counting single ERRORs. "
-        "Returns sample_event_ids you can cite.",
-        {
-            "time_from": {"type": "string", "description": _TIME},
-            "time_to": {"type": "string", "description": _TIME},
-            "status": {"type": "string", "description": "recovered | failed | unknown"},
-            "server": {"type": "string", "description": "server/host name or part of it"},
-            "limit": {"type": "integer", "description": "max rows, default 20"},
-        },
+        "Error groups: ERROR/WARN lines sharing one cause, status recovered (harmless) or failed.",
+        {"time_from": _TIME, "time_to": _TIME, "status": {"type": "string"},
+         "server": {"type": "string"}, "limit": _LIMIT},
     ),
     _spec(
         "get_anomalies",
-        "Statistical anomalies: error-rate spikes, rare/new message types, duration outliers.",
-        {
-            "time_from": {"type": "string", "description": _TIME},
-            "time_to": {"type": "string", "description": _TIME},
-            "server": {"type": "string"},
-            "limit": {"type": "integer"},
-        },
+        "Statistical anomalies: error-rate spikes, new message types, duration outliers.",
+        {"time_from": _TIME, "time_to": _TIME, "server": {"type": "string"}, "limit": _LIMIT},
     ),
     _spec(
         "search_events",
-        "Search individual log events. All filters are optional and combined with AND. Results are sorted "
-        "by time and capped. Use narrow filters.",
+        "Find log events; filters combine with AND. text searches the whole original log line "
+        "(message and all fields).",
         {
-            "server": {"type": "string", "description": "server/host name or part of it"},
-            "component": {"type": "string", "description": "component name or part of it"},
-            "level": {"type": "string", "description": "DEBUG, INFO, WARN, ERROR, FATAL; comma-separated for several"},
-            "time_from": {"type": "string", "description": _TIME},
-            "time_to": {"type": "string", "description": _TIME},
-            "text": {"type": "string", "description": "substring of the message (case-insensitive)"},
+            "server": {"type": "string"},
+            "component": {"type": "string"},
+            "level": {"type": "string", "description": "e.g. ERROR or WARN,ERROR"},
+            "time_from": _TIME,
+            "time_to": _TIME,
+            "text": {"type": "string"},
             "job_id": {"type": "string"},
             "trace_id": {"type": "string"},
-            "limit": {"type": "integer", "description": "max rows, default 20, max 50"},
+            "limit": {"type": "integer", "description": "max rows (default 20, max 50)"},
         },
     ),
     _spec(
         "trace",
-        "All events that belong to one key across all servers, in time order: a job_id, trace_id, "
-        "session_id or an object ID such as DEMO-Seal-17/C. Shows time clusters, because the same job "
-        "number does not always mean the same job.",
-        {"key": {"type": "string", "description": "job_id, trace_id, session_id or object ID"}},
+        "Everything for one key across all servers: job_id, trace_id, session_id or object id. "
+        "Also lists related keys (e.g. re-runs) and time clusters. Best first step for a named job.",
+        {"key": {"type": "string"}},
         ["key"],
     ),
     _spec(
         "correlate",
-        "Error groups linked to the given error group (same job/trace, same object, close in time, "
-        "dependency=<host>), with the link type (hard/soft) and confidence.",
-        {"group_id": {"type": "integer", "description": "group_id from get_error_groups"}},
+        "Error groups linked to one error group, with link type and confidence.",
+        {"group_id": {"type": "integer"}},
         ["group_id"],
     ),
     _spec(
         "get_context",
-        "Lines around one event in the same log file, and optionally WARN/ERROR events on OTHER servers "
-        "within a time window (use window_seconds to find cross-system causes).",
+        "Lines around one event in its file; with window_seconds also WARN/ERROR on other servers.",
         {
-            "event_id": {"type": "integer", "description": "internal `id` of an event from another tool"},
-            "n": {"type": "integer", "description": "lines before/after in the same file, default 5, max 25"},
-            "window_seconds": {"type": "integer", "description": "look at other servers +/- this many seconds, 0=off, max 3600"},
+            "event_id": {"type": "integer"},
+            "n": {"type": "integer", "description": "lines before/after (default 5, max 25)"},
+            "window_seconds": {"type": "integer", "description": "other servers +/- seconds (max 3600)"},
         },
         ["event_id"],
     ),
@@ -151,20 +128,42 @@ def summarize(result: dict[str, Any]) -> str:
 
 
 def collect_event_ids(obj: Any) -> set[int]:
-    """Event IDs shown to the model: ``id`` of event rows and every ``*event_ids`` list."""
+    """Event IDs shown to the model: ``id`` of event rows and every ``*event_ids`` list.
+
+    Understands both shapes: plain dicts and compact tables ``{"cols": [...], "rows": [[...]]}``.
+    """
     found: set[int] = set()
     if isinstance(obj, dict):
+        cols, rows = obj.get("cols"), obj.get("rows")
+        if isinstance(cols, list) and isinstance(rows, list):
+            for i, col in enumerate(cols):
+                if col == "id" or (isinstance(col, str) and col.endswith("event_ids")):
+                    for row in rows:
+                        if isinstance(row, list) and i < len(row):
+                            found |= _ints(row[i])
         for k, v in obj.items():
+            if k == "rows" and isinstance(cols, list):
+                continue
             if k == "id" and isinstance(v, int) and not isinstance(v, bool):
                 found.add(v)
             elif k.endswith("event_ids") and isinstance(v, list):
-                found.update(x for x in v if isinstance(x, int))
+                found |= _ints(v)
             else:
                 found |= collect_event_ids(v)
     elif isinstance(obj, list):
         for item in obj:
             found |= collect_event_ids(item)
     return found
+
+
+def _ints(value: Any) -> set[int]:
+    if isinstance(value, bool):
+        return set()
+    if isinstance(value, int):
+        return {value}
+    if isinstance(value, list):
+        return {x for x in value if isinstance(x, int) and not isinstance(x, bool)}
+    return set()
 
 
 def _json_safe(obj: Any) -> Any:

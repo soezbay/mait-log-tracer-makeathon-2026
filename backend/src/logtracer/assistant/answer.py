@@ -70,47 +70,34 @@ class Answer(BaseModel):
     recommendation: str
 
 
-# Hand-written JSON schema for the tool (flat, no $ref: works with Gemini and Claude alike).
+# Hand-written JSON schema for the tool (flat, no $ref: works with Gemini, Claude and Groq alike).
+# Kept short: it is sent with every model call. The rules behind it are in the system prompt.
+_IDS = {"type": "array", "items": {"type": "integer"}}
+_TEXTS = {"type": "array", "items": {"type": "string"}}
 SUBMIT_ANSWER_PARAMETERS: dict[str, Any] = {
     "type": "object",
     "properties": {
-        "summary": {"type": "string", "description": "1-3 sentences: what failed and the most likely cause."},
+        "summary": {"type": "string", "description": "1-3 sentences: what failed and why"},
         "causal_chain": {
             "type": "array",
-            "description": "Ordered cause -> effect steps across servers.",
+            "description": "cause -> effect steps across servers",
             "items": {
                 "type": "object",
                 "properties": {
-                    "step": {"type": "integer", "description": "1-based position in the chain"},
+                    "step": {"type": "integer"},
                     "server": {"type": "string"},
-                    "event_ids": {
-                        "type": "array",
-                        "items": {"type": "integer"},
-                        "description": "Internal `id` values of events (from tool results) that show this step.",
-                    },
-                    "text": {"type": "string", "description": "What happened in this step."},
+                    "event_ids": _IDS,
+                    "text": {"type": "string"},
                 },
                 "required": ["step", "server", "event_ids", "text"],
             },
         },
-        "affected_systems": {"type": "array", "items": {"type": "string"}},
-        "evidence_event_ids": {
-            "type": "array",
-            "items": {"type": "integer"},
-            "description": "All event `id` values backing the answer. Only IDs returned by tools.",
-        },
-        "confidence": {"type": "number", "description": "0.0 to 1.0. Lower it when evidence is thin."},
-        "uncertainty": {"type": "string", "description": "What the logs do NOT show. Never empty."},
-        "counter_evidence": {
-            "type": "array",
-            "items": {"type": "string"},
-            "description": "Facts that argue against the hypothesis, or alternative explanations.",
-        },
-        "verification_steps": {
-            "type": "array",
-            "items": {"type": "string"},
-            "description": "Concrete checks the supporter should do to confirm or reject the hypothesis.",
-        },
+        "affected_systems": _TEXTS,
+        "evidence_event_ids": {**_IDS, "description": "every cited event id"},
+        "confidence": {"type": "number", "description": "0.0 to 1.0"},
+        "uncertainty": {"type": "string", "description": "what the logs do NOT show"},
+        "counter_evidence": {**_TEXTS, "description": "at least 1 item"},
+        "verification_steps": _TEXTS,
         "recommendation": {"type": "string"},
     },
     "required": [

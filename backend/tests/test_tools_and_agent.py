@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
+from datetime import datetime
+
 import pytest
-from fixtures import F_CSV, build
+from fixtures import F_CSV, TC, build
 from helpers import ScriptedProvider, call, good_submission, resp
 
 from logtracer.assistant.agent import LogTracerAgent
@@ -26,16 +29,73 @@ def settings(**kw):
 
 
 # ----------------------------------------------------------------- tools
+def ids(table):
+    """Event ids of a compact table {"cols": [...], "rows": [[...]]}."""
+    return [row[table["cols"].index("id")] for row in table["rows"]]
+
+
+def col(table, name):
+    return [row[table["cols"].index(name)] for row in table["rows"]]
+
+
 def test_search_events_by_job_and_seen_ids(box):
     r = box.execute("search_events", {"job_id": "job-2003"})
-    assert [e["id"] for e in r["rows"]] == [1001, 1002, 1003]
-    assert r["rows"][0]["ts"] == "2026-11-24T08:30:00Z"
+    assert ids(r) == [1001, 1002, 1003]
+    assert col(r, "ts")[0] == "2026-11-24T08:30:00Z"
+    assert "trace_id" not in r["cols"]  # empty columns are left out
     assert box.seen_event_ids == {1001, 1002, 1003}
+
+
+def test_text_search_reads_the_whole_log_line(box):
+    # JOB-2003 is not in any message, only in the original line (job=JOB-2003)
+    r = box.execute("search_events", {"text": "JOB-2003"})
+    assert ids(r) == [1001, 1002, 1003]
+
+
+def add_reruns(con, n_runs, start_id=5000):
+    """Re-runs like JOB-2003-R01: same failure, different job id (as in the real log package)."""
+    rows = []
+    for k in range(1, n_runs + 1):
+        job = f"JOB-2003-R{k:02d}"
+        for j, (host, comp, msg) in enumerate([
+            (TC, "fms/fsc", "Upload rejected; access policy lacks target volume write permission"),
+            (TC, "teamcenter/workflow", "Publish task failed: no registered result"),
+        ]):
+            i = start_id + 2 * k + j
+            rows.append((i, 4, i, i, datetime(2026, 11, 24, 8, 30, 8 + j), i, host, comp, "ERROR",
+                         job, msg, f"2026-11-24T08:30:0{8 + j}Z ERROR job={job} {msg}"))
+    con.executemany(
+        "INSERT INTO events (id, source_id, line_start, line_end, ts_utc, ingest_seq, host, "
+        "component, level, job_id, message, raw) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        rows,
+    )
+
+
+def test_trace_reports_related_reruns_and_makes_them_citable(con, box):
+    add_reruns(con, 7)
+    r = box.execute("trace", {"key": "JOB-2003"})
+    assert ids(r) == [1001, 1002, 1003]  # the job itself
+    rel = r["related"]
+    assert rel["events"] == 14 and rel["keys"]["count"] == 7
+    assert rel["keys"]["first"][0] == "JOB-2003-R01" and rel["keys"]["last"][-1] == "JOB-2003-R07"
+    assert sum(col(rel["groups"], "count")) == 14  # every related line is counted
+    samples = [i for s in col(rel["groups"], "sample_event_ids") for i in s]
+    assert samples and set(samples) <= box.seen_event_ids  # the model may cite them
+
+
+def test_truncated_search_lists_different_lines_and_counts_all(con, box):
+    add_reruns(con, 30)
+    r = box.execute("search_events", {"text": "JOB-2003", "limit": 10})
+    assert r["truncated"] and r["total_matches"] == 63
+    patterns = list(zip(col(r, "host"), col(r, "component"), col(r, "message")))
+    assert max(patterns.count(p) for p in patterns) <= 2  # no wall of repeats
+    assert 1001 in ids(r) and 1002 in ids(r) and 1003 in ids(r)  # the rare lines survive
+    assert sum(col(r["groups"], "count")) == 63  # nothing silently dropped
 
 
 def test_search_events_filters_level_server_text(box):
     r = box.execute("search_events", {"level": "ERROR", "server": "teamcenter", "text": "retry", "time_from": "2026-11-24"})
-    assert [e["id"] for e in r["rows"]] == [1004]
+    assert ids(r) == [1004]
     assert box.execute("search_events", {"time_to": "2026-11-23"})["total_matches"] == 0
 
 
@@ -57,7 +117,7 @@ def test_error_groups_and_correlate(box):
 
 def test_context_cross_server_window(box):
     r = box.execute("get_context", {"event_id": 1001, "window_seconds": 60})
-    assert [e["id"] for e in r["other_servers_warn_error_in_window"]] == [1004, 1002, 1003]
+    assert ids(r["other_servers_warn_error_in_window"]) == [1004, 1002, 1003]
     assert "error" in box.execute("get_context", {"event_id": 424242})
 
 
@@ -240,3 +300,16 @@ def test_default_gemini_model_has_a_price():
     # 1M input + 1M output tokens at 0.75 + 3.75 USD, converted with the default 0.86 EUR/USD
     cost = estimate_cost_eur(DEFAULT_MODELS["gemini"], 1_000_000, 1_000_000)
     assert cost == pytest.approx((0.75 + 3.75) * 0.86)
+
+
+def test_answer_without_counter_evidence_is_sent_back(con):
+    bad = good_submission(counter_evidence=[])
+    p = ScriptedProvider([
+        resp(call("trace", key="JOB-2003")),
+        resp(call("submit_answer", **bad)),
+        resp(call("submit_answer", **good_submission())),
+    ])
+    ev = run(con, p)
+    ans = next(e["data"] for e in ev if e["event"] == "answer")
+    assert ans["counter_evidence"] == ["Converter reported SUCCESS."]
+    assert "counter_evidence is empty" in json.dumps([r for _, r in p.tool_results[-1]])

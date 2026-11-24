@@ -23,8 +23,8 @@ log = logging.getLogger(__name__)
 SUBMIT_SPEC = ToolSpec(
     name=SUBMIT_TOOL_NAME,
     description=(
-        "Deliver the final answer. Call this exactly once when you have enough evidence (or have found that "
-        "the logs cannot answer the question). Cite only event ids returned by tools."
+        "Deliver the final answer once you have enough evidence, or have found that the logs cannot "
+        "answer. Cite only event ids returned by tools."
     ),
     parameters=SUBMIT_ANSWER_PARAMETERS,
 )
@@ -178,6 +178,14 @@ class LogTracerAgent:
                 "instruction": "Cite only `id` values that tools returned in this conversation. Fix and call "
                                f"{SUBMIT_TOOL_NAME} again.",
             }
+        if not [c for c in sub.counter_evidence if c.strip()]:
+            return None, {
+                "error": "counter_evidence is empty.",
+                "instruction": "Add at least one item: a fact from the logs that argues against your "
+                               "hypothesis or an alternative cause you ruled out (say how). If you found "
+                               "none, say which checks found nothing. Then call "
+                               f"{SUBMIT_TOOL_NAME} again with the same evidence.",
+            }
         if not cited and sub.confidence > 0.2:
             return None, {
                 "error": "No evidence cited.",
@@ -215,5 +223,7 @@ class LogTracerAgent:
             step.event_ids = [i for i in step.event_ids if i in valid]
         sub.evidence_event_ids = [i for i in sub.evidence_event_ids if i in valid]
         sub.confidence = min(sub.confidence, 0.3)
+        if not [c for c in sub.counter_evidence if c.strip()]:
+            sub.counter_evidence = ["The assistant gave no counter-evidence; treat the hypothesis with care."]
         sub.uncertainty += " [Automatic check: some cited event ids could not be verified and were removed.]"
         return self._build(sub, valid)
