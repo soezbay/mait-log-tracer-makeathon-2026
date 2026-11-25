@@ -14,7 +14,7 @@ from logtracer.ingest.watcher import LogWatcher
 from logtracer.services.ingest_service import IngestManager
 from logtracer.storage.db import connect, init_schema
 
-
+from logtracer.api.analysis import router as analysis_router
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
 
@@ -61,6 +61,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(sources.router, prefix="/api")
     app.include_router(events.router, prefix="/api")
     app.include_router(ingest.router, prefix="/api")
+
+    app.include_router(analysis_router)
     return app
 
 
