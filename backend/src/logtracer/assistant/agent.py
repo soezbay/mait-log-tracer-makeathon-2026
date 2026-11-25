@@ -222,10 +222,11 @@ class LogTracerAgent:
                 "instruction": "Either find evidence with the tools, or set confidence to 0.2 or lower and "
                                "explain what the logs do not show.",
             }
-        return self._build(sub, cited), {}
+        return self._build(sub, cited, box.seen_event_ids), {}
 
-    def _build(self, sub: AnswerSubmission, ids: list[int]) -> Answer:
+    def _build(self, sub: AnswerSubmission, ids: list[int], seen: set[int] | None = None) -> Answer:
         evidence = [Evidence(**row) for row in self.store.evidence_for(ids)]
+        _replace_internal_ids(sub, self.store, seen or set())
         chain = sorted(sub.causal_chain, key=lambda s: s.step)
         return Answer(
             reply=sub.reply.strip() or sub.summary,
@@ -259,12 +260,56 @@ class LogTracerAgent:
                                 "were removed.]")
         if not [c for c in sub.counter_evidence if c.strip()]:
             sub.counter_evidence = ["The assistant gave no counter-evidence; treat the hypothesis with care."]
-        return self._build(sub, valid)
+        return self._build(sub, valid, box.seen_event_ids)
 
 
 # Words that only count as a mention in the plural or as a phrase: "re-run the publish" is advice
 # (seen live), not a statement about the 49 failed re-runs.
 _RERUN_WORDS = ("re-runs", "reruns", "re runs", "other jobs", "other runs", "repeated", "recurr")
+
+
+# "ID 786770", "event 30031", "event IDs 36746-36970", "INFO 34031": internal ids the user cannot
+# look up. The prompt forbids them, but models still write them now and then.
+_ID_MENTION = re.compile(
+    r"\b(?:(?:event\s*)?ids?|events?|(?:debug|info|warn|warning|error|fatal)(?:\s+line)?)"
+    r"\s*[:#]?\s*(\d{3,}(?:\s*(?:,|-|–|and|/)\s*\d{3,})*)\b",
+    re.IGNORECASE,
+)
+
+
+def _replace_internal_ids(sub: AnswerSubmission, store: LogStore, seen: set[int]) -> None:
+    """Write event ids in text fields as the file:line the evidence list shows."""
+    texts = [sub.reply, sub.summary, sub.uncertainty, sub.recommendation, *sub.counter_evidence,
+             *sub.verification_steps, *(step.text for step in sub.causal_chain)]
+    found = {int(n) for t in texts for m in _ID_MENTION.finditer(t or "")
+             for n in re.findall(r"\d{3,}", m.group(1))}
+    ids = sorted(found & seen)
+    if not ids:
+        return
+    refs = {r["event_id"]: f"{str(r['file'] or '').replace(chr(92), '/').split('/')[-1]}:{r['line']}"
+            for r in store.evidence_for(ids)}
+
+    def fix(text: str) -> str:
+        def one(m: re.Match[str]) -> str:
+            numbers = [int(n) for n in re.findall(r"\d{3,}", m.group(1))]
+            if not numbers or any(n not in refs for n in numbers):
+                return m.group(0)  # not (all) internal ids: leave the text alone
+            word = m.group(0)[: m.start(1) - m.start(0)].rstrip(" :#")
+            level = word.split()[0].upper() if word and word.split()[0].lower() in (
+                "debug", "info", "warn", "warning", "error", "fatal") else ""
+            label = f"{level} line" if level else ("lines" if len(numbers) > 1 else "line")
+            before = m.string[: m.start()].rstrip()
+            if not level and (not before or before[-1] in ".!?:"):  # starts a sentence
+                label = label.capitalize()
+            return f"{label} {', '.join(refs[n] for n in numbers)}"
+        return _ID_MENTION.sub(one, text) if text else text
+
+    sub.reply, sub.summary = fix(sub.reply), fix(sub.summary)
+    sub.uncertainty, sub.recommendation = fix(sub.uncertainty), fix(sub.recommendation)
+    sub.counter_evidence = [fix(t) for t in sub.counter_evidence]
+    sub.verification_steps = [fix(t) for t in sub.verification_steps]
+    for step in sub.causal_chain:
+        step.text = fix(step.text)
 
 
 def _uncited_trace_failures(sub: AnswerSubmission, box: ToolBox) -> list[dict[str, Any]]:

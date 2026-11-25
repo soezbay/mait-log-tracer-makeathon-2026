@@ -488,3 +488,21 @@ def test_advice_to_rerun_is_not_a_mention_of_the_reruns(con):
     assert any(e["event"] == "answer" for e in ev)
     sent_back = json.dumps([r for _, r in p.tool_results[-1]])
     assert "ignores related jobs" in sent_back
+
+
+def test_internal_ids_in_text_become_file_and_line(con):
+    # Seen live: "Info lines from the dispatcher (ID 786770) show ...", "INFO 34031 shows ...".
+    sub = good_submission(
+        counter_evidence=["Info lines from the converter (ID 1001) show the conversion worked.",
+                          "INFO 1001 shows the conversion succeeded."],
+        uncertainty="Events 1002 and 1003 do not show the ACL; error 4040 and JOB-2003 stay as written.",
+    )
+    p = ScriptedProvider([resp(call("trace", key="JOB-2003")), resp(call("submit_answer", **sub))])
+    ans = next(e["data"] for e in run(con, p) if e["event"] == "answer")
+    ref = f"{F_CSV.split('/')[-1]}:31"
+    assert ans["counter_evidence"] == [
+        f"Info lines from the converter (line {ref}) show the conversion worked.",
+        f"INFO line {ref} shows the conversion succeeded.",
+    ]
+    assert "1002" not in ans["uncertainty"] and ans["uncertainty"].startswith("Lines ")
+    assert "error 4040" in ans["uncertainty"] and "JOB-2003" in ans["uncertainty"]  # not ids it saw

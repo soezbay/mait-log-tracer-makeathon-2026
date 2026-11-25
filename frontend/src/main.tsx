@@ -290,25 +290,40 @@ function App() {
   const [check, setCheck] = useState(0)
   useEffect(() => {
     if (offline) return setHealth({ state: 'checking', label: t('backend.offlineDemo'), detail: t('mode.demoInfo') })
-    const controller = new AbortController()
+    // Checked at once, then again in the background (every 3 s while unreachable, every 15 s while
+    // fine), so a backend that starts later or restarts after a pull shows up without a click.
     const recheck = ' ' + t('backend.recheckHint')
     const unreachable: Health = { state: 'error', label: t('backend.offline'), detail: t('backend.unreachable') + '.' + recheck }
-    setHealth({ state: 'checking', label: t('backend.checking'), detail: t('backend.checking') })
-    const timeout = setTimeout(() => { setHealth(unreachable); controller.abort() }, 3500)
-    request<{ status?: string; version?: string; log_root_found?: boolean; db_found?: boolean }>('/health', { signal: controller.signal }, language).then(
-      data => {
-        const ready = (!data.status || data.status === 'ok') && !!data.log_root_found && !!data.db_found
-        setHealth({
-          state: ready ? 'ok' : 'warn',
-          label: t(ready ? 'backend.online' : 'backend.incomplete'),
-          detail: (data.status && data.status !== 'ok'
-            ? t('backend.reported', { status: data.status })
-            : t('backend.reachable') + ' · ' + (data.log_root_found ? t('backend.logsReady') : t('backend.logsMissing')) + ' · ' + (data.db_found ? t('backend.databaseReady') : t('backend.databaseMissing'))) + '.' + recheck,
-        })
-      },
-      () => { if (!controller.signal.aborted) setHealth(unreachable) },
-    ).finally(() => clearTimeout(timeout))
-    return () => { clearTimeout(timeout); controller.abort() }
+    let controller: AbortController | null = null
+    let next: ReturnType<typeof setTimeout> | undefined
+    let stopped = false
+    const run = (first: boolean) => {
+      const current = new AbortController()
+      controller = current
+      if (first) setHealth({ state: 'checking', label: t('backend.checking'), detail: t('backend.checking') })
+      let result: Health = unreachable
+      const timeout = setTimeout(() => current.abort(), 3500)
+      request<{ status?: string; version?: string; log_root_found?: boolean; db_found?: boolean }>('/health', { signal: current.signal }, language).then(
+        data => {
+          const ready = (!data.status || data.status === 'ok') && !!data.log_root_found && !!data.db_found
+          result = {
+            state: ready ? 'ok' : 'warn',
+            label: t(ready ? 'backend.online' : 'backend.incomplete'),
+            detail: (data.status && data.status !== 'ok'
+              ? t('backend.reported', { status: data.status })
+              : t('backend.reachable') + ' · ' + (data.log_root_found ? t('backend.logsReady') : t('backend.logsMissing')) + ' · ' + (data.db_found ? t('backend.databaseReady') : t('backend.databaseMissing'))) + '.' + recheck,
+          }
+        },
+        () => undefined,
+      ).finally(() => {
+        clearTimeout(timeout)
+        if (stopped) return
+        setHealth(result)
+        next = setTimeout(() => run(false), result.state === 'ok' ? 15000 : 3000)
+      })
+    }
+    run(true)
+    return () => { stopped = true; clearTimeout(next); controller?.abort() }
   }, [check, language, t])
   useEffect(() => {
     if (offline || mode !== 'live') return

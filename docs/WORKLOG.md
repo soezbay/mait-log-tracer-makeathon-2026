@@ -623,3 +623,16 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Why:** the branch must show main's current frontend and merge into main without conflicts.
 - **Where:** merge commit on `p3/analyze-upload`.
 - **Checks:** 204 tests pass, ruff clean, `npm run build` OK.
+
+### Backend status updates on its own (P3, Tarun, in P4 files)
+- **What:** the sidebar status re-checks `/api/health` in the background (every 3 s while unreachable, every 15 s while fine); Vite proxies to `127.0.0.1:8000` instead of `localhost:8000`.
+- **Why:** the status felt slow. The backend answers health in about 1 ms even while the page loads its data, but the frontend checked only once, so a backend that started later or restarted after a pull stayed "offline" until a click; and on Windows Node tries IPv6 `::1` first for `localhost`, while uvicorn listens on IPv4 only.
+- **Where:** `frontend/src/main.tsx`, `frontend/vite.config.mjs`.
+- **Checks:** Playwright: page opened with the backend down shows offline, turns online 1.8 s after the backend starts, without a click; `npm run build` OK.
+- **Open:** Adnan (P4) please review.
+
+### Event ids in answer text become file:line (P3, Tarun)
+- **What:** ids the model writes into text fields ("ID 786770", "INFO 34031", "events 1002 and 1003") are replaced with the file:line shown in the evidence list, for ids a tool returned only.
+- **Why:** the prompt rule did not stop it (JOB-2003 and JOB-2007 answers); sending the answer back would cost another 10 to 20 s.
+- **Where:** `backend/src/logtracer/assistant/agent.py`, test in `backend/tests/test_tools_and_agent.py`.
+- **Checks:** 205 tests pass, ruff clean. JOB-2007 answer checked against the full data: correct cause and chain, all 3 ERRORs cited; only "aborts" should be "paused".
