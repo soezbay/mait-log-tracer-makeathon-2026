@@ -603,3 +603,8 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Images:** raw log views drawn from the package files, UI screenshot from headless Edge, icons from Tabler Icons 3.19.0 (MIT), DuckDB mark from simple-icons 13.0.0 (CC0, brand of DuckDB).
 - **Checks:** schema validation passed, every slide rendered in PowerPoint and looked at.
 - **Open:** team photos, own images on slide 3, demo video on slide 6. Not pushed.
+
+### Pitch deck improved and pushed
+- **What:** Safak's improved version of the pitch deck (edited in PowerPoint) committed; template and deck pushed to `main` on his request.
+- **Where:** `docs/Log Tracer – Pitch 5 Minuten.pptx`, `docs/templates/`
+- **Open:** D1: the repo is public, so the template and the deck are public now.
