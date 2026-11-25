@@ -33,6 +33,7 @@ class AnswerSubmission(BaseModel):
     counter_evidence: list[str] = Field(default_factory=list)
     verification_steps: list[str] = Field(default_factory=list)
     recommendation: str = ""
+    reply: str = ""  # the direct answer to the user; empty: the summary is used
 
     @field_validator("confidence", mode="before")
     @classmethod
@@ -59,6 +60,7 @@ class Evidence(BaseModel):
 
 
 class Answer(BaseModel):
+    reply: str
     summary: str
     causal_chain: list[CausalStep]
     affected_systems: list[str]
@@ -77,7 +79,7 @@ _TEXTS = {"type": "array", "items": {"type": "string"}}
 SUBMIT_ANSWER_PARAMETERS: dict[str, Any] = {
     "type": "object",
     "properties": {
-        "summary": {"type": "string", "description": "1-3 sentences: what failed and why"},
+        "summary": {"type": "string", "description": "hypothesis, 1-3 sentences: what failed and why"},
         "causal_chain": {
             "type": "array",
             "description": "cause -> effect steps across servers",
@@ -99,6 +101,8 @@ SUBMIT_ANSWER_PARAMETERS: dict[str, Any] = {
         "counter_evidence": {**_TEXTS, "description": "at least 1 item"},
         "verification_steps": _TEXTS,
         "recommendation": {"type": "string"},
+        "reply": {"type": "string", "description": "what you say to the user: answers exactly what was "
+                                                   "asked, in the language, length and style they want"},
     },
     "required": [
         "summary",
@@ -110,5 +114,6 @@ SUBMIT_ANSWER_PARAMETERS: dict[str, Any] = {
         "counter_evidence",
         "verification_steps",
         "recommendation",
+        "reply",
     ],
 }

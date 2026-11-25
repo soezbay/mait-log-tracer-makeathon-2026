@@ -193,7 +193,7 @@ Thin layer: accepts requests, validates them with Pydantic and calls services. N
 | `providers/` | common `LLMProvider` interface with `ClaudeProvider` (default), `GeminiProvider`, `GroqProvider`, `KIConnectProvider` (shares Groq's OpenAI-style code) and `OllamaProvider` (local, planned). Switchable via `.env` |
 | `tools.py` | tool definitions for the LLM, each calling into `services/`: `search_events`, `get_error_groups`, `get_anomalies`, `trace`, `correlate`, `get_context` |
 | `prompt.py` | system prompt: role, rules (answer only with evidence, state uncertainty, recognize harmless ERRORs as such), answer format |
-| `answer.py` | Pydantic schema of the answer: `summary`, `causal_chain[]`, `affected_systems[]`, `evidence[]` (event IDs), `uncertainty`, `counter_evidence[]`, `verification_steps[]`, `recommendation`. Checks that every cited event ID exists |
+| `answer.py` | Pydantic schema of the answer: `reply` (direct answer to the question), `summary` (hypothesis), `causal_chain[]`, `affected_systems[]`, `evidence[]` (event IDs), `uncertainty`, `counter_evidence[]`, `verification_steps[]`, `recommendation`. Checks that every cited event ID exists |
 | `agent.py` | tool-use loop: question → LLM → tool calls → results → … → structured answer. Limits rounds and tokens |
 | `masking.py` | optional PII filter before the LLM call (users, IPs, paths) |
 | `costs.py` | records tokens, duration and estimated cost per call in `llm_calls` |
@@ -289,6 +289,7 @@ Base: `http://localhost:8000/api`, OpenAPI at `/docs`. JSON, times always ISO-86
 
 ```json
 {
+  "reply": "No, the conversion worked. FMS rejected the upload of the JT file because the service user has no write permission, so the publish step found no result.",
   "summary": "Publishing JOB-2003 failed because FMS rejected the JT upload (service user DEMO-SERVICE lacks WRITE_DATASET on the target volume), although the converter reported success.",
   "causal_chain": [
     {"step": 1, "server": "mait_win03_cad_converter", "event_ids": [1001], "text": "Conversion succeeded; JT output=DEMO-301.jt"},

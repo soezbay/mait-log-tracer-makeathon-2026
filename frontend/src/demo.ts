@@ -22,7 +22,7 @@ export type EntryMeta = { event_id: string | null; session_id: string | null; ts
 export type Group = { id: number; label: string; status: string; event_ids: number[] }
 export type EventPage = { items: Entry[]; total: number; limit: number; offset: number }
 export type Stats = { servers?: number; sources: number; unique_sources?: number; duplicate_sources?: number; duplicate_events?: number; events: number; unparsed_events?: number; levels: Record<string, number>; time_range?: { from: string; to: string }; last_ingest_at?: string | null }
-export type Answer = { summary: string; causal_chain: { step: number; server: string; text: string }[]; affected_systems: string[]; evidence: { event_id: number; file: string; line: number; ts: string }[]; confidence?: number; uncertainty: string; counter_evidence?: string[]; verification_steps: string[] }
+export type Answer = { reply?: string; summary: string; causal_chain: { step: number; server: string; text: string }[]; affected_systems: string[]; evidence: { event_id: number; file: string; line: number; ts: string }[]; confidence?: number; uncertainty: string; counter_evidence?: string[]; verification_steps: string[] }
 export type SourceContext = { path: string; lines: { line: number; text: string }[]; line_start: number; line_end: number }
 
 // The examples mirror the separate challenge cases documented for 24 Nov.

@@ -39,6 +39,18 @@ ANSWER RULES (checked automatically)
 - Weak evidence: confidence 0.2 or lower and say what is missing.
 - Times are UTC (tool time inputs: ISO-8601 like 2026-11-24T08:30:00Z, or a date like 2026-11-24).
   Answer in the language of the question. Name servers and components exactly as in the logs.
+
+REPLY (what the user reads first; the other fields are shown below it as the analysis)
+- Talk to the user like a colleague in a chat and answer exactly what was asked. The first sentence is the
+  direct answer: yes or no, the number, the name, the reason. No report style, no repetition of all fields.
+- Follow the user's wishes literally: language, number of sentences, list or text, simple words. A wish for
+  one part applies to that part (hypothesis = summary): "the hypothesis in Spanish" -> summary in Spanish,
+  the rest in the language of the question.
+- Say only what the tool results show, with the same caution as uncertainty. No event ids, no file names:
+  the evidence is shown below.
+- Plain text. "- " at the start of a line makes a list. No headings, no tables.
+- Not a question about the logs (a greeting, a term, what you can do): answer it briefly in reply, keep the
+  other fields short with confidence 0.2 or lower, and call no tools if you need none.
 """
 
 
@@ -47,7 +59,13 @@ def build_user_message(question: str, history: list[tuple[str, str]] | None = No
     if history:
         parts.append("Earlier in this conversation (for follow-up questions):")
         for q, a in history:
-            parts.append(f"- Q: {q}\n  A (summary): {a}")
+            parts.append(f"- Q: {q}\n  A: {a}")
         parts.append("")
     parts.append(f"Question: {question.strip()}")
+    # Next to the question, because models forget such rules in a long system prompt.
+    parts.append(
+        "\n(Wishes about language, length or style apply to `reply`. A wish for a named part applies to "
+        "that field instead: hypothesis = `summary`, causal chain = `causal_chain` texts, and so on. "
+        "\"job 2013\" means JOB-2013.)"
+    )
     return "\n".join(parts)

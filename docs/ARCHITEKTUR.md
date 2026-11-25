@@ -276,6 +276,7 @@ Basis: `http://localhost:8000/api`, OpenAPI unter `/docs`. JSON, Zeiten immer IS
 
 ```json
 {
+  "reply": "Nein, die Konvertierung hat funktioniert. FMS hat den Upload der JT-Datei abgelehnt, weil dem Dienstbenutzer das Schreibrecht fehlt; deshalb fand der Publish-Schritt kein Ergebnis.",
   "summary": "Das Publish von JOB-2003 schlug fehl, weil FMS den JT-Upload abgelehnt hat (Dienstbenutzer DEMO-SERVICE fehlt WRITE_DATASET auf dem Ziel-Volume), obwohl der Konverter Erfolg meldete.",
   "causal_chain": [
     {"step": 1, "server": "mait_win03_cad_converter", "event_ids": [1001], "text": "Konvertierung erfolgreich; JT-Ausgabe DEMO-301.jt"},

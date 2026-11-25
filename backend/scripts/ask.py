@@ -95,7 +95,8 @@ def main() -> int:
     if args.json:
         print(json.dumps(answer, indent=2, ensure_ascii=False))
         return 0
-    print(f"\n{answer['summary']}  (confidence {answer['confidence']:.2f})\n")
+    print(f"\n{answer['reply']}\n")
+    print(f"Hypothesis: {answer['summary']}  (confidence {answer['confidence']:.2f})\n")
     for s in answer["causal_chain"]:
         print(f"  {s['step']}. [{s['server']}] {s['text']}  (events {s['event_ids']})")
     print("\nEvidence:")

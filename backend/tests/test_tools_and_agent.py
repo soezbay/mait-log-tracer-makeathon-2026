@@ -344,6 +344,34 @@ def test_answer_ignoring_failed_reruns_is_sent_back(con):
     assert "ignores related jobs" in sent_back and "7 other jobs" in sent_back
 
 
+@pytest.mark.parametrize("written", ["2003", "job 2003", "Job-2003", "JOB_2003", "Auftrag 2003", "job2003"])
+def test_trace_understands_how_people_write_a_job(box, written):
+    assert box.execute("trace", {"key": written})["key"].upper() == "JOB-2003"
+
+
+def test_trace_keeps_numbers_that_are_no_job(box):
+    assert box.execute("trace", {"key": "99999"})["key"] == "99999"
+
+
+def test_reply_is_the_direct_answer_and_kept_in_the_history(con):
+    reply = "Yes, all of them failed the same way."
+    p = ScriptedProvider([resp(call("trace", key="JOB-2003")),
+                          resp(call("submit_answer", **good_submission(reply=f" {reply} ")))])
+    ev = run(con, p)
+    ans = next(e["data"] for e in ev if e["event"] == "answer")
+    assert list(ans)[:2] == ["reply", "summary"] and ans["reply"] == reply
+    assert ans["summary"] != reply and len(ans["evidence"]) == 3  # the analysis is still there
+    stored = con.execute("SELECT content FROM chat_messages WHERE role = 'assistant'").fetchall()
+    assert stored == [(reply,)]
+
+
+def test_missing_reply_falls_back_to_the_summary(con):
+    p = ScriptedProvider([resp(call("trace", key="JOB-2003")),
+                          resp(call("submit_answer", **good_submission()))])
+    ans = next(e["data"] for e in run(con, p) if e["event"] == "answer")
+    assert ans["reply"] == ans["summary"]
+
+
 def test_answer_naming_a_rerun_is_accepted_first_time(con):
     add_reruns(con, 3)
     ok = good_submission(uncertainty="JOB-2003-R02 failed the same way; logs do not show why.")

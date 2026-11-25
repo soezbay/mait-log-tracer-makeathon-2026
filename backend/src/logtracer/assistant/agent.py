@@ -144,7 +144,7 @@ class LogTracerAgent:
                     if answer is not None:
                         data = answer.model_dump(mode="json")
                         if persist:
-                            self.store.save_message(conv_id, "assistant", answer.summary, data)
+                            self.store.save_message(conv_id, "assistant", answer.reply, data)
                             self.store.save_hypothesis(
                                 conv_id, question, data, f"{self.provider.name}/{self.provider.model}"
                             )
@@ -198,7 +198,7 @@ class LogTracerAgent:
                 "facts": f"trace({key}) found {info['events']} log lines of {info['count']} other "
                          f"jobs/traces ({span}) that mention {key} with WARN/ERROR.",
                 "instruction": "Say in summary or uncertainty whether they failed the same way (e.g. "
-                               "re-runs) and how many there are. Keep the rest of the answer and call "
+                               "re-runs) and how many there are. Keep the rest, also the form of reply the user wants, and call "
                                f"{SUBMIT_TOOL_NAME} again.",
             }
         if not cited and sub.confidence > 0.2:
@@ -213,6 +213,7 @@ class LogTracerAgent:
         evidence = [Evidence(**row) for row in self.store.evidence_for(ids)]
         chain = sorted(sub.causal_chain, key=lambda s: s.step)
         return Answer(
+            reply=sub.reply.strip() or sub.summary,
             summary=sub.summary,
             causal_chain=chain,
             affected_systems=sub.affected_systems,
@@ -254,7 +255,7 @@ def _unmentioned_related(
 ) -> tuple[str, dict[str, Any]] | None:
     """The first traced key whose failing related jobs the answer does not mention at all."""
     text = " ".join([
-        sub.summary, sub.uncertainty, sub.recommendation, *sub.counter_evidence,
+        sub.reply, sub.summary, sub.uncertainty, sub.recommendation, *sub.counter_evidence,
         *sub.verification_steps, *(step.text for step in sub.causal_chain),
     ]).lower()
     for key, info in related.items():

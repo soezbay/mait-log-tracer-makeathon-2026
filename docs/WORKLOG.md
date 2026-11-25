@@ -536,3 +536,11 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `frontend/src/assistant-run.tsx`, `api.ts`, `main.tsx`, `i18n.tsx`, `layout.css`
 - **Checks:** `npm run build` succeeds; 62 jsdom checks (20 new, with a simulated stream: steps, folding, error, replaced question, German, Demo); one real question in the browser.
 - **Open:** the Demo mode has no steps, because its answers are prepared. The backend sends no event when an answer is rejected by the evidence check (P3).
+
+### The assistant answers the question naturally, above its analysis
+- **What:** The answer format has a new field `reply`: a direct answer in the language, length and style the user asks for. The structured fields stay and are shown below it under "Analysis and evidence". Wishes about a named part go to that part ("the hypothesis in Spanish" → `summary`). If the model sends no `reply`, the summary is used. Empty sections are left out. `RichText` shows paragraphs, lists, bold and code, never HTML.
+- **Also:** `trace` reads "job 2013", "2013" or "Auftrag 2013" as `JOB-2013`. Before, the bare number matched the object `DEMO-02013`, and the model once answered with 0.92 confidence that the job was successful.
+- **Why:** Safak's screenshots: every answer had the same form and did not refer to the question or the requested style.
+- **Where:** `backend/src/logtracer/assistant/{answer,agent,prompt,data_access}.py`, `backend/scripts/ask.py`, `frontend/src/{main,ui,i18n}.tsx`, `layout.css`, `contracts/examples/chat_answer.json`, `chat_stream.sse`, `docs/ARCHITECTURE.md` §5
+- **Checks:** 177 tests pass (9 new), `ruff check` clean, build OK, 67 jsdom UI checks. Live with KI:connect gpt-oss-120b: both questions from the screenshots, a yes/no question, "only a list", a term and a greeting; the Spanish hypothesis was seen in the browser (22 s).
+- **Open (P3):** review; the model does not always count sentences exactly and sometimes mixes languages in a side field; a question about a term uses many search rounds; each question stands alone because the UI sends no `conversation_id`.

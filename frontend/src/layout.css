@@ -149,3 +149,11 @@ main { padding: 1rem clamp(.9rem, 2vw, 1.6rem) 1.6rem; max-width: 1600px }
 .run-time { flex: none; font-variant-numeric: tabular-nums }
 .run-usage { margin: 0; padding-left: .5rem; font-size: .82rem; color: #486173 }
 @media (prefers-reduced-motion: reduce) { .run-icon.running { animation-duration: 4s } }
+
+/* --- assistant: the reply above its analysis --- */
+.reply { font-size: 1.05rem; line-height: 1.6; overflow-wrap: anywhere }
+.reply p { margin: 0 0 .6rem }
+.reply code { padding: .05rem .35rem; border-radius: 5px; background: #edf2f5; font-size: .9em }
+.answer .reply ul, .answer .reply ol { margin: 0 0 .6rem }
+.analysis-label { margin: .9rem 0 0; padding-top: .7rem; border-top: 1px solid #dce5eb; color: #486173; font-size: .78rem; font-weight: 750; letter-spacing: .06em; text-transform: uppercase }
+.analysis-label + h3 { margin-top: .4rem }

@@ -19,7 +19,7 @@ import { ProcessMonitor } from './ProcessMonitor'
 import type { ImportedLogs } from './import-zip'
 import { I18nProvider, useI18n } from './i18n'
 import { AssistantLinkContext, SuggestionPanel, useSavedQuestions } from './suggestions'
-import { PageTitle } from './ui'
+import { PageTitle, RichText } from './ui'
 import { browserTimeZone, currentLocalDateTime, isValidDateTimeLocal, localDateTimeToUtcIso, utcDateTimeToEpoch, utcDateTimeToLocal } from './time'
 
 type AssistantTarget = { question: string; jobIds: string[] }
@@ -253,9 +253,11 @@ function Assistant({ mode, open, contextId, clearContext, requested, clearReques
     {mode === 'demo' && <div className="actions">{[t('assistant.prompt2003'), t('assistant.prompt2010'), t('assistant.promptSync')].map(prompt => <button type="button" key={prompt} className="secondary" disabled={isAlreadyOpen(prompt)} onClick={() => void ask(prompt)}>{prompt}</button>)}</div>}
     {run && <RunPanel run={run} />}
     {result && <article className="panel answer">
-      {!run && <p className="question">{result.question}</p>}<h2>{t('assistant.hypothesis')}</h2><p>{result.answer.summary}</p>
-      <h3>{t('assistant.causalChain')}</h3><ol>{result.answer.causal_chain.map(item => <li key={item.step}><strong>{item.server}</strong> · {item.text}</li>)}</ol>
-      <h3>{t('assistant.evidence')}</h3><div className="evidence">{result.answer.evidence.map((item, index) => <button key={index} className="secondary" onClick={() => open(item.event_id)} title={item.file}>{item.file.split('/').at(-1)}:{item.line} <small>{formatTime(item.ts)}</small></button>)}</div>
+      {!run && <p className="question">{result.question}</p>}
+      {result.answer.reply && result.answer.reply !== result.answer.summary && <><RichText className="reply" text={result.answer.reply} /><p className="analysis-label">{t('assistant.analysis')}</p></>}
+      <h3>{t('assistant.hypothesis')}</h3><p>{result.answer.summary}</p>
+      {result.answer.causal_chain.length > 0 && <><h3>{t('assistant.causalChain')}</h3><ol>{result.answer.causal_chain.map(item => <li key={item.step}><strong>{item.server}</strong> · {item.text}</li>)}</ol></>}
+      {result.answer.evidence.length > 0 && <h3>{t('assistant.evidence')}</h3>}<div className="evidence">{result.answer.evidence.map((item, index) => <button key={index} className="secondary" onClick={() => open(item.event_id)} title={item.file}>{item.file.split('/').at(-1)}:{item.line} <small>{formatTime(item.ts)}</small></button>)}</div>
       <h3>{t('assistant.uncertainty')}{typeof result.answer.confidence === 'number' ? ' · ' + t('assistant.confidence', { percent: Math.round(result.answer.confidence * 100) }) : ''}</h3><p>{result.answer.uncertainty}</p>
       {!!result.answer.counter_evidence?.length && <><h3>{t('assistant.counterEvidence')}</h3><ul>{result.answer.counter_evidence.map(text => <li key={text}>{text}</li>)}</ul></>}
       <h3>{t('assistant.verification')}</h3><ul>{result.answer.verification_steps.map(text => <li key={text}>{text}</li>)}</ul>

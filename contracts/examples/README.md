@@ -27,6 +27,6 @@ The endpoint list is in [docs/ARCHITECTURE.md §5](../../docs/ARCHITECTURE.md).
 | like `events.json` | `GET /api/trace/{key}` (trace ID, else job ID; `404` if unknown) | P2 |
 | `chat_request.json` | `POST /api/chat` (request body) | P3 |
 | `chat_stream.sse` | `POST /api/chat` (SSE: `token`, `step`, `answer`, `done`, `error`) | P3 |
-| `chat_answer.json` | the `answer` event's data (interface 3, `assistant/answer.py`) | P3 |
+| `chat_answer.json` | the `answer` event's data (interface 3, `assistant/answer.py`). `reply` answers the question directly in the language, length and style the user wants (plain text, `- ` lists); the other fields are the analysis. Show `reply` first | P3 |
 | `chat_history.json` | `GET /api/chat/{conversation_id}` | P3 |
 | *to add by P5* | `/api/eval/*` | P5 |

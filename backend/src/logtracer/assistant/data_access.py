@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -262,8 +263,19 @@ class LogStore:
             params.append(trace_id.strip())
         return self._event_result(" AND ".join(where), params, _clip(limit))
 
+    def _written_key(self, key: str) -> str:
+        """People write "job 2013" or "2013" for JOB-2013. As plain text 2013 would match DEMO-02013."""
+        number = re.fullmatch(r"(?:(?:job|auftrag)[\s_#-]*)?(\d{3,})", key, re.IGNORECASE)
+        if not number:
+            return key
+        exact = "SELECT count(*) FROM events WHERE upper(job_id) = upper(?) OR trace_id = ? OR session_id = ?"
+        job = f"JOB-{number[1]}"
+        if not self._scalar(exact, [key, key, key]) and self._scalar(exact, [job, job, job]):
+            return job
+        return key
+
     def trace(self, key: str, limit: int | None = None) -> dict[str, Any]:
-        key = key.strip()
+        key = self._written_key(key.strip())
         n = _clip(limit, 40)
         exact = "(upper(e.job_id) = upper(?) OR e.trace_id = ? OR e.session_id = ?)"
         mentions = "(e.message ILIKE ? OR CAST(e.attrs AS VARCHAR) ILIKE ?)"
