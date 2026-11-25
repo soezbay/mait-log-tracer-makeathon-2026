@@ -5,7 +5,7 @@ from .base import Conversation, LLMProvider, LLMResponse, ProviderError, ToolCal
 
 
 def create_provider(settings: Settings) -> LLMProvider:
-    """Build the provider chosen by LLM_PROVIDER (gemini | groq | claude)."""
+    """Build the provider chosen by LLM_PROVIDER (gemini | groq | kiconnect | claude)."""
     name = settings.llm_provider.lower()
     if name == "gemini":
         from .gemini import GeminiProvider
@@ -26,8 +26,18 @@ def create_provider(settings: Settings) -> LLMProvider:
             max_tokens=settings.max_output_tokens,
             reasoning_effort=(settings.llm_reasoning_effort or "").strip() or None,
         )
+    if name in ("kiconnect", "ki-connect"):
+        from .kiconnect import KIConnectProvider
+
+        return KIConnectProvider(
+            settings.kiconnect_api_key,
+            settings.model_name,
+            base_url=(settings.kiconnect_base_url or "").strip() or None,
+            reasoning_effort=(settings.llm_reasoning_effort or "").strip() or None,
+        )
     raise ProviderError(
-        f"Unknown LLM_PROVIDER {settings.llm_provider!r}. Use 'gemini', 'groq' or 'claude'."
+        f"Unknown LLM_PROVIDER {settings.llm_provider!r}. "
+        "Use 'gemini', 'groq', 'kiconnect' or 'claude'."
     )
 
 

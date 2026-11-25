@@ -44,11 +44,13 @@ class Settings(BaseSettings):
     watch_rescan_s: float = 10.0  # safety net: full size/mtime check every N s (0 = off)
 
     # --- LLM (P3) --------------------------------------------------------------------------
-    llm_provider: str = "claude"  # claude | gemini | groq | ollama
+    llm_provider: str = "claude"  # claude | gemini | groq | kiconnect | ollama
     llm_model: str = "claude-sonnet-5-5"
     anthropic_api_key: SecretStr | None = None
     gemini_api_key: SecretStr | None = None
     groq_api_key: SecretStr | None = None
+    kiconnect_api_key: SecretStr | None = None
+    kiconnect_base_url: str | None = None  # empty = https://chat.kiconnect.nrw/api/v1
     llm_reasoning_effort: str | None = None  # groq reasoning models: low | medium | high
     llm_max_tool_rounds: int = 8
     llm_max_output_tokens: int = 4096

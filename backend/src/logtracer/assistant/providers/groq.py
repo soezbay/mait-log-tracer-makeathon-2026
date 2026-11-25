@@ -82,7 +82,13 @@ def _retry_after(exc: Exception) -> float | None:
 
 
 class GroqProvider(LLMProvider):
+    """Groq, and the base for every OpenAI-style chat-completions API (see kiconnect.py)."""
+
     name = "groq"
+    label = "Groq"  # used in error messages
+    key_env = "GROQ_API_KEY"
+    # Name of the output-limit parameter, or None to send none (some gateways reject it).
+    max_tokens_param: str | None = "max_completion_tokens"
 
     def __init__(self, api_key: str | None, model: str, client: Any | None = None,
                  max_tokens: int = 4096, reasoning_effort: str | None = None,
@@ -101,10 +107,12 @@ class GroqProvider(LLMProvider):
         self._sleep = sleep
 
     def start(self, system: str, tools: list[ToolSpec], user_message: str) -> Conversation:
-        return GroqConversation(self, system, tools, user_message)
+        return ChatCompletionsConversation(self, system, tools, user_message)
 
 
-class GroqConversation(Conversation):
+class ChatCompletionsConversation(Conversation):
+    """One question against an OpenAI-style ``chat.completions`` API (Groq, KI:connect, ...)."""
+
     def __init__(self, provider: GroqProvider, system: str, tools: list[ToolSpec], user_message: str):
         self.p = provider
         self.tools = [
@@ -116,6 +124,7 @@ class GroqConversation(Conversation):
             {"role": "system", "content": system},
             {"role": "user", "content": user_message},
         ]
+        self._force_ok = True  # False once the API refused a forced tool_choice
 
     @staticmethod
     def _retryable(exc: Exception) -> bool:
@@ -129,10 +138,12 @@ class GroqConversation(Conversation):
             "messages": self.messages,
             "tools": self.tools,
             "tool_choice": (
-                {"type": "function", "function": {"name": force_tool}} if force_tool else "auto"
+                {"type": "function", "function": {"name": force_tool}}
+                if force_tool and self._force_ok else "auto"
             ),
-            "max_completion_tokens": self.p.max_tokens,
         }
+        if self.p.max_tokens_param and self.p.max_tokens:
+            kwargs[self.p.max_tokens_param] = self.p.max_tokens
         if self.p.reasoning_effort:
             kwargs["reasoning_effort"] = self.p.reasoning_effort
         retry_kwargs: dict[str, Any] = {"delay_for": _retry_after}
@@ -145,31 +156,37 @@ class GroqConversation(Conversation):
         except Exception as exc:
             status = getattr(exc, "status_code", None)
             detail = _describe(exc)
+            label, key_env = self.p.label, self.p.key_env
+            if force_tool and self._force_ok and status == 400 and "tool_choice" in detail.lower():
+                # Some upstream models cannot be forced to one tool; the prompt still asks for it.
+                log.warning("%s refused a forced tool_choice, retrying without it [%s]", label, detail)
+                self._force_ok = False
+                return self.generate(force_tool)
             if _bad_generation(exc):
-                # The model wrote output Groq could not parse (e.g. a malformed tool call). The
+                # The model wrote output the API could not parse (e.g. a malformed tool call). The
                 # request was fine: keep the history valid and let the agent ask the model again.
-                log.warning("Groq could not parse the model output, asking again [%s]", detail)
+                log.warning("%s could not parse the model output, asking again [%s]", label, detail)
                 return LLMResponse()
             if status == 429:
                 raise ProviderError(
-                    f"Groq rate limit reached (tokens or requests per minute). Wait a minute or "
+                    f"{label} rate limit reached (tokens or requests per minute). Wait a minute or "
                     f"choose another LLM_MODEL (now {self.p.model!r}). [{detail}]"
                 ) from exc
             if status == 413:
                 raise ProviderError(
-                    f"Groq: the request is larger than this model's per-minute token limit allows. "
+                    f"{label}: the request is larger than this model's per-minute token limit allows. "
                     f"Choose a model with a higher limit (now {self.p.model!r}). [{detail}]"
                 ) from exc
             if status in (400, 401, 403, 404):
                 raise ProviderError(
-                    f"Groq rejected the request. Check GROQ_API_KEY and LLM_MODEL "
+                    f"{label} rejected the request. Check {key_env} and LLM_MODEL "
                     f"(now {self.p.model!r}). [{detail}]"
                 ) from exc
             if status in (500, 502, 503, 504):
                 raise ProviderError(
-                    f"Groq server error, usually temporary. Try again in a few minutes. [{detail}]"
+                    f"{label} server error, usually temporary. Try again in a few minutes. [{detail}]"
                 ) from exc
-            raise ProviderError(f"Groq call failed. [{detail}]") from exc
+            raise ProviderError(f"{label} call failed. [{detail}]") from exc
 
         usage = getattr(resp, "usage", None)
         out = LLMResponse(
@@ -179,7 +196,7 @@ class GroqConversation(Conversation):
         choices = getattr(resp, "choices", None) or []
         msg = choices[0].message if choices else None
         if msg is None:
-            log.warning("Groq returned no choices")
+            log.warning("%s returned no choices", self.p.label)
             return out
         out.text = _THINK.sub("", msg.content or "").strip()
         raw_calls = []
@@ -188,7 +205,7 @@ class GroqConversation(Conversation):
             try:
                 args = json.loads(fn.arguments or "{}")
             except json.JSONDecodeError:
-                log.warning("Groq tool call %s had invalid JSON arguments", fn.name)
+                log.warning("%s tool call %s had invalid JSON arguments", self.p.label, fn.name)
                 args = {}
             if not isinstance(args, dict):
                 args = {}
@@ -217,3 +234,6 @@ class GroqConversation(Conversation):
             last["content"] += "\n\n" + text
         else:
             self.messages.append({"role": "user", "content": text})
+
+
+GroqConversation = ChatCompletionsConversation  # old name, kept for imports

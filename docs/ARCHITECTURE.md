@@ -105,6 +105,7 @@ flowchart LR
 |---|---|---|
 | **Claude API** (Anthropic) | LLM for the assistant (tool use) | e.g. `claude-sonnet-5-5`; key in the backend only (`.env`) |
 | **Gemini API** (Google) | alternative LLM provider (tool use), free tier for development | e.g. `gemini-3.6-flash` (free tier available); key in the backend only (`.env`) |
+| **KI:connect.nrw** | AI gateway of NRW universities, OpenAI-style API (tool use); deployments per user group | `LLM_MODEL` = a deployment name (`scripts/ask.py --list-models`); key from a university account, backend only (`.env`) |
 | **Groq** | fast inference of open models (tool use) | e.g. `openai/gpt-oss-120b`, `qwen/qwen3.8-27b`; free plan with tokens-per-minute limits; key in the backend only (`.env`) |
 | **Ollama** (optional) | local LLM | privacy argument: no logs leave the premises |
 
@@ -180,7 +181,7 @@ Thin layer: accepts requests, validates them with Pydantic and calls services. N
 
 | Component | What it does |
 |---|---|
-| `providers/` | common `LLMProvider` interface with `ClaudeProvider` (default), `GeminiProvider`, `GroqProvider` and `OllamaProvider` (local, planned). Switchable via `.env` |
+| `providers/` | common `LLMProvider` interface with `ClaudeProvider` (default), `GeminiProvider`, `GroqProvider`, `KIConnectProvider` (shares Groq's OpenAI-style code) and `OllamaProvider` (local, planned). Switchable via `.env` |
 | `tools.py` | tool definitions for the LLM, each calling into `services/`: `search_events`, `get_error_groups`, `get_anomalies`, `trace`, `correlate`, `get_context` |
 | `prompt.py` | system prompt: role, rules (answer only with evidence, state uncertainty, recognize harmless ERRORs as such), answer format |
 | `answer.py` | Pydantic schema of the answer: `summary`, `causal_chain[]`, `affected_systems[]`, `evidence[]` (event IDs), `uncertainty`, `counter_evidence[]`, `verification_steps[]`, `recommendation`. Checks that every cited event ID exists |
@@ -455,10 +456,12 @@ The frontend runs on `http://localhost:5173` and proxies `/api` to the backend. 
 |---|---|
 | `LOG_ROOT` | path to the log package (e.g. `../MAIT_Makeathon_Logpaket`) |
 | `DB_PATH` | path to the DuckDB file (`../data/logtracer.duckdb`) |
-| `LLM_PROVIDER` | `claude`, `gemini`, `groq` or `ollama` |
+| `LLM_PROVIDER` | `claude`, `gemini`, `groq`, `kiconnect` or `ollama` |
 | `ANTHROPIC_API_KEY` | key for the Claude API (backend only, never in Git) |
 | `GEMINI_API_KEY` | key for the Gemini API (backend only, never in Git) |
 | `GROQ_API_KEY` | key for Groq (backend only, never in Git) |
+| `KICONNECT_API_KEY` | key for KI:connect.nrw (backend only, never in Git) |
+| `KICONNECT_BASE_URL` | empty = `https://chat.kiconnect.nrw/api/v1` |
 | `LLM_REASONING_EFFORT` | Groq reasoning models: `low`, `medium` or `high`; empty = model default, lower is faster |
 | `LLM_MODEL` | model ID, e.g. `claude-sonnet-5-5` |
 | `WATCH_ENABLED` | watcher on/off |

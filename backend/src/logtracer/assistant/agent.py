@@ -244,7 +244,9 @@ class LogTracerAgent:
         return self._build(sub, valid)
 
 
-_RERUN_WORDS = ("re-run", "rerun", "re run", "other job", "repeated", "recurr")
+# Words that only count as a mention in the plural or as a phrase: "re-run the publish" is advice
+# (seen live), not a statement about the 49 failed re-runs.
+_RERUN_WORDS = ("re-runs", "reruns", "re runs", "other jobs", "other runs", "repeated", "recurr")
 
 
 def _unmentioned_related(

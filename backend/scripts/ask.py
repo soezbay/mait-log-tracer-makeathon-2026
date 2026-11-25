@@ -3,6 +3,8 @@
     python scripts/ask.py "Why did the publish of JOB-2003 fail on 24 Nov?"
     python scripts/ask.py --provider claude "..."          # needs ANTHROPIC_API_KEY
     python scripts/ask.py --provider groq --model qwen/qwen3.8-27b "..."   # needs GROQ_API_KEY
+    python scripts/ask.py --list-models                                  # KI:connect deployments
+    python scripts/ask.py --provider kiconnect --model <deployment> "..."  # needs KICONNECT_API_KEY
     python scripts/ask.py --db ../data/standin.duckdb --json "..."
 Run it from the backend/ folder (it reads backend/.env).
 """
@@ -29,16 +31,38 @@ def _cost(eur: float | None) -> str:
     return f"est. paid-tier cost {eur} EUR"
 
 
+def _list_models(args) -> int:
+    from logtracer.assistant.providers.kiconnect import KIConnectProvider
+
+    settings = Settings()
+    try:
+        provider = KIConnectProvider(settings.kiconnect_api_key, None,
+                                     base_url=(settings.kiconnect_base_url or "").strip() or None,
+                                     require_model=False)
+        for name in provider.list_models():
+            print(name)
+    except ProviderError as exc:
+        print(exc, file=sys.stderr)
+        return 1
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("question")
+    ap.add_argument("question", nargs="?")
     ap.add_argument("--db")
-    ap.add_argument("--provider", choices=["gemini", "groq", "claude"])
+    ap.add_argument("--provider", choices=["gemini", "groq", "kiconnect", "claude"])
+    ap.add_argument("--list-models", action="store_true",
+                    help="KI:connect: list the deployment names your key may use, then exit")
     ap.add_argument("--model")
     ap.add_argument("--json", action="store_true", help="print the raw answer JSON only")
     ap.add_argument("--no-persist", action="store_true", help="do not store messages/hypotheses")
     args = ap.parse_args()
 
+    if args.list_models:
+        return _list_models(args)
+    if not args.question:
+        ap.error("a question is required (or use --list-models)")
     overrides = {k: v for k, v in {"db_path": args.db, "llm_provider": args.provider, "llm_model": args.model}.items() if v}
     settings = Settings(**overrides)
     if not Path(settings.db_path).exists():

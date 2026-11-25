@@ -16,6 +16,7 @@ from logtracer.core.config import BACKEND_DIR
 DEFAULT_MODELS = {
     "gemini": "gemini-3.6-flash",
     "groq": "openai/gpt-oss-120b",
+    # kiconnect: no default, LLM_MODEL must be a deployment name of the key's user group
     "claude": "claude-sonnet-5-5",
 }
 
@@ -28,7 +29,7 @@ class Settings(BaseSettings):
         populate_by_name=True,
     )
 
-    llm_provider: str = "gemini"  # gemini | groq | claude
+    llm_provider: str = "gemini"  # gemini | groq | kiconnect | claude
     llm_model: str | None = None  # default depends on provider
     db_path: Path = Path("../data/logtracer.duckdb")
 
@@ -37,6 +38,10 @@ class Settings(BaseSettings):
     )
     anthropic_api_key: str | None = Field(default=None, validation_alias=AliasChoices("ANTHROPIC_API_KEY"))
     groq_api_key: str | None = Field(default=None, validation_alias=AliasChoices("GROQ_API_KEY"))
+    kiconnect_api_key: str | None = Field(
+        default=None, validation_alias=AliasChoices("KICONNECT_API_KEY")
+    )
+    kiconnect_base_url: str | None = None  # empty = https://chat.kiconnect.nrw/api/v1
     # Groq reasoning models: how long the model thinks per call (gpt-oss: low | medium | high).
     # Empty = the model's default. Lower is faster.
     llm_reasoning_effort: str | None = None
