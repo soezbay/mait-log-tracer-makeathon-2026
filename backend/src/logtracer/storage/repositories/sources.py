@@ -132,6 +132,7 @@ def scan_summary(con: duckdb.DuckDBPyConnection) -> dict:
 
 
 SOURCE_COLUMNS = (
+    "original_path", "copies",
     "source_id", "path", "server", "os", "application", "component", "format", "encoding",
     "compressed", "size", "sha256", "duplicate_of", "event_count", "checkpoint_bytes",
     "checkpoint_line", "ingested_at",
@@ -144,28 +145,88 @@ def list_sources(
     server: str | None = None,
     fmt: str | None = None,
     duplicates: bool | None = None,
+    q: str | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> tuple[list[dict], int]:
-    """Sources with server OS, filtered and paginated. Returns (items, total)."""
+    """Sources with server OS, filtered and paginated. Returns (items, total).
+
+    Copies are not parsed, so they take the format of their original.
+    """
     where, params = [], []
     if server:
         where.append("s.server = ?")
         params.append(server)
     if fmt:
-        where.append("s.format = ?")
+        where.append("coalesce(s.format, o.format) = ?")
         params.append(fmt)
+    if q:
+        where.append("s.path ILIKE ?")
+        params.append(f"%{q.strip()}%")
     if duplicates is not None:
         where.append("s.duplicate_of IS NOT NULL" if duplicates else "s.duplicate_of IS NULL")
     clause = f"WHERE {' AND '.join(where)}" if where else ""
-    total = con.execute(f"SELECT count(*) FROM sources s {clause}", params).fetchone()[0]
-    select = ", ".join("v.os" if c == "os" else f"s.{c}" for c in SOURCE_COLUMNS)
+    joins = "LEFT JOIN sources o ON o.source_id = s.duplicate_of"
+    total = con.execute(
+        f"SELECT count(*) FROM sources s {joins} {clause}", params).fetchone()[0]
+    special = {"os": "v.os", "format": "coalesce(s.format, o.format)", "original_path": "o.path",
+               "copies": "(SELECT count(*) FROM sources c WHERE c.duplicate_of = s.source_id)"}
+    select = ", ".join(special.get(c, f"s.{c}") for c in SOURCE_COLUMNS)
     rows = con.execute(
-        f"SELECT {select} FROM sources s LEFT JOIN servers v USING (server) {clause} "
-        "ORDER BY s.source_id LIMIT ? OFFSET ?",
+        f"SELECT {select} FROM sources s LEFT JOIN servers v ON v.server = s.server {joins} "
+        f"{clause} ORDER BY s.source_id LIMIT ? OFFSET ?",
         [*params, limit, offset],
     ).fetchall()
     return [dict(zip(SOURCE_COLUMNS, row, strict=True)) for row in rows], total
+
+
+def overview(con: duckdb.DuckDBPyConnection) -> dict:
+    """Files, copies, events and real errors per server and per format."""
+
+    def rows(sql: str) -> list[dict]:
+        result = con.execute(sql)
+        columns = [c[0] for c in result.description]
+        return [dict(zip(columns, row, strict=True)) for row in result.fetchall()]
+
+    servers = rows(
+        """
+        WITH files AS (
+            SELECT server, count(*) AS files, count(duplicate_of) AS copies,
+                   coalesce(sum(event_count), 0)::BIGINT AS events,
+                   coalesce(sum(size), 0)::BIGINT AS bytes,
+                   list(DISTINCT format ORDER BY format) FILTER (WHERE format IS NOT NULL)
+                       AS formats
+            FROM sources GROUP BY server
+        ), seen AS (
+            SELECT s.server, count(e.duplicate_of) AS duplicate_events,
+                   count(e.parse_error) AS unparsed_events, min(e.ts_utc) AS first_ts,
+                   max(e.ts_utc) AS last_ts
+            FROM events e JOIN sources s USING (source_id) GROUP BY s.server
+        ), errors AS (  -- only real problems are members of an error group
+            SELECT s.server, count(*) AS errors
+            FROM group_members m JOIN events e ON e.id = m.event_pk
+            JOIN sources s USING (source_id)
+            WHERE e.level IN ('ERROR', 'FATAL') GROUP BY s.server
+        )
+        SELECT v.server, v.os, v.role, coalesce(f.files, 0) AS files,
+               coalesce(f.copies, 0) AS copies, coalesce(f.events, 0) AS events,
+               coalesce(f.bytes, 0) AS bytes, coalesce(f.formats, []) AS formats,
+               coalesce(x.duplicate_events, 0) AS duplicate_events,
+               coalesce(x.unparsed_events, 0) AS unparsed_events, x.first_ts, x.last_ts,
+               coalesce(r.errors, 0) AS errors
+        FROM servers v LEFT JOIN files f USING (server) LEFT JOIN seen x USING (server)
+        LEFT JOIN errors r USING (server) ORDER BY v.server
+        """
+    )
+    formats = rows(
+        """
+        SELECT coalesce(s.format, o.format, 'unknown') AS format, count(*) AS files,
+               count(s.duplicate_of) AS copies, coalesce(sum(s.event_count), 0)::BIGINT AS events
+        FROM sources s LEFT JOIN sources o ON o.source_id = s.duplicate_of
+        GROUP BY 1 ORDER BY events DESC, format
+        """
+    )
+    return {"servers": servers, "formats": formats}
 
 
 def upsert_server(con: duckdb.DuckDBPyConnection, server: ServerInfo) -> None:

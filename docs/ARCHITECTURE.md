@@ -185,6 +185,7 @@ Thin layer: accepts requests, validates them with Pydantic and calls services. N
 5. `correlation.py`: one link per pair of groups that share a trace or job ID within 5 min (hard); groups without any ID are linked to the next one within 15 s (soft).
 6. `incidents.py`: connected groups. Trigger = the server named as `dependency=`, else the earliest group. Successful retries alone are no incident.
 7. `anomalies.py`: real errors per 10 min against the 24 h before, spikes in a row are one anomaly.
+8. `jobs.py`: one row per job (table `jobs`): a job number within a trace, or without a trace ID until a pause of 30 min; runs `-Rnn` count as one job. Status from real problems only: failed, warning, recovered, ok.
 
 ### 3.5 `assistant/`: AI assistant
 
@@ -271,9 +272,11 @@ Base: `http://localhost:8000/api`, OpenAPI at `/docs`. JSON, times always ISO-86
 | `POST` | `/ingest/upload?name=` | an uploaded ZIP (body, `application/zip`) becomes the analysed data set: extracted below `data/uploads/` (log files only, size limits, no paths outside the folder), full ingest + analysis; `202`, then follow `/ingest/status` |
 | `POST` | `/ingest/original` | analyse the original package (`LOG_ROOT`) again |
 | `GET` | `/ingest/dataset` | active data set: `original` or `upload` (name, files, time), plus ingest state |
-| `GET` | `/sources` | sources with format, encoding, duplicate status, checkpoint |
-| `GET` | `/events` | search: `server, component, level, from, to, q, job_id, trace_id, page` |
+| `GET` | `/sources` | sources with format, encoding, duplicate status, original, number of copies, checkpoint; filters `server, format, duplicates, q` |
+| `GET` | `/sources/summary` | files, copies, events, real errors per server and per format |
+| `GET` | `/events` | search: `server, component, level, from, to, q, job_id, trace_id, source_id, include_duplicates, page` |
 | `GET` | `/events/{id}` | single event with all fields |
+| `GET` | `/jobs` | jobs over all events with status, servers, errors, first problem and incident; `/jobs/{job_pk}`, `/jobs/{job_pk}/events` |
 | `GET` | `/events/{id}/context?n=10` | original lines around the event |
 | `GET` | `/analysis/status` | state of the last analysis and rows per table; `POST /analysis/run` starts one (`202`, `409` if busy) |
 | `GET` | `/analysis/timeseries` | events/errors per server and time window (planned) |

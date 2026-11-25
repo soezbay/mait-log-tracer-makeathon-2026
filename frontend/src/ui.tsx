@@ -21,7 +21,7 @@ export function LevelBadge({ level }: { level: string }) {
 export function StatusBadge({ status }: { status: string | null }) {
   const { t } = useI18n()
   const label = status === 'failed' ? t('incidents.failed') : status === 'recovered' ? t('incidents.recovered') : t('incidents.unknown')
-  return <span className={'badge ' + (status === 'failed' ? 'error' : status === 'recovered' ? 'info' : 'warn')}>{label}</span>
+  return <span className={'badge ' + (status === 'failed' ? 'error' : status === 'recovered' ? 'ok' : 'warn')}>{label}</span>
 }
 
 /** **bold** and `code` inside a line of text. */

@@ -15,7 +15,7 @@ def _rows(con: duckdb.DuckDBPyConnection, sql: str, params: list | None = None) 
 
 
 def table_counts(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
-    tables = ("events", "error_groups", "anomalies", "correlations", "incidents")
+    tables = ("events", "error_groups", "anomalies", "correlations", "incidents", "jobs")
     return {t: con.execute(f"SELECT count(*) FROM {t}").fetchone()[0] for t in tables}
 
 

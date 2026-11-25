@@ -1,0 +1,47 @@
+{
+  "items": [
+    {
+      "job_pk": 1161083,
+      "job_id": "JOB-2003",
+      "trace_id": null,
+      "runs": 50,
+      "status": "failed",
+      "first_ts": "2026-11-24T08:30:00Z",
+      "last_ts": "2026-11-24T08:30:12Z",
+      "hosts": [
+        "mait_linux1_teamcenter_app",
+        "mait_win03_cad_converter",
+        "mait_win04_plm_sync"
+      ],
+      "events": 102,
+      "errors": 101,
+      "warnings": 0,
+      "problem_event_id": 1276026,
+      "problem": "Result upload denied for DEMO-SERVICE; permission=WRITE_DATASET",
+      "conversion": true,
+      "incident_id": 1276026
+    }
+  ],
+  "total": 1,
+  "limit": 25,
+  "offset": 0,
+  "by_status": {
+    "failed": 1
+  },
+  "servers": [
+    "mait_linux1",
+    "mait_linux1_teamcenter_app",
+    "mait_linux2",
+    "mait_linux2_teamcenter_db",
+    "mait_linux3",
+    "mait_linux3_cad_service",
+    "mait_linux4_dispatcher_service",
+    "mait_win01_dispatcher_master",
+    "mait_win02_dispatcher_worker",
+    "mait_win03_cad_converter",
+    "mait_win04_plm_sync",
+    "mait_windows1",
+    "mait_windows2",
+    "mait_windows3"
+  ]
+}

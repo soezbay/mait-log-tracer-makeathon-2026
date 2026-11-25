@@ -15,6 +15,7 @@ from logtracer.analysis.anomalies import build_anomalies
 from logtracer.analysis.correlation import build_correlations
 from logtracer.analysis.error_groups import build_error_groups
 from logtracer.analysis.incidents import build_incidents
+from logtracer.analysis.jobs import build_jobs
 from logtracer.analysis.problems import atomic
 from logtracer.analysis.templates import build_templates
 from logtracer.normalize.clock import apply_declared_offsets
@@ -28,6 +29,7 @@ STEPS = (
     ("correlations", build_correlations),
     ("incidents", build_incidents),
     ("anomalies", build_anomalies),
+    ("jobs", build_jobs),
 )
 
 
@@ -54,7 +56,13 @@ def run_analysis(con: duckdb.DuckDBPyConnection) -> AnalysisResult:
 
 
 def is_needed(con: duckdb.DuckDBPyConnection) -> bool:
-    """True if there are events but the analysis has never run on them."""
+    """True if there are events but no results for them, e.g. after a new table was added."""
     return con.execute(
-        "SELECT EXISTS (SELECT 1 FROM events) AND NOT EXISTS (SELECT 1 FROM templates)"
+        """
+        SELECT EXISTS (SELECT 1 FROM events) AND (
+            NOT EXISTS (SELECT 1 FROM templates)
+            OR (NOT EXISTS (SELECT 1 FROM jobs)
+                AND EXISTS (SELECT 1 FROM events WHERE trim(coalesce(job_id, '')) <> ''
+                            AND ts_utc IS NOT NULL)))
+        """
     ).fetchone()[0]

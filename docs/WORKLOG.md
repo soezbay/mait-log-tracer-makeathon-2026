@@ -555,6 +555,39 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Checks:** 179 tests pass (2 new), `ruff check` clean, build OK, 81 jsdom UI checks. Live with KI:connect: "Warum ist job 2013 fehlgeschlagen?" → "Erkläre das einfacher …" (15 s, no tool call, 3 evidence lines) → "Und welche anderen Jobs hatten an dem Tag …" (day understood).
 - **Open:** after a page reload a new chat starts (the messages are stored, `GET /chat/{id}` could restore them). The facts of the third live answer were not checked against the logs.
 
+### MAIT colors in the frontend
+- **What:** Colors read from mait.de: blue `#72b5cc` and `#599cb3`, orange `#ff5c3e`, charcoal `#323232`, grey `#71777a`. New `theme.css` with all colors as variables; `style.css` and `layout.css` no longer contain own colors. Orange: round main buttons, active page, title mark, selected log line. Blue: sidebar, links, figures, info. Errors, warnings and success keep red, amber and green, so orange never means a status. The success badge has its own class `ok`, because INFO is blue now.
+- **Why:** Safak asked for the blue and orange of the MAIT website. No logo or font was taken over.
+- **Where:** `frontend/src/theme.css`, `style.css`, `layout.css`, `main.tsx`, `ui.tsx`, `ProcessMonitor.tsx`; local branch `p1/mait-colors`
+- **Checks:** 32 color pairs computed: text at least 4.5:1, marks at least 3:1 (white on MAIT orange has 3.06:1, therefore main buttons use large bold text). Build OK, 81 jsdom UI checks, all pages looked at in the browser at 1300 px and one at 375 px.
+- **Open:** not pushed. Overlaps Adnan's `codex/mait-brand-refresh` (green and coral): only one theme can be merged.
+
+### Decision: MAIT blue and orange theme
+- **What:** `p1/mait-colors` merged into `main`. Adnan's theme `codex/mait-brand-refresh` (green and coral) is not merged. His branch was not changed or deleted.
+- **Why:** Safak's decision; both change the same files.
+- **Also found (not changed):** the live process monitor groups only the first 100 events. These are 11 minutes of 1 Oct and belong to one trace (`TRC-00-00000`, jobs `JOB-00-00000` and `JOB-00-00001`, 182 lines, 13 on each of the 14 servers). The status "recovered" comes from the harmless message "Transient retry recovered".
+
+### Process monitor shows all jobs; coverage of the log package checked
+- **What:** New table `jobs`, rebuilt with the analysis, and `GET /api/jobs`, `/api/jobs/{id}`, `/api/jobs/{id}/events`. The Live process monitor lists all jobs, problems first, with status tiles, filters, paging, the first problem, a link to the incident and the job's entries. Demo and ZIP import keep the old list.
+- **Definition:** a job is a job number within one trace; without a trace ID a pause of 30 min starts a new job. `JOB-2003-R01 … R49` are runs of `JOB-2003`. Lines without a trace ID next to the only trace of their number belong to it (`JOB-2001`). Status from real problems only, so "Transient retry recovered" no longer makes a job "recovered".
+- **Why:** the old view grouped the first 100 events: one synthetic job, two jobs mixed, wrong status and figures.
+- **Result:** 52,226 jobs cover all 1,662,584 events that have a job: 209 failed (each in an incident), 7 warnings, 802 recovered, 51,208 ok. The analysis takes 1.4 s in total, a list answers in about 20 ms.
+- **Coverage check (Safak's question):** read from the ZIP, not from the extracted folder. All 13,643 log files are in `sources` with the same SHA-256; the other 193 entries are READMEs, two docs and 14 `server_info.json` (stored in `servers`). In the 5,068 unique files every non-empty line belongs to an event, except 48 CSV headers and 70 XML wrapper lines. 8,575 files are byte-identical copies and not parsed twice. The timeline reaches 1,662,667 events; 11,125 duplicate lines are hidden by default.
+- **Checks:** 192 tests pass (13 new), `ruff check` clean, build OK, 96 jsdom UI checks, seen in the browser.
+- **Open:** duplicates, copies, the source list and the server information are in the database and the API but not visible in the UI.
+
+### Data sources page (branch `p1/data-sources`, not on `main`)
+- **What:** New Live page "Data sources": totals, files per format, the 14 servers with system, role, files, copies, events, duplicate lines, real errors, size and period, and a searchable list of all log files. A copy names its original, an original counts its copies. A file's event count opens the timeline with only that file. The timeline can also show duplicate lines, marked "Duplicate".
+- **API (additive):** `GET /api/sources/summary`; `/api/sources` got `q`, `original_path`, `copies`, and copies take the format of their original; `/api/events` got `source_id`.
+- **Why:** The coverage check showed that everything is in DuckDB, but copies, duplicate lines, the file list and the server information were not visible. Safak decides later whether the page stays, so it lives on its own branch.
+- **Checks:** 195 tests pass (3 new), `ruff check` clean, build OK, 106 jsdom UI checks, seen in the browser at 1400 px and checked for horizontal scroll at 390 px. Totals match the coverage check: 13,643 files, 5,068 different, 8,575 copies, 1,673,792 events, 11,125 duplicate lines.
+- **Open:** Safak: merge into `main` or delete the branch. P4 (Adnan): review if it is kept.
+
+### Data sources page merged into `main`
+- **What:** Safak decided to keep the page; `p1/data-sources` was merged into `main` as a fast-forward (commit `858bf55`).
+- **Why:** the branch only existed until this decision.
+- **Checks:** 195 tests pass, `ruff check` clean, build OK on `main`.
+- **Open:** P4 (Adnan): review the page.
 ### Analyze an uploaded ZIP on the server (P3 for Tarun, in P1/P4 files)
 - **What:** Upload mode got an **Analyze on server** button. The chosen ZIP goes to `POST /api/ingest/upload`; the backend extracts it below `data/uploads/`, runs the normal full ingest + analysis through the `IngestManager`, and makes it the active data set. Live mode, the incidents and the assistant then work on the uploaded logs. The sidebar shows the active data set (`Data: <name> (uploaded)` or `Original log package`) with **Back to original logs** (`POST /api/ingest/original`). `GET /api/ingest/dataset` reports the state.
   - Safety: ZIP at most 256 MiB, extracted at most 2 GiB and 50,000 files; only log files (`.log .txt .csv .jsonl .xml`, also `.gz`) and `server_info.json`; entries with absolute paths, `..`, drive letters, hidden or `__MACOSX` parts are skipped; the original package is never written. The log root is the folder that holds `<server>/logs/`, however deep the ZIP nests it. Older upload folders are deleted, the last 3 stay.
@@ -584,3 +617,9 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `backend/src/logtracer/assistant/data_access.py`, `tools.py`, `agent.py`, `backend/tests/test_tools_and_agent.py`; branch `p3/analyze-upload`.
 - **Checks:** 188 tests pass (3 new), ruff clean. On the test package, trace(JOB-2003) now gives 3 sample ids per re-run group and requires the 3 ERROR lines (plm_sync, Upload rejected, Publish failed).
 - **Open:** re-test JOB-2003 live.
+
+### Merge main into p3/analyze-upload (P3, Tarun)
+- **What:** main's 5 new commits (MAIT colours, job list, data sources page, duplicates switch) merged into the upload branch. Conflicts in `main.tsx`, `layout.css`, `ARCHITECTURE.md` and both logs, all resolved by keeping both sides.
+- **Why:** the branch must show main's current frontend and merge into main without conflicts.
+- **Where:** merge commit on `p3/analyze-upload`.
+- **Checks:** 204 tests pass, ruff clean, `npm run build` OK.

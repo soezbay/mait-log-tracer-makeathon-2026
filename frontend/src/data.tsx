@@ -28,7 +28,7 @@ export function useData<T>(path: string, mode: Mode, sample: T) {
 
 /** Analysis results. They are read again when the backend has finished a new analysis; the old
  *  data stays visible meanwhile. An empty path loads nothing. */
-export function useAnalysis<T>(path: string) {
+export function useAnalysis<T>(path: string, keepPrevious = false) {
   const { language } = useI18n()
   const [revision, setRevision] = useState('')
   const [result, setResult] = useState<{ path: string; data?: T; error?: string }>()
@@ -49,7 +49,7 @@ export function useAnalysis<T>(path: string) {
     return () => clearInterval(timer)
   }, [path])
   const current = path && result?.path === path ? result : undefined
-  return { data: current?.data, error: current?.error, pending: !!path && !current }
+  return { data: current?.data ?? (keepPrevious && path && !current ? result?.data : undefined), error: current?.error, pending: !!path && !current }
 }
 
 export function Feedback({ pending, error }: { pending: boolean; error?: string }) {

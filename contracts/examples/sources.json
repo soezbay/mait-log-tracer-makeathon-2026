@@ -16,7 +16,9 @@
       "event_count": 220,
       "checkpoint_bytes": 52251,
       "checkpoint_line": 221,
-      "ingested_at": "2026-11-24T14:03:40Z"
+      "ingested_at": "2026-11-24T14:03:40Z",
+      "original_path": null,
+      "copies": 49
     },
     {
       "source_id": 813,
@@ -34,7 +36,9 @@
       "event_count": 0,
       "checkpoint_bytes": 0,
       "checkpoint_line": 0,
-      "ingested_at": "2026-11-24T14:03:40Z"
+      "ingested_at": "2026-11-24T14:03:40Z",
+      "original_path": "mait_linux1_teamcenter_app/logs/fms/fsc/creative_2026-11-24.txt",
+      "copies": 0
     }
   ],
   "total": 13643,

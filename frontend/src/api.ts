@@ -36,6 +36,7 @@ function normalizeEntry(value: unknown): Entry {
     source: typeof row.source_path === 'string' ? row.source_path : typeof row.source === 'string' ? row.source : undefined,
     source_line: sourceLine === undefined ? undefined : numeric(sourceLine),
     source_line_end: sourceLineEnd === undefined ? undefined : numeric(sourceLineEnd),
+    is_duplicate: row.is_duplicate === true,
     meta: row.raw === undefined ? undefined : {
       event_id: text(row.event_id), session_id: text(row.session_id), ts_raw: text(row.ts_raw), parse_error: text(row.parse_error), format: text(row.format), encoding: text(row.encoding),
       tz_assumed: row.tz_assumed === true, is_late: row.is_late === true, clock_offset_s: numeric(row.clock_offset_s),

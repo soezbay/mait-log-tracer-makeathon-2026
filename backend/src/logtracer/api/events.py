@@ -36,6 +36,7 @@ def list_events(
     q: str | None = Query(None, description="text search in the message"),
     job_id: str | None = None,
     trace_id: str | None = None,
+    source_id: int | None = Query(None, description="only events of this file"),
     include_duplicates: bool = False,
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
@@ -45,7 +46,7 @@ def list_events(
         raise HTTPException(422, f"level must be one of {', '.join(LEVELS)}")
     items, total = event_service.search_events(
         con, host=server, component=component, levels=levels, ts_from=_naive_utc(from_),
-        ts_to=_naive_utc(to), q=q, job_id=job_id, trace_id=trace_id,
+        ts_to=_naive_utc(to), q=q, job_id=job_id, trace_id=trace_id, source_id=source_id,
         include_duplicates=include_duplicates, limit=limit, offset=offset,
     )
     return {"items": items, "total": total, "limit": limit, "offset": offset}

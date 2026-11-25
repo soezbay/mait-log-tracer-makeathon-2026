@@ -109,6 +109,7 @@ def search(
     q: str | None = None,
     job_id: str | None = None,
     trace_id: str | None = None,
+    source_id: int | None = None,
     include_duplicates: bool = False,
     limit: int = 50,
     offset: int = 0,
@@ -120,6 +121,9 @@ def search(
         if value:
             where.append(f"e.{column} = ?")
             params.append(value)
+    if source_id is not None:
+        where.append("e.source_id = ?")
+        params.append(source_id)
     if levels:
         where.append(f"e.level IN ({', '.join('?' * len(levels))})")
         params.extend(levels)
@@ -134,12 +138,17 @@ def search(
         params.append(f"%{q}%")
     if not include_duplicates:
         where.append("e.duplicate_of IS NULL")
-    clause = f"WHERE {' AND '.join(where)}" if where else ""
+    return select_where(con, " AND ".join(where) or "TRUE", params, limit, offset)
 
-    total = con.execute(f"SELECT count(*) FROM events e {clause}", params).fetchone()[0]
+
+def select_where(con: duckdb.DuckDBPyConnection, condition: str, params: list, limit: int,
+                 offset: int) -> tuple[list[dict], int]:
+    """Events matching a SQL condition on `e`, sorted by time. Returns (items, total)."""
+    total = con.execute(
+        f"SELECT count(*) FROM events e WHERE {condition}", params).fetchone()[0]
     rows = con.execute(
         f"SELECT {_select(LIST_COLUMNS)} FROM events e JOIN sources s USING (source_id) "
-        f"{clause} ORDER BY e.ts_utc NULLS LAST, e.id LIMIT ? OFFSET ?",
+        f"WHERE {condition} ORDER BY e.ts_utc NULLS LAST, e.id LIMIT ? OFFSET ?",
         [*params, limit, offset],
     ).fetchall()
     return [_row_to_dict(LIST_COLUMNS, row) for row in rows], total

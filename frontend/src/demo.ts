@@ -15,6 +15,7 @@ export type Entry = {
   source?: string
   source_line?: number
   source_line_end?: number
+  is_duplicate?: boolean
   meta?: EntryMeta
 }
 /** Further fields of GET /api/events/{id}. */
