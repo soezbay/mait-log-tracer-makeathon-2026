@@ -77,6 +77,27 @@ def build_anomalies(
     found = []
 
     for (host, component), values in series.items():
+        # Identify high-volume bursts without sufficient history.
+        for minute, count in values[:baseline_windows]:
+            if count < 30:
+                continue
+
+            details = {
+                "observed_errors": count,
+                "threshold": 30,
+                "baseline_average": None,
+                "baseline_type": "cold_start_burst",
+                "note": "High error volume without enough baseline history",
+            }
+
+            found.append((
+                host,
+                component,
+                minute,
+                minute + timedelta(minutes=1),
+                round(count / 30, 2),
+                json.dumps(details),
+            ))
         for i in range(baseline_windows, len(values)):
             previous = values[i - baseline_windows:i]
 
