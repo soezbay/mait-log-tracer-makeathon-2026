@@ -447,6 +447,15 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Checks:** 126 tests pass, `ruff check` clean.
 - **Open (P2):** the title mentions the full pipeline, but nothing calls the `build_*` functions on the real database yet. `p3/kiconnect-provider` (2 commits, no pull request) was left alone.
 
+## 2026-11-25
+
+### Apply MAIT-inspired frontend styling
+- **What:** Added shared MAIT-inspired color tokens for navy, teal, mint, pale surfaces and borders. Applied them across navigation, headings, cards, buttons, forms, tables, notices, answer panels, incident details and mobile controls while keeping the compact layout and centered page headings.
+- **Why:** Align Log Tracer's visual language with MAIT's clear, modern brand presentation.
+- **Where:** `frontend/src/style.css`; commit `self`.
+- **Checks:** TypeScript check passed; Vite production build passed with existing Mantine `use client` warnings; the local preview returns HTTP 200 and references the rebuilt CSS.
+- **Open:** -
+
 ### Dynamic question suggestions for the Live assistant
 - **What:** The Live assistant no longer offers three fixed questions. It offers:
   - **From the logs (backend):** `GET /api/suggestions?lang=en|de&limit=8`. SQL only, no LLM call. Kinds: jobs with recent errors (re-runs `-Rnn` count as one job, widest spread first), `INC-nn` numbers, days with clearly more errors than a typical day, servers, frequent older messages, and one question about harmless ERROR lines. "Recent" means 24 h before the newest real error in the logs, not the wall clock.
@@ -459,9 +468,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `backend/src/logtracer/api/suggestions.py`, `services/suggestion_service.py`, `storage/repositories/suggestions.py`, `main.py`; `frontend/src/suggestions.tsx`, `main.tsx`, `ProcessMonitor.tsx`, `i18n.tsx`, `style.css`; `contracts/examples/suggestions.json`, `docs/ARCHITECTURE.md`, `docs/ARCHITEKTUR.md`, `frontend/README.md`, `AGENTS.md` §4
 - **Checks:** 136 backend tests pass (10 new), `ruff check` clean, `npm run build` succeeds. 24 UI checks with the real app in jsdom against the running backend and the real database; only the chat answer was mocked.
 - **Open:** Not seen in a real browser (the built-in browser did not load localhost), so the look is unchecked; P4 please review. The suggested questions were not run through the LLM. Typed questions: `assistantTarget` reads "on 2026-11-24" as a job ID and can block a different question with the same date (P4).
-### Apply MAIT-inspired frontend styling
-- **What:** Added shared MAIT-inspired color tokens for navy, teal, mint, pale surfaces and borders. Applied them across navigation, headings, cards, buttons, forms, tables, notices, answer panels, incident details and mobile controls while keeping the compact layout and centered page headings.
-- **Why:** Align Log Tracer's visual language with MAIT's clear, modern brand presentation.
+
+### Add MAIT coral-orange accents
+- **What:** Added MAIT-style coral orange for primary buttons and hover states, heading eyebrow labels, metric highlights and assistant question/answer accents; retained navy, teal and mint as the supporting palette.
+- **Why:** Include the coral accent visible in the MAIT design reference while keeping it focused on interactive and high-attention elements.
 - **Where:** `frontend/src/style.css`; commit `self`.
-- **Checks:** TypeScript check passed; Vite production build passed with existing Mantine `use client` warnings; the local preview returns HTTP 200 and references the rebuilt CSS.
+- **Checks:** TypeScript check passed; Vite production build passed with existing Mantine `use client` warnings.
 - **Open:** -

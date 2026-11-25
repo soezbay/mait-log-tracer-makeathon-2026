@@ -7,6 +7,10 @@
   --mait-green-dark: #006b60;
   --mait-mint: #7fe3c7;
   --mait-mint-pale: #e5f7f2;
+  --mait-coral: #ff5b45;
+  --mait-coral-hover: #ff735e;
+  --mait-coral-deep: #bd4031;
+  --mait-coral-pale: #fff0ed;
   --mait-canvas: #f2f6f7;
   --mait-surface: #ffffff;
   --mait-surface-soft: #f7fafb;
@@ -19,8 +23,8 @@
 * { box-sizing: border-box }
 body { margin: 0; background: var(--mait-canvas); color: var(--mait-text); font: 16px/1.55 Inter, system-ui, sans-serif }
 button, input, select { font: inherit }
-button { cursor: pointer; border: 1px solid transparent; border-radius: 10px; padding: .5rem .85rem; background: var(--mait-green); color: #fff; font-weight: 700; transition: background .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease }
-button:hover:not(:disabled) { background: var(--mait-green-dark) }
+button { cursor: pointer; border: 1px solid transparent; border-radius: 10px; padding: .5rem .85rem; background: var(--mait-coral); color: var(--mait-navy-deep); font-weight: 750; transition: background .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease }
+button:hover:not(:disabled) { background: var(--mait-coral-hover) }
 button:active:not(:disabled) { transform: translateY(1px) }
 button:disabled { opacity: .5; cursor: default }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--mait-mint); outline-offset: 3px }
@@ -54,7 +58,7 @@ nav a.active { box-shadow: inset 3px 0 var(--mait-mint) }
 .modes button[aria-pressed="true"]:hover:not(:disabled) { background: var(--mait-green); color: #fff }
 main { padding: clamp(1rem, 3vw, 2.5rem); max-width: 1500px; margin: auto; min-width: 0 }
 .heading { margin: 0 0 1.1rem; text-align: center }
-.heading span { display: inline-block; font-size: .72rem; color: var(--mait-green-dark); font-weight: 850; letter-spacing: .13em }
+.heading span { display: inline-block; font-size: .72rem; color: var(--mait-coral-deep); font-weight: 850; letter-spacing: .13em }
 h1 { color: var(--mait-navy-deep); font-size: clamp(1.8rem, 3.25vw, 2.5rem); line-height: 1.1; letter-spacing: -.04em; margin: .25rem 0 }
 .heading p, small { color: var(--mait-muted) }
 .heading p { max-width: 720px; margin: .35rem auto .6rem; font-size: .95rem }
@@ -62,7 +66,7 @@ h1 { color: var(--mait-navy-deep); font-size: clamp(1.8rem, 3.25vw, 2.5rem); lin
 .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .65rem; margin-bottom: .7rem }
 .metric, .panel { background: var(--mait-surface); border: 1px solid var(--mait-border); border-radius: 13px; padding: .8rem; box-shadow: var(--mait-shadow) }
 .metric { position: relative; overflow: hidden }
-.metric::before { content: ""; position: absolute; inset: 0 0 auto; height: 3px; background: linear-gradient(90deg, var(--mait-green), var(--mait-mint)) }
+.metric::before { content: ""; position: absolute; inset: 0 0 auto; height: 3px; background: linear-gradient(90deg, var(--mait-coral), var(--mait-mint)) }
 .metric strong { display: block; color: var(--mait-navy); font-size: 1.45rem; letter-spacing: -.04em }
 .panel { margin-bottom: .7rem; min-width: 0 }
 h2 { color: var(--mait-navy); margin: 0 0 .4rem; font-size: 1rem }
@@ -96,8 +100,8 @@ h2 small { font-size: .85rem; font-weight: 500; margin-left: .4rem }
 .section-title { justify-content: space-between; margin-bottom: .65rem }
 .section-title h2 { margin: 0 }
 .notice { background: #e9f1f5; border: 1px solid #d4e2e8; border-radius: 10px; padding: .5rem .7rem; margin-bottom: .7rem; font-size: .875rem }
-.question { color: var(--mait-green-dark); font-weight: 750; border-bottom: 1px solid #dce7e9; padding-bottom: .6rem }
-.answer { border-top: 3px solid var(--mait-green); box-shadow: 0 14px 36px rgb(12 39 54 / 9%) }
+.question { color: var(--mait-coral-deep); font-weight: 750; border-bottom: 1px solid #dce7e9; padding-bottom: .6rem }
+.answer { border-top: 3px solid var(--mait-coral); box-shadow: 0 14px 36px rgb(12 39 54 / 9%) }
 .answer ol, .answer ul { margin: .35rem 0 .85rem; padding-left: 1.45rem }
 .evidence small { display: block; font-size: .8rem }
 .composer { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: .65rem }
