@@ -410,4 +410,11 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Why:** The pull request could not merge while both branches had edits in these two append-only logs.
 - **Where:** `docs/AI_LOG.md`, `docs/WORKLOG.md`; branch `codex/frontend-backend-integration`.
 - **Checks:** `git diff --check` passed; no conflict markers remain.
-- **Open:** Commit and push the merge, then confirm GitHub reports the pull request as mergeable.
+- **Open:** -
+
+### Reopen previously answered Assistant questions
+- **What:** Removed the session-long set of answered targets. Only the currently visible answer and an in-flight request are blocked, so switching to another question makes the previous one available again.
+- **Why:** Let users move back and forth between Assistant questions without showing duplicate answers.
+- **Where:** `frontend/src/main.tsx`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
+- **Checks:** Reviewed the active-request and visible-answer guards; automated tests were not run.
+- **Open:** -
