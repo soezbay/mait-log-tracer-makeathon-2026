@@ -588,3 +588,11 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Why:** the branch only existed until this decision.
 - **Checks:** 195 tests pass, `ruff check` clean, build OK on `main`.
 - **Open:** P4 (Adnan): review the page.
+
+### PowerPoint template in the style of MAIT
+- **What:** `MAIT-Vorlage.potx` (18 layouts, starts with an empty title slide) and `MAIT-Vorlage-Beispiele.pptx` (17 filled slides). Style taken from mait.de: orange upper-case headlines, light blue subtitles, charcoal, grey and orange blocks, rounded overlapping shapes, vertical label on the left edge, pill buttons.
+- **Why:** Safak asked for a template for the pitch.
+- **Decisions:** no logo file was downloaded; "MAIT" is a text box on the master and on the layouts with their own frame. The website font fieldwork is not part of Office, so the theme uses Arial Black and Arial. Colors and fonts are theme values and can be changed in one place. Default table style is the built-in "Medium Style 2 - Accent 5", because PowerPoint did not draw an own style.
+- **Where:** `docs/templates/`
+- **Checks:** schema validation of both files, all sample slides and one new slide per layout rendered with PowerPoint. Figures on the sample slides come from `GET /api/sources/summary` and earlier checks.
+- **Open:** insert the official logo; unused cards must be deleted on a slide because empty cards keep their color.
