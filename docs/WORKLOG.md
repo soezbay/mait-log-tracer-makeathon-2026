@@ -439,3 +439,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `backend/src/logtracer/analysis/`, `backend/src/logtracer/api/analysis.py`, `backend/src/logtracer/main.py`, `backend/pyproject.toml`, `backend/uv.lock`
 - **Checks:** 125 tests pass (15 new from P2), `ruff check` clean. On the real DB all 5 analysis endpoints answer 200.
 - **Open (P2):** nothing calls the `build_*` functions on the real database yet, so the analysis tables are empty and the endpoints return empty lists. The frontend calls `/api/analysis/groups`, which does not exist (404). Empty stray package `normalise/` (British spelling) can be removed.
+
+### Merge pull request #9 into main
+- **What:** Merged #9 (Harsh, `p2/analysis-implementation`): `build_anomalies` also reports bursts of at least 30 errors per minute when there is not enough baseline history yet. No conflicts.
+- **Why:** Safak asked to merge the open pull request.
+- **Where:** `backend/src/logtracer/analysis/anomalies.py`, `backend/tests/test_p2_anomalies.py`
+- **Checks:** 126 tests pass, `ruff check` clean.
+- **Open (P2):** the title mentions the full pipeline, but nothing calls the `build_*` functions on the real database yet. `p3/kiconnect-provider` (2 commits, no pull request) was left alone.
