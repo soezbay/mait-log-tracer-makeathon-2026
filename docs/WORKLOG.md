@@ -561,3 +561,8 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `frontend/src/theme.css`, `style.css`, `layout.css`, `main.tsx`, `ui.tsx`, `ProcessMonitor.tsx`; local branch `p1/mait-colors`
 - **Checks:** 32 color pairs computed: text at least 4.5:1, marks at least 3:1 (white on MAIT orange has 3.06:1, therefore main buttons use large bold text). Build OK, 81 jsdom UI checks, all pages looked at in the browser at 1300 px and one at 375 px.
 - **Open:** not pushed. Overlaps Adnan's `codex/mait-brand-refresh` (green and coral): only one theme can be merged.
+
+### Decision: MAIT blue and orange theme
+- **What:** `p1/mait-colors` merged into `main`. Adnan's theme `codex/mait-brand-refresh` (green and coral) is not merged. His branch was not changed or deleted.
+- **Why:** Safak's decision; both change the same files.
+- **Also found (not changed):** the live process monitor groups only the first 100 events. These are 11 minutes of 1 Oct and belong to one trace (`TRC-00-00000`, jobs `JOB-00-00000` and `JOB-00-00001`, 182 lines, 13 on each of the 14 servers). The status "recovered" comes from the harmless message "Transient retry recovered".
