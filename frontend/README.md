@@ -38,7 +38,7 @@ Die Repo-Architektur beschreibt die Endpunkte und den strukturierten Chat-Output
 
 Die verbindlichen Beispiele für die P1-Routen liegen in `../contracts/examples/`. Das Frontend normalisiert deren `source_path`, `line_start`, `line_end`, `no` und `limit/offset`-Felder für die Ansichten.
 
-Im aktuellen Feature-Branch sind durch den Merge von `origin/develop` die P1-Routen `GET /api/health`, `/api/stats`, `/api/sources`, `/api/events`, `/api/events/{id}` und `/api/events/{id}/context` enthalten. `GET /api/analysis/groups` und `GET /api/trace/{key}` fehlen noch in `develop`. `POST /api/chat` ist auf `origin/p3/assistant` vorhanden, aber noch nicht in `develop` integriert. Für Live-Daten müssen außerdem das Logpaket verfügbar sein, die Fixture-Datenbank gebaut und das Backend auf Port 8000 gestartet werden. Die Demo-Ansicht funktioniert unabhängig davon mit lokalen Beispieldaten.
+Alle oben genannten Routen sind auf `main` vorhanden; dazu kommen `GET /api/analysis/incidents`, `/api/analysis/incidents/{id}`, `/api/analysis/anomalies` und `/api/analysis/status`. Für Live-Daten müssen außerdem das Logpaket verfügbar sein, die Fixture-Datenbank gebaut und das Backend auf Port 8000 gestartet werden. Die Demo-Ansicht funktioniert unabhängig davon mit lokalen Beispieldaten.
 
 Details zu den UI-Datentypen stehen in `src/demo.ts`; die Backend-Beispiele sind maßgeblich für die Antwortform. Die Zeitleiste zeigt eine chronologisch sortierte Ereignistabelle mit teilbaren Filtern, einschließlich UTC-Zeitraum. Der Live-Modus lädt Übersicht, Aufträge, Zeitleiste, Fehlergruppen, Quellkontext und Chat über die API. Die Auftragsübersicht gruppiert die erste vom Backend gelieferte Ereignisseite; die vollständige Suche mit serverseitiger `limit/offset`-Paginierung ist in der Zeitleiste verfügbar. Fehlende API-Routen erscheinen als Backend-Fehler. Abhängigkeitsgraph, grafische Zeitreihe und Evaluationsdashboard sind spätere Ausbauschritte.
 
@@ -58,6 +58,14 @@ Der Browser-Import unterstützt CSV, JSONL, Log-/Textdateien mit datiertem Zeits
 Die Startseite listet erkannte Aufträge und Konvertierungen. Sortierung, Filter, Server, Status, Start, Ende, Dauer und anklickbare Protokolle orientieren sich an Seite 12 der MAIT-Challenge. ZIPs werden über dieselbe Seite ausgewählt.
 
 Die Zuordnung erfolgt über die Trace-ID oder über die Kombination aus Server und lokaler Job-ID. Bei mehr als 30 Minuten zwischen zwei Einträgen beginnt eine neue Gruppe. Workflow-Vorlagen werden angezeigt, wenn sie als Feld vorliegen. Die Verarbeitungsdauer wird aus einem expliziten Auftragsdauerfeld oder aus erkanntem Start und Ende gebildet. Die Detailansicht zeigt zusätzlich den beobachteten Zeitraum. Status und Konvertierungstyp werden aus Logfeldern und Meldungen abgeleitet.
+
+## Aufbau der Oberfläche
+
+- **Titel:** eine Zeile mit Info-Symbol (`ui.tsx`, `PageTitle`); die Erklärung erscheint beim Überfahren, Fokus oder Antippen.
+- **Seitenleiste:** enthält Navigation, Datenquelle (Live, Demo, ZIP), Backend-Status und Einstellungen; es gibt keine obere Leiste.
+- **Incidents** (`incidents.tsx`): Liste, Detail mit Ursachenkette und Graph, Hinweis in den Meldungsdetails, neueste Incidents auf der Startseite, auffällige Fehlerraten in der Zeitleiste. Im Demo-Modus zeigt die Seite die vorbereiteten Fälle.
+- **Meldungsdetails** (`event-details.tsx`): Dialog fast in Fenstergröße mit Kette, Analyse, Originalzeilen, Feldern und Fragen; Pfeile wechseln zum vorherigen oder nächsten Eintrag.
+- Neue Stile liegen in `layout.css` und werden nach `style.css` geladen.
 
 ## Meldungsdetails
 

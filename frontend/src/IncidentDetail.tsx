@@ -8,7 +8,7 @@ import { useI18n } from './i18n'
 const time = (entry: Entry, locale: string) => new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23', timeZone: 'UTC' }).format(new Date(entry.ts_utc)) + ' UTC'
 
 export function IncidentDetail({ selected, process, onSelect, children }: {
-  selected: Entry; process?: Process; onSelect: (id: number) => void; children: React.ReactNode
+  selected: Entry; process?: Pick<Process, 'logs' | 'trace' | 'job'> & { acrossServers?: boolean }; onSelect: (id: number) => void; children: React.ReactNode
 }) {
   const { language, t } = useI18n()
   const locale = language === 'en' ? 'en-GB' : 'de-DE'
@@ -22,7 +22,7 @@ export function IncidentDetail({ selected, process, onSelect, children }: {
     ? events
     : events.filter((entry, index) => Math.abs(index - selectedIndex) <= 7 + extra || important.has(entry.id))
   const indices = new Map(events.map((entry, index) => [entry.id, index]))
-  const source = process?.trace ? t('incident.trace', { trace: process.trace }) : process?.job ? t('incident.jobPerServer', { job: process.job }) : t('incident.singleEvent')
+  const source = process?.trace ? t('incident.trace', { trace: process.trace }) : process?.job ? t(process.acrossServers ? 'incident.jobAll' : 'incident.jobPerServer', { job: process.job }) : t('incident.singleEvent')
   return <div className="incident-detail">
     <aside className="incident-rail" aria-label={t('incident.timeline')}>
       <h3>{t('timeline.title')}</h3>
@@ -61,7 +61,6 @@ export function IncidentDetail({ selected, process, onSelect, children }: {
         {following && <p><strong>{t('incident.after')}</strong> {following.host} {language === 'en' ? 'logged' : 'protokollierte'} <button type="button" className="link" onClick={() => onSelect(following.id)}>{following.message}</button>.</p>}
         <p className="incident-note">{preceding ? t('incident.hypothesisNote') : t('incident.noCauseNote')}{errors.length > 1 ? ' ' + t('incident.multipleErrors') : ''}</p>
       </> : <p>{t('incident.noError')}</p>}
-      <h3>{t('incident.originalLog')}</h3>
       {children}
     </div>
   </div>

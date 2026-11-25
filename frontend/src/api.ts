@@ -13,6 +13,8 @@ function numeric(value: unknown, fallback = 0) {
   return Number.isFinite(number) ? number : fallback
 }
 
+const text = (value: unknown) => typeof value === 'string' && value ? value : null
+
 function normalizeEntry(value: unknown): Entry {
   const row = object(value) ? value : {}
   const attrs = object(row.attrs) ? row.attrs : {}
@@ -34,6 +36,11 @@ function normalizeEntry(value: unknown): Entry {
     source: typeof row.source_path === 'string' ? row.source_path : typeof row.source === 'string' ? row.source : undefined,
     source_line: sourceLine === undefined ? undefined : numeric(sourceLine),
     source_line_end: sourceLineEnd === undefined ? undefined : numeric(sourceLineEnd),
+    meta: row.raw === undefined ? undefined : {
+      event_id: text(row.event_id), session_id: text(row.session_id), ts_raw: text(row.ts_raw), parse_error: text(row.parse_error), format: text(row.format), encoding: text(row.encoding),
+      tz_assumed: row.tz_assumed === true, is_late: row.is_late === true, clock_offset_s: numeric(row.clock_offset_s),
+      duplicate_of: typeof row.duplicate_of === 'number' ? row.duplicate_of : null, attrs,
+    },
   }
 }
 

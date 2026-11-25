@@ -1,0 +1,126 @@
+/* Page titles, sidebar tools, incidents and the event dialog. Loaded after style.css.
+   Colors use the variables of the MAIT theme when it is there. */
+
+main { padding: 1rem clamp(.9rem, 2vw, 1.6rem) 1.6rem; max-width: 1600px }
+
+/* --- page title: one line with an info icon --- */
+.page-title { display: flex; align-items: center; gap: .5rem; min-height: 2.1rem; margin: 0 0 .75rem }
+.page-title h1 { margin: 0; font-size: 1.3rem; line-height: 1.25; letter-spacing: -.02em; min-width: 0; overflow-wrap: anywhere }
+.page-title-side { margin-left: auto; flex: none }
+.info-tip { display: inline-grid; place-items: center; flex: none; width: 1.15rem; height: 1.15rem; padding: 0; border: 1px solid var(--mait-green, #085b51); border-radius: 50%; background: transparent; color: var(--mait-green-dark, #085b51); font: italic 700 .75rem/1 Georgia, serif; vertical-align: middle; cursor: help }
+.info-tip:hover:not(:disabled) { background: var(--mait-mint-pale, #e1f0ed) }
+
+/* --- sidebar: data source and backend status --- */
+.sidebar-tools { display: grid; gap: .55rem; margin-top: auto; padding-top: 1rem }
+.sidebar-tools + .sidebar-settings { margin-top: .35rem; padding-top: 0 }
+.mode-switch { display: flex; gap: .2rem; padding: .2rem; border-radius: 9px; background: #0d1e2e }
+.mode-switch button { flex: 1; padding: .3rem .4rem; background: transparent; color: #d8e3ea; font-size: .85rem }
+.mode-switch button:hover:not(:disabled) { background: #264457; color: #fff }
+.mode-switch button[aria-pressed="true"], .mode-switch button[aria-pressed="true"]:hover { background: var(--mait-mint, #7fe3c7); color: #102d2d }
+.backend-status { display: flex; align-items: center; gap: .55rem; padding: .35rem .6rem; background: transparent; color: #d8e3ea; font-size: .85rem; font-weight: 600; text-align: left }
+.backend-status:hover:not(:disabled) { background: #264457; color: #fff }
+.status-dot { flex: none; width: .65rem; height: .65rem; border-radius: 50%; background: #8fa5b3 }
+.backend-status.ok .status-dot { background: #55d6a5 }
+.backend-status.warn .status-dot { background: #f2b84b }
+.backend-status.error .status-dot { background: #ff6b6b }
+
+/* --- incidents --- */
+.incident-filters { margin-bottom: .6rem }
+.incident-day h2 { font-variant-numeric: tabular-nums }
+.incident-list, .plain-list { list-style: none; margin: 0; padding: 0 }
+.incident-row { display: grid; grid-template-columns: 5.8rem 7.2rem minmax(0, 1fr); gap: .6rem; align-items: baseline; padding: .5rem .4rem; border-top: 1px solid #e0e8ee; color: inherit; text-decoration: none }
+.incident-list li:first-child .incident-row { border-top: 0 }
+.incident-row:hover { background: var(--mait-mint-pale, #eef6f5) }
+.incident-row .badge { justify-self: start }
+.incident-time { white-space: nowrap; font-size: .85rem; color: #486173; font-variant-numeric: tabular-nums }
+.incident-title { min-width: 0; overflow-wrap: anywhere }
+.incident-title strong { display: block; font-weight: 650 }
+.incident-meta { display: inline-flex; flex-wrap: wrap; gap: .1rem .8rem; color: #486173; font-size: .85rem }
+.back-link { margin: 0 0 .25rem; font-size: .9rem }
+.back-link a, .panel a:not(.incident-row), .event-card a { color: var(--mait-green-dark, #085b51); font-weight: 650 }
+.incident-page { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); gap: .6rem; align-items: start }
+.plain-list li + li { margin-top: .4rem }
+.plain-list small { display: block }
+.facts { display: grid; grid-template-columns: minmax(6.5rem, auto) minmax(0, 1fr); gap: .3rem .8rem; margin: .3rem 0 .6rem; font-size: .875rem }
+.facts dt { color: #486173 }
+.facts dd { margin: 0; overflow-wrap: anywhere }
+.facts small { display: block }
+
+.chain { list-style: none; margin: .6rem 0 0; padding: 0 0 0 1.1rem; border-left: 2px solid #bacbd7 }
+.chain li { position: relative; padding: .1rem 0 .8rem }
+.chain li::before { content: ""; position: absolute; left: -1.49rem; top: .5rem; width: .65rem; height: .65rem; border-radius: 50%; border: 2px solid #fff; background: #9a6507 }
+.chain li.error::before, .chain li.fatal::before { background: #b6333e }
+.chain li.root::before { box-shadow: 0 0 0 3px #b6333e55 }
+.chain p { margin: 0; overflow-wrap: anywhere }
+.chain small { overflow-wrap: anywhere }
+.chain-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .6rem; font-size: .9rem; font-variant-numeric: tabular-nums }
+.root-badge { background: #b6333e; color: #fff }
+
+.incident-graph { overflow-x: auto; margin: .3rem 0 .8rem; padding: .2rem; border: 1px solid #e0e8ee; border-radius: 8px; background: #f8fafb }
+.incident-graph svg { display: block }
+.graph-lane { stroke: #d5e0e7; stroke-dasharray: 2 4 }
+.graph-label-back { fill: #f8fafb }
+.graph-label { font-size: 12px; fill: #30495c }
+.graph-link { fill: none; stroke: #6b8496; stroke-width: 1.6 }
+.graph-link.soft { stroke-dasharray: 5 4 }
+.graph-arrow { fill: #6b8496 }
+.graph-node { cursor: pointer; outline: none }
+.graph-node circle { fill: #f2b84b; stroke: #fff; stroke-width: 2 }
+.graph-node.error circle, .graph-node.fatal circle { fill: #c8434d }
+.graph-node.root circle { stroke: #7a1620; stroke-width: 3.5 }
+.graph-node:focus-visible circle { stroke: #209d86; stroke-width: 4 }
+.graph-node text { font-size: 11px; fill: #486173 }
+
+.anomaly-list { display: flex; gap: .4rem; overflow-x: auto; padding-bottom: .25rem }
+.anomaly-list .secondary { flex: none; padding: .35rem .6rem; font-size: .85rem; text-align: left }
+.anomaly-list small { display: block; font-weight: 450 }
+
+/* --- event dialog: almost the whole window --- */
+.event-modal { display: flex; flex-direction: column; height: calc(100dvh - 2.5rem); max-height: none; overflow: hidden }
+.event-modal-header { flex: none; min-height: 0; padding: .4rem .6rem .4rem 1rem; border-bottom: 1px solid #d3dfe7; color: #486173 }
+.event-modal-body { flex: 1; min-height: 0 }
+.event-view { display: flex; flex-direction: column; height: 100%; min-height: 0 }
+.event-view > .notice { margin: 1rem }
+.event-head { flex: none; display: flex; gap: 1rem; align-items: start; justify-content: space-between; padding: .7rem 1rem; border-bottom: 1px solid #d3dfe7; background: #f6f9fb }
+.event-head > div:first-child { min-width: 0 }
+.event-head p { margin: 0; font-size: .875rem; color: #486173; overflow-wrap: anywhere }
+.event-head h2 { margin: .2rem 0 0; font-size: 1.15rem; overflow-wrap: anywhere }
+.event-head pre { max-height: 6rem; margin: .4rem 0 0; overflow: auto; font-size: .8rem; white-space: pre-wrap }
+.event-steps { flex: none; display: flex; align-items: center; gap: .4rem; font-size: .85rem; font-variant-numeric: tabular-nums }
+.event-steps .secondary { padding: .2rem .6rem }
+.event-columns { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 21rem) }
+.event-main { min-width: 0; min-height: 0; display: flex; flex-direction: column }
+.event-main > .notice { margin: .6rem 1rem 0 }
+.event-main .incident-detail { flex: 1; min-height: 0; grid-template-columns: minmax(220px, 30%) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 0; align-items: stretch }
+.event-main .incident-rail { overflow-y: auto; border: 0; border-right: 1px solid #d7e3ec; border-radius: 0 }
+.event-main .incident-explanation { overflow-y: auto; padding: .9rem 1rem }
+.event-main .source { max-height: none }
+.event-side { overflow-y: auto; padding: .9rem; border-left: 1px solid #d3dfe7; background: #f8fafb }
+.event-card { margin-bottom: 1rem }
+.event-card h3, .event-side .event-questions h3 { margin: 0 0 .3rem }
+.event-side .event-questions .actions { display: grid }
+.event-source .section-title { margin: .4rem 0 .3rem }
+.event-source h3 { margin: 0 }
+.inline-label { display: flex; align-items: center; gap: .4rem }
+.inline-label select { width: auto }
+
+@media (max-width: 1050px) {
+  .event-view { overflow-y: auto }
+  .event-columns { flex: none; display: block }
+  .event-main .incident-rail, .event-main .incident-explanation, .event-side { overflow: visible }
+  .event-side { border-left: 0; border-top: 1px solid #d3dfe7 }
+  .incident-page { grid-template-columns: minmax(0, 1fr) }
+}
+@media (max-width: 760px) {
+  .sidebar-tools { display: flex; flex-wrap: wrap; align-items: center; margin-top: 0; padding-top: .5rem }
+  .event-main .incident-detail { display: block }
+  .event-main .incident-rail { border-right: 0; border-bottom: 1px solid #d7e3ec }
+  .event-head { flex-direction: column }
+  .incident-row { grid-template-columns: 5rem minmax(0, 1fr) }
+  .incident-title { grid-column: 1 / -1 }
+}
+
+/* Long log lines wrap in the dialog, so the whole line is readable without scrolling sideways. */
+.event-main .source div { min-width: 0 }
+.event-main .source span { flex: none }
+.event-main .source code { min-width: 0; overflow-wrap: anywhere }

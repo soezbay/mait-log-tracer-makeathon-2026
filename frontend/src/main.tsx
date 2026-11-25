@@ -1,25 +1,25 @@
 import React, { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { HashRouter, NavLink, Route, Routes, useNavigate, useSearchParams } from 'react-router-dom'
-import { MantineProvider, Drawer } from '@mantine/core'
+import { HashRouter, Navigate, NavLink, Route, Routes, useNavigate, useSearchParams } from 'react-router-dom'
+import { MantineProvider, Tooltip } from '@mantine/core'
 import '@mantine/core/styles.css'
 import './style.css'
+import './layout.css'
 import { chat, request } from './api'
-import { demoAnswer, demoContext, entries, groups } from './demo'
-import type { Answer, Entry, EventPage, Group, SourceContext, Stats } from './demo'
-import { importZip, importedContext } from './import-zip'
+import { errorText, Feedback, formatTime, offline, useData } from './data'
+import type { Mode } from './data'
+import { demoAnswer, entries, groups } from './demo'
+import type { Answer, Entry, EventPage, Group, Stats } from './demo'
+import { EventModal } from './event-details'
+import { importZip } from './import-zip'
+import { AnomalyStrip, IncidentPage, IncidentsPage, LatestIncidents } from './incidents'
 import { ProcessMonitor } from './ProcessMonitor'
-import { IncidentDetail } from './IncidentDetail'
-import { buildProcesses } from './processes'
 import type { ImportedLogs } from './import-zip'
 import { I18nProvider, useI18n } from './i18n'
-import { AssistantLinkContext, EventQuestions, SuggestionPanel, useSavedQuestions } from './suggestions'
+import { AssistantLinkContext, SuggestionPanel, useSavedQuestions } from './suggestions'
+import { PageTitle } from './ui'
 import { browserTimeZone, currentLocalDateTime, isValidDateTimeLocal, localDateTimeToUtcIso, utcDateTimeToEpoch, utcDateTimeToLocal } from './time'
 
-type Mode = 'demo' | 'live' | 'import'
-const offline = window.location.protocol === 'file:'
-const formatTime = (timestamp: string) => timestamp.replace('T', ' ').replace(/(?:\.\d+)?Z$/, ' UTC')
-const errorText = (error: unknown) => error instanceof Error ? error.message : String(error)
 type AssistantTarget = { question: string; jobIds: string[] }
 
 function assistantTarget(question: string): AssistantTarget {
@@ -30,29 +30,6 @@ function assistantTarget(question: string): AssistantTarget {
 
 function sameAssistantTarget(first: AssistantTarget, second: AssistantTarget) {
   return first.question === second.question || first.jobIds.some(id => second.jobIds.includes(id))
-}
-
-function useData<T>(path: string, mode: Mode, sample: T) {
-  const { language } = useI18n()
-  const [result, setResult] = useState<{ path: string; data?: T; error?: string }>()
-  useEffect(() => {
-    if (mode !== 'live') return
-    const controller = new AbortController()
-    setResult(undefined)
-    request<T>(path, { signal: controller.signal }, language).then(
-      data => setResult({ path, data }),
-      error => { if (!controller.signal.aborted) setResult({ path, error: errorText(error) }) },
-    )
-    return () => controller.abort()
-  }, [path, mode, language])
-  if (mode !== 'live') return { data: sample, pending: false, error: undefined }
-  const current = result?.path === path ? result : undefined
-  return { ...current, pending: !current }
-}
-
-function Feedback({ pending, error }: { pending: boolean; error?: string }) {
-  const { t } = useI18n()
-  return error ? <p className="notice error" role="alert">{error}</p> : pending ? <p className="notice" role="status">{t('loading.data')}</p> : null
 }
 
 function Overview({ mode, logs, onImport, onViewImport, pending, importError, open }: { mode: Mode; logs: ImportedLogs | null; onImport: (file: File) => void; onViewImport: () => void; pending: boolean; importError: string; open: (id: number) => void }) {
@@ -68,7 +45,7 @@ function Overview({ mode, logs, onImport, onViewImport, pending, importError, op
   const result = useData<Stats>('/stats', mode, sample)
   const data = result.data
   return <>
-    <Heading caption={t('overview.caption')} title={t('overview.title')}>{t('overview.description')}</Heading>
+    <PageTitle title={t('overview.title')} info={t('overview.description')} />
     {mode === 'demo' && <p className="notice">{t('overview.demoNote')}</p>}
     <section className="panel upload">
       <h2>{t('upload.title')}</h2>
@@ -92,20 +69,17 @@ function Overview({ mode, logs, onImport, onViewImport, pending, importError, op
     {mode === 'live' && data && <div className="metrics">{[
       [t('metric.sources'), data.sources], [t('metric.events'), data.events], [t('metric.errors'), data.levels?.ERROR ?? 0], [t('metric.duplicates'), data.duplicate_sources ?? 0],
     ].map(([label, value]) => <section className="metric" key={label}><span>{label}</span><strong>{typeof value === 'number' ? value.toLocaleString(locale) : '—'}</strong></section>)}</div>}
+    {mode === 'live' && <LatestIncidents />}
     {mode === 'live' && <><Feedback {...processResult} />{processEvents && <>
       {processResult.data && processResult.data.total > processResult.data.limit && <p className="process-note">{t('overview.firstPage', { shown: processResult.data.limit.toLocaleString(locale), total: processResult.data.total.toLocaleString(locale) })}</p>}
       <ProcessMonitor key="live" events={processEvents} open={open} />
     </>}</>}
     <section className="panel"><h2>{t('overview.start')}</h2><div className="shortcuts">
       <NavLink to="/timeline">{t('overview.search')}<span>{t('overview.searchDescription')}</span></NavLink>
-      <NavLink to="/groups">{t('overview.groups')}<span>{t('overview.groupsDescription')}</span></NavLink>
+      <NavLink to="/incidents">{t('overview.groups')}<span>{t('overview.groupsDescription')}</span></NavLink>
       <NavLink to="/chat">{t('overview.assistant')}<span>{t('overview.assistantDescription')}</span></NavLink>
     </div></section>
   </>
-}
-
-function Heading({ caption, title, children }: React.PropsWithChildren<{ caption: string; title: string }>) {
-  return <header className="heading"><span>{caption}</span><h1>{title}</h1><p>{children}</p></header>
 }
 
 function Timeline({ mode, open, logs }: { mode: Mode; open: (id: number) => void; logs: ImportedLogs | null }) {
@@ -137,6 +111,9 @@ function Timeline({ mode, open, logs }: { mode: Mode; open: (id: number) => void
     if (timestamp !== undefined && timestamp <= Date.now()) query.set(field, new Date(timestamp).toISOString())
     else query.delete(field)
   }
+  function showAnomaly(server: string, from: string, to: string) {
+    update(new URLSearchParams({ server, from, to, level: 'ERROR' }))
+  }
   const localPageSize = 100
   const apiQuery = new URLSearchParams(query)
   if (mode === 'live') {
@@ -159,7 +136,7 @@ function Timeline({ mode, open, logs }: { mode: Mode; open: (id: number) => void
     ? result.data && !Array.isArray(result.data) && result.data.offset + result.data.items.length < result.data.total
     : page * localPageSize < sorted.length
   return <>
-    <Heading caption={t('timeline.caption')} title={t('timeline.title')}>{t('timeline.description')}</Heading>
+    <PageTitle title={t('timeline.title')} info={t('timeline.description')} />
     <div className="panel filters">
       {filters.map(([name, label, placeholder]) => {
         const dateField = name === 'from' || name === 'to'
@@ -176,6 +153,7 @@ function Timeline({ mode, open, logs }: { mode: Mode; open: (id: number) => void
       <label>{t('filter.level')}<select value={params.get('level') ?? ''} onChange={e => set('level', e.target.value)}><option value="">{t('filter.all')}</option>{['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'].map(level => <option key={level}>{level}</option>)}</select></label>
       <button type="button" className="secondary" onClick={() => update({})} disabled={!params.size}>{t('filter.clear')}</button>
     </div>
+    {mode === 'live' && <AnomalyStrip server={params.get('server') ?? ''} from={query.get('from')} to={query.get('to')} select={showAnomaly} />}
     <Feedback {...result} />
     {list && <section className="panel">
       <h2>{t('events.title')} <small>{t('events.onPage', { count: visible.length.toLocaleString(locale) })}</small></h2>
@@ -194,7 +172,7 @@ function ErrorGroups({ mode, open }: { mode: Mode; open: (id: number) => void })
   const result = useData<Group[] | { items: Group[] }>('/analysis/groups', mode, mode === 'import' ? [] : groups)
   const list = Array.isArray(result.data) ? result.data : result.data?.items
   return <>
-    <Heading caption={t('groups.caption')} title={t('groups.title')}>{t('groups.description')}</Heading>
+    <PageTitle title={t('groups.title')} info={t('groups.description')} />
     <Feedback {...result} />
     {list?.length === 0 && <p className="notice">{mode === 'import' ? t('groups.importNotice') : t('groups.empty')}</p>}
     {list?.map(group => <section className="panel" key={group.id}><div className="section-title"><h2>{group.label}</h2><span className={'badge ' + (group.status === 'recovered' ? 'info' : group.status === 'failed' ? 'error' : '')}>{group.status === 'recovered' ? t('groups.recovered') : group.status === 'failed' ? t('groups.failed') : group.status}</span></div>
@@ -266,7 +244,7 @@ function Assistant({ mode, open, contextId, clearContext, requested, clearReques
   const draft = question.trim()
   const draftSaved = saved.favorites.has(draft)
   return <>
-    <Heading caption={t('assistant.caption')} title={t('assistant.title')}>{mode === 'demo' ? t('assistant.demoDescription') : t('assistant.liveDescription')}</Heading>
+    <PageTitle title={t('assistant.title')} info={mode === 'demo' ? t('assistant.demoDescription') : t('assistant.liveDescription')} />
     {mode === 'live' && <SuggestionPanel contextId={contextId} clearContext={clearContext} saved={saved} isOpen={isSameQuestionOpen} ask={askSuggestion} expanded={expanded} setExpanded={setExpanded} />}
     {mode === 'demo' && <div className="actions">{[t('assistant.prompt2003'), t('assistant.prompt2010'), t('assistant.promptSync')].map(prompt => <button type="button" key={prompt} className="secondary" disabled={isAlreadyOpen(prompt)} onClick={() => void ask(prompt)}>{prompt}</button>)}</div>}
     {result && <article className="panel answer">
@@ -287,33 +265,9 @@ function Assistant({ mode, open, contextId, clearContext, requested, clearReques
   </>
 }
 
-function Source({ id, mode, logs }: { id: number; mode: Mode; logs: ImportedLogs | null }) {
-  const entry = entries.find(item => item.id === id)
-  const result = useData<SourceContext | undefined>('/events/' + id + '/context?n=10', mode, mode === 'import' && logs ? importedContext(logs, id) : entry ? demoContext(entry) : undefined)
-  return <><Feedback {...result} />{result.data && <><p className="filepath">{result.data.path}</p><div className="source">{result.data.lines.map(line => <div key={line.line} className={line.line >= result.data!.line_start && line.line <= result.data!.line_end ? 'selected-line' : ''}><span>{line.line}</span><code>{line.text}</code></div>)}</div></>}</>
-}
-
-function EventDetail({ id, mode, logs, open }: { id: number; mode: Mode; logs: ImportedLogs | null; open: (id: number) => void }) {
-  const local = mode === 'import' ? logs?.entries : entries
-  const context = useData<Entry | undefined>('/events/' + id, mode, undefined)
-  const localProcesses = React.useMemo(() => mode === 'live' ? [] : buildProcesses(local ?? []), [local, mode])
-  const localProcess = localProcesses.find(process => process.logs.some(entry => entry.id === id))
-  const selected = mode === 'live' ? context.data : localProcess?.logs.find(entry => entry.id === id) ?? local?.find(entry => entry.id === id)
-  const trace = selected?.trace_id
-  const timelinePath = trace ? '/trace/' + encodeURIComponent(trace) : ''
-  const live = useData<Entry[] | { items: Entry[] } | undefined>(timelinePath, timelinePath && mode === 'live' ? 'live' : 'demo', undefined)
-  const records = Array.isArray(live.data) ? live.data : live.data?.items
-  const liveProcess = selected && records?.length
-    ? buildProcesses(records.some(entry => entry.id === selected.id) ? records : [...records, selected]).find(process => process.logs.some(entry => entry.id === id))
-    : undefined
-  const original = <Source key={id} id={id} mode={mode} logs={logs} />
-  if (!selected) return <><Feedback {...context} />{original}</>
-  return <>
-    <EventQuestions id={id} />
-    {mode === 'live' && <Feedback {...live} />}
-    <IncidentDetail selected={selected} process={mode === 'live' ? liveProcess : localProcess} onSelect={open}>{original}</IncidentDetail>
-  </>
-}
+type Health = { state: 'ok' | 'warn' | 'error' | 'checking'; label: string; detail: string }
+const modeLabel = { live: 'mode.live', demo: 'mode.demo', import: 'mode.importShort' } as const
+const modeInfo = { live: 'mode.liveInfo', demo: 'mode.demoInfo', import: 'mode.importInfo' } as const
 
 function App() {
   const { language, setLanguage, t } = useI18n()
@@ -345,18 +299,27 @@ function App() {
     ask: (question: string) => { setId(null); setRequested(question); navigate('/chat') },
     setContext: setContextId,
   }), [mode, navigate])
-  const [health, setHealth] = useState(offline ? t('backend.offlineDemo') : t('backend.checking'))
+  const [health, setHealth] = useState<Health>({ state: 'checking', label: '', detail: '' })
   const [check, setCheck] = useState(0)
   useEffect(() => {
+    if (offline) return setHealth({ state: 'checking', label: t('backend.offlineDemo'), detail: t('mode.demoInfo') })
     const controller = new AbortController()
-    if (offline) return
-    setHealth(t('backend.checking'))
-    const timeout = setTimeout(() => { setHealth(t('backend.unreachable')); controller.abort() }, 3500)
+    const recheck = ' ' + t('backend.recheckHint')
+    const unreachable: Health = { state: 'error', label: t('backend.offline'), detail: t('backend.unreachable') + '.' + recheck }
+    setHealth({ state: 'checking', label: t('backend.checking'), detail: t('backend.checking') })
+    const timeout = setTimeout(() => { setHealth(unreachable); controller.abort() }, 3500)
     request<{ status?: string; version?: string; log_root_found?: boolean; db_found?: boolean }>('/health', { signal: controller.signal }, language).then(
-      data => setHealth(data.status && data.status !== 'ok'
-        ? t('backend.reported', { status: data.status })
-        : t('backend.reachable') + ' · ' + (data.log_root_found ? t('backend.logsReady') : t('backend.logsMissing')) + ' · ' + (data.db_found ? t('backend.databaseReady') : t('backend.databaseMissing'))),
-      () => { if (!controller.signal.aborted) setHealth(t('backend.unreachable')) },
+      data => {
+        const ready = (!data.status || data.status === 'ok') && !!data.log_root_found && !!data.db_found
+        setHealth({
+          state: ready ? 'ok' : 'warn',
+          label: t(ready ? 'backend.online' : 'backend.incomplete'),
+          detail: (data.status && data.status !== 'ok'
+            ? t('backend.reported', { status: data.status })
+            : t('backend.reachable') + ' · ' + (data.log_root_found ? t('backend.logsReady') : t('backend.logsMissing')) + ' · ' + (data.db_found ? t('backend.databaseReady') : t('backend.databaseMissing'))) + '.' + recheck,
+        })
+      },
+      () => { if (!controller.signal.aborted) setHealth(unreachable) },
     ).finally(() => clearTimeout(timeout))
     return () => { clearTimeout(timeout); controller.abort() }
   }, [check, language, t])
@@ -364,7 +327,12 @@ function App() {
   return <AssistantLinkContext.Provider value={assistantLink}><div className="shell">
     <aside className="sidebar">
       <div className="brand"><span className="brand-icon" aria-hidden="true">⌁</span><div>Log Tracer<small>MAIT MAKEATHON</small></div></div>
-      <nav aria-label={t('nav.primary')}><NavLink to="/" end>{t('nav.overview')}</NavLink><NavLink to="/timeline">{t('nav.timeline')}</NavLink><NavLink to="/groups">{t('nav.groups')}</NavLink><NavLink to="/chat">{t('nav.assistant')}</NavLink></nav>
+      <nav aria-label={t('nav.primary')}><NavLink to="/" end>{t('nav.overview')}</NavLink><NavLink to="/timeline">{t('nav.timeline')}</NavLink><NavLink to="/incidents">{t('nav.groups')}</NavLink><NavLink to="/chat">{t('nav.assistant')}</NavLink></nav>
+      <div className="sidebar-tools">
+        <div className="mode-switch" role="group" aria-label={t('mode.source')}>{(['live', 'demo', ...(logs ? ['import'] : [])] as Mode[]).map(value =>
+          <Tooltip key={value} label={t(modeInfo[value])} multiline maw={240} position="right" withArrow><button type="button" aria-pressed={mode === value} disabled={value === 'live' && offline} onClick={() => switchMode(value)}>{t(modeLabel[value])}</button></Tooltip>)}</div>
+        <Tooltip label={health.detail} multiline maw={240} position="right" withArrow><button type="button" className={'backend-status ' + health.state} disabled={offline} onClick={() => setCheck(value => value + 1)} aria-label={health.label + '. ' + health.detail} aria-live="polite"><span className="status-dot" aria-hidden="true" />{health.label}</button></Tooltip>
+      </div>
       <div className="sidebar-settings">
         <div className="settings-panel" id="settings-panel" hidden={!settingsOpen}>
           <label htmlFor="language-select">{t('settings.language')}</label>
@@ -379,11 +347,9 @@ function App() {
       </div>
     </aside>
     <div className="workspace">
-      <div className="topbar"><button className="health secondary" disabled={offline} onClick={() => setCheck(value => value + 1)} title={t('backend.recheck')} aria-live="polite">{health}</button>
-        <div className="modes" role="group" aria-label={t('mode.source')}><button aria-pressed={mode === 'demo'} onClick={() => switchMode('demo')}>{t('mode.demo')}</button>{logs && <button aria-pressed={mode === 'import'} onClick={() => switchMode('import')}>{t('mode.import')}</button>}<button aria-pressed={mode === 'live'} disabled={offline} onClick={() => switchMode('live')}>{t('mode.live')}</button></div></div>
-      <main><Routes><Route path="/" element={<Overview mode={mode} logs={logs} onImport={file => void loadLogs(file)} onViewImport={() => switchMode('import')} pending={importing} importError={importError} open={open} />} /><Route path="/timeline" element={<Timeline mode={mode} open={open} logs={logs} />} /><Route path="/groups" element={<ErrorGroups mode={mode} open={open} />} /><Route path="/chat" element={mode === 'import' ? <p className="notice">{t('assistant.importNotice')}</p> : <Assistant key={mode} mode={mode} open={open} contextId={contextId} clearContext={() => setContextId(null)} requested={requested} clearRequested={() => setRequested(null)} /> } /><Route path="*" element={<p className="notice">{t('route.notFound')} <NavLink to="/">{t('route.goHome')}</NavLink></p>} /></Routes></main>
+      <main><Routes><Route path="/" element={<Overview mode={mode} logs={logs} onImport={file => void loadLogs(file)} onViewImport={() => switchMode('import')} pending={importing} importError={importError} open={open} />} /><Route path="/timeline" element={<Timeline mode={mode} open={open} logs={logs} />} /><Route path="/incidents" element={mode === 'live' ? <IncidentsPage /> : <ErrorGroups mode={mode} open={open} />} /><Route path="/incidents/:id" element={mode === 'live' ? <IncidentPage open={open} /> : <Navigate to="/incidents" replace />} /><Route path="/groups" element={<Navigate to="/incidents" replace />} /><Route path="/chat" element={mode === 'import' ? <p className="notice">{t('assistant.importNotice')}</p> : <Assistant key={mode} mode={mode} open={open} contextId={contextId} clearContext={() => setContextId(null)} requested={requested} clearRequested={() => setRequested(null)} /> } /><Route path="*" element={<p className="notice">{t('route.notFound')} <NavLink to="/">{t('route.goHome')}</NavLink></p>} /></Routes></main>
     </div>
-    <Drawer opened={id !== null} onClose={() => setId(null)} position="right" size="min(1150px, 100%)" title={t('details.title', { id: id ?? '' })}>{id !== null && <EventDetail id={id} mode={mode} logs={logs} open={open} />}</Drawer>
+    <EventModal id={id} mode={mode} logs={logs} open={open} close={() => setId(null)} />
   </div></AssistantLinkContext.Provider>
 }
 

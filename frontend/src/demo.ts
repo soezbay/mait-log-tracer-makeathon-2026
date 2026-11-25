@@ -15,7 +15,10 @@ export type Entry = {
   source?: string
   source_line?: number
   source_line_end?: number
+  meta?: EntryMeta
 }
+/** Further fields of GET /api/events/{id}. */
+export type EntryMeta = { event_id: string | null; session_id: string | null; ts_raw: string | null; tz_assumed: boolean; clock_offset_s: number; duplicate_of: number | null; is_late: boolean; parse_error: string | null; format: string | null; encoding: string | null; attrs: Record<string, unknown> }
 export type Group = { id: number; label: string; status: string; event_ids: number[] }
 export type EventPage = { items: Entry[]; total: number; limit: number; offset: number }
 export type Stats = { servers?: number; sources: number; unique_sources?: number; duplicate_sources?: number; duplicate_events?: number; events: number; unparsed_events?: number; levels: Record<string, number>; time_range?: { from: string; to: string }; last_ingest_at?: string | null }
