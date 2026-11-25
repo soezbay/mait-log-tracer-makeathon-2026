@@ -430,3 +430,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Why:** Safak asked to merge the open pull requests.
 - **Where:** `frontend/src/main.tsx`, `docs/AI_LOG.md`, `docs/WORKLOG.md`
 - **Checks:** 110 backend tests pass, `ruff check` clean, `npm run build` (TypeScript + Vite) succeeds.
+
+### KI:connect.nrw as LLM provider (P3, Tarun)
+- **What:** New provider `kiconnect` for KI:connect.nrw, the AI gateway of NRW universities. Its API follows the OpenAI chat-completions format, so `KIConnectProvider` (official `openai` SDK, base URL `https://chat.kiconnect.nrw/api/v1`) reuses the Groq conversation code, now named `ChatCompletionsConversation`: tool calls, `retry-after` waits, readable errors with the right key name, and the retry for unparsable model output. Models are deployments assigned to the key's user group: `LLM_MODEL` must be one of them, listed by `uv run python scripts/ask.py --list-models`. No output-limit parameter is sent (deployments sit on different upstream providers); a deployment that refuses a forced `tool_choice` gets `auto` instead.
+- **Why:** A teammate's university account gives access with much higher context and output limits than Groq's free plan, whose per-minute limit makes a second question wait.
+- **Where:** `backend/src/logtracer/assistant/providers/kiconnect.py`, `providers/groq.py`, `providers/__init__.py`, `assistant/config.py`, `core/config.py` (2 settings, required by `test_example_env_matches_settings`), `backend/.env.example`, `backend/scripts/ask.py`, `backend/tests/test_kiconnect.py`, `docs/ARCHITECTURE.md`, `pyproject.toml` / `uv.lock` (`openai`).
+- **Checks:** 116 tests pass (6 new), `ruff check` clean. A whole question runs through the real `openai` SDK against a mock KI:connect server: `POST /api/v1/chat/completions` with `Bearer` key, tool call, tool result as `tool` message, answer with 3 evidence lines, 2 rows in `llm_calls`. Not tested live: the host is not reachable from the cloud session.
+- **Open:** live test with a real key; which deployments support tool calling; KI:connect terms of use for the key holder's university account.
