@@ -570,3 +570,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `backend/src/logtracer/assistant/prompt.py`.
 - **Checks:** 184 tests pass, `ruff check` clean.
 - **Open:** re-run the 7 test-package questions on this branch.
+
+### Assistant: no guessed dates, no guessed ids (P3, Tarun)
+- **What:** `search_events` reports where the matches are when a time window finds nothing (`outside_time_range` with count, first and last, plus a note). Prompt: use a time filter only for a date the question or a tool result names; "not found" needs a search without a time filter; never derive event ids from a range, cite re-run `sample_event_ids` as given. The send-back for rejected ids now says to remove them instead of guessing new ones.
+- **Why:** second test-package run, 5 of 7 passed. "Search query completed" (Q6): the model searched 20 to 26 Nov on its own and said there were no ERROR lines; there are 7, on 4 and 5 Oct. JOB-2010 and JOB-2001 (Q2, Q3): right cause, but ids guessed for the third re-run were removed and confidence fell to 0.3.
+- **Where:** `backend/src/logtracer/assistant/data_access.py`, `prompt.py`, `agent.py`, `backend/tests/test_tools_and_agent.py`; branch `p3/analyze-upload`.
+- **Checks:** 185 tests pass (1 new), ruff clean. The Q6 search on the test package now returns 0 with the hint "7 events between 2026-10-04 and 2026-10-05".
+- **Open:** re-test Q1, Q2, Q3 and Q6 live.

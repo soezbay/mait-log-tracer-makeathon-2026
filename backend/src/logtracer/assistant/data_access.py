@@ -245,12 +245,13 @@ class LogStore:
             levels = [x.strip().upper() for x in level.split(",") if x.strip()]
             where.append(f"upper(e.level) IN ({','.join('?' * len(levels))})")
             params += levels
+        time_where, time_params = [], []
         if (t := parse_ts(time_from)) is not None:
-            where.append("e.ts_utc >= ?")
-            params.append(t)
+            time_where.append("e.ts_utc >= ?")
+            time_params.append(t)
         if (t := parse_ts(time_to, end_of_day=True)) is not None:
-            where.append("e.ts_utc <= ?")
-            params.append(t)
+            time_where.append("e.ts_utc <= ?")
+            time_params.append(t)
         if text:
             # The whole original line, not only the message: ids like JOB-2003 often sit in other fields.
             where.append("(e.message ILIKE ? OR e.raw ILIKE ?)")
@@ -261,7 +262,25 @@ class LogStore:
         if trace_id:
             where.append("e.trace_id = ?")
             params.append(trace_id.strip())
-        return self._event_result(" AND ".join(where), params, _clip(limit))
+        out = self._event_result(" AND ".join(where + time_where), params + time_params, _clip(limit))
+        if time_where and out["total_matches"] == 0:
+            # A wrong time window must not hide logs: say where the same filters do match.
+            clause = " AND ".join(where)
+            row = self._rows(
+                f"SELECT count(*) AS n, min(e.ts_utc) AS first, max(e.ts_utc) AS last "
+                f"{self._EVENT_FROM} WHERE {clause}",
+                params,
+            )[0]
+            if row["n"]:
+                out["outside_time_range"] = {
+                    "total_matches": row["n"], "first": iso(row["first"]), "last": iso(row["last"]),
+                }
+                out["note"] = (
+                    f"Nothing in this time range, but {row['n']} events match the other filters "
+                    f"between {iso(row['first'])} and {iso(row['last'])}. If the question names no "
+                    "date, search again without time_from/time_to."
+                )
+        return out
 
     def _written_key(self, key: str) -> str:
         """People write "job 2013" or "2013" for JOB-2013. As plain text 2013 would match DEMO-02013."""

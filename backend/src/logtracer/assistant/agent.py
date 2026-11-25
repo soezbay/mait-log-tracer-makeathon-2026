@@ -179,8 +179,10 @@ class LogTracerAgent:
                 "error": "Some cited event ids are not valid evidence.",
                 "ids_not_in_database": missing,
                 "ids_never_returned_by_a_tool": unseen,
-                "instruction": "Cite only `id` values that tools returned in this conversation. Fix and call "
-                               f"{SUBMIT_TOOL_NAME} again.",
+                "instruction": "Remove these ids from causal_chain and evidence_event_ids; do not "
+                               "replace them with other guessed ids. Cite only `id` values tools "
+                               "returned (for re-runs: the sample_event_ids). Keep the rest of the "
+                               f"answer and call {SUBMIT_TOOL_NAME} again.",
             }
         if not [c for c in sub.counter_evidence if c.strip()]:
             return None, {

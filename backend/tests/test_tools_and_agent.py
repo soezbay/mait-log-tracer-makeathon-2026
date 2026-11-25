@@ -99,6 +99,19 @@ def test_search_events_filters_level_server_text(box):
     assert box.execute("search_events", {"time_to": "2026-11-23"})["total_matches"] == 0
 
 
+def test_empty_time_window_says_where_the_matches_are(box):
+    # A guessed date range must not hide logs: the result points to the matches outside it.
+    r = box.execute("search_events", {"text": "retry", "level": "ERROR",
+                                      "time_from": "2026-11-20", "time_to": "2026-11-22"})
+    assert r["total_matches"] == 0
+    hint = r["outside_time_range"]
+    assert hint["total_matches"] >= 1 and hint["first"].startswith("2026-11-24")
+    assert "without time_from/time_to" in r["note"]
+    # no hint when the other filters match nothing either
+    none = box.execute("search_events", {"text": "no such text", "time_from": "2026-11-20"})
+    assert "outside_time_range" not in none and "note" not in none
+
+
 def test_trace_warns_about_same_job_number(box):
     r = box.execute("trace", {"key": "JOB-2010"})
     assert len(r["time_clusters"]) == 2 and "warning" in r
