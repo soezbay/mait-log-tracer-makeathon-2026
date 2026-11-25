@@ -227,7 +227,7 @@ frontend/src/
 |---|---|---|
 | **Übersicht** | Kacheln: Server, Events, ERRORs, offene Fehlergruppen, Ingest-Status; Liste der Vorfälle (verknüpfte Fehlergruppen) und auffälliger Server | `/api/stats`, `/api/analysis/incidents`, `/api/analysis/groups` |
 | **Zeitleiste** | Eine Spur pro Server, Fehlerrate + Anomalie-Marker, Zoom; Klick öffnet Events im Zeitraum | `/api/analysis/timeseries`, `/api/events` |
-| **Fehlergruppen** | Tabelle: Template, Server, Anzahl, Zeitraum, Status (erholt/fehlgeschlagen), verknüpfte Gruppen | `/api/analysis/groups` |
+| **Incidents** | Liste zusammengehöriger Probleme (Zeit, Auslöser, Server, Jobs, Status); Detail: Ursachenkette mit Logzeilen, kleiner Graph je Incident, „vom Assistenten erklären lassen“ | `/api/analysis/incidents`, `/api/analysis/anomalies` |
 | **Abhängigkeiten** | Graph der Server; Kanten aus `dependency=` und Korrelationen; Kausalkette hervorgehoben | `/api/analysis/graph` |
 | **Assistent (Chat)** | Frage stellen, Zwischenschritte („suche in teamcenter_db…"), strukturierte Antwort mit Belegen, Unsicherheit, Prüfschritten | `/api/chat` (SSE) |
 | **Qualität & Kosten** | Trefferquote der Testfragen, Tokens und € pro Frage, Vergleich „alles ins LLM" vs. „Tools" | `/api/eval/*` |
@@ -262,7 +262,7 @@ Basis: `http://localhost:8000/api`, OpenAPI unter `/docs`. JSON, Zeiten immer IS
 | `GET` | `/events/{id}/context?n=10` | Originalzeilen um das Event |
 | `GET` | `/analysis/timeseries` | Events/Fehler pro Server und Zeitfenster |
 | `GET` | `/analysis/groups` | Fehlergruppen mit Status und Verknüpfungen |
-| `GET` | `/analysis/incidents` | Vorfälle: über Server verknüpfte Fehlergruppen mit Zeitraum und Status |
+| `GET` | `/analysis/incidents` | Incidents, neueste zuerst: `from, to, server, status, q, event_id`; `/analysis/incidents/{id}` mit Schritten, Verbindungen und Anomalien |
 | `GET` | `/analysis/anomalies` | Anomalien im Zeitraum |
 | `GET` | `/analysis/graph` | Knoten & Kanten für den Abhängigkeitsgraph |
 | `GET` | `/trace/{key}` | Alle Events einer Kette (`job_id`, `trace_id`, Objekt-ID) |

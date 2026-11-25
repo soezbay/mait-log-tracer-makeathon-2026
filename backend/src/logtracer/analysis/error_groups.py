@@ -1,7 +1,16 @@
-"""Classify log messages by severity."""
+"""Classify log messages by severity and group the problem events."""
+
+import duckdb
+
+from logtracer.analysis.problems import atomic, collect_problems
 
 ERROR_LEVELS = {"ERROR", "FATAL", "CRITICAL"}
 WARNING_LEVELS = {"WARN", "WARNING"}
+
+# A group ends when its message is silent for this long on its server and component.
+GROUP_GAP = "INTERVAL 2 HOUR"
+SAMPLES = 10
+RECOVERED = r"\b(recovered|retry (completed|succeeded|successful)|completed successfully)\b"
 
 
 def classify_event(level, message):
@@ -33,123 +42,51 @@ def classify_event(level, message):
     return "unknown"
 
 
+def build_error_groups(con: duckdb.DuckDBPyConnection) -> dict:
+    """Rebuild `error_groups` and `group_members` from the problem events.
 
-def build_error_groups(con):
-    """Group warning and error events in DuckDB."""
+    A group is one message on one server and component without a long pause. Its ID is the ID
+    of its first event, so it stays the same when the analysis runs again.
 
-    rows = con.execute("""
-        SELECT
-            id,
-            template_id,
-            host,
-            component,
-            level,
-            ts_utc
-        FROM events
-        WHERE UPPER(TRIM(level)) IN (
-            'WARN', 'WARNING', 'ERROR',
-            'FATAL', 'CRITICAL'
+    Status: recovered (the message says so), failed (ERROR or FATAL), otherwise unknown.
+    """
+    events = collect_problems(con)
+    con.execute(
+        f"""
+        CREATE OR REPLACE TEMP TABLE grouped_events AS
+        WITH marked AS (
+            SELECT *, ts_utc - lag(ts_utc) OVER w > {GROUP_GAP} AS after_pause
+            FROM problem_events
+            WINDOW w AS (PARTITION BY message_key, host, component ORDER BY ts_utc, id)
+        ), numbered AS (
+            SELECT *, count(*) FILTER (WHERE after_pause) OVER w AS part
+            FROM marked
+            WINDOW w AS (PARTITION BY message_key, host, component ORDER BY ts_utc, id)
         )
-        AND duplicate_of IS NULL
-        ORDER BY ts_utc, id
-    """).fetchall()
-
-    groups = {}
-
-    for event_id, template_id, host, component, level, timestamp in rows:
-
-        key = (
-            template_id,
-            host or "unknown",
-            component or "unknown"
-        )
-
-        if key not in groups:
-            groups[key] = {
-                "level": level.upper(),
-                "count": 0,
-                "timestamps": [],
-                "event_ids": []
-            }
-
-        group = groups[key]
-        group["count"] += 1
-        group["event_ids"].append(event_id)
-
-        if timestamp is not None:
-            group["timestamps"].append(timestamp)
-
-        severity = {
-            "WARN": 1,
-            "WARNING": 1,
-            "ERROR": 2,
-            "FATAL": 3,
-            "CRITICAL": 3
-        }
-
-        if severity.get(level.upper(), 0) > severity.get(
-            group["level"], 0
-        ):
-            group["level"] = level.upper()
-
-    # Only rebuild P2 grouping tables.
-    # Use an isolated database during testing.
-    con.execute("BEGIN TRANSACTION")
-
-    try:
+        SELECT *, first_value(id) OVER (
+            PARTITION BY message_key, host, component, part ORDER BY ts_utc, id
+        ) AS group_id
+        FROM numbered
+        """
+    )
+    with atomic(con):
         con.execute("DELETE FROM group_members")
         con.execute("DELETE FROM error_groups")
-
-        for group_id, (key, group) in enumerate(
-            groups.items(), start=1
-        ):
-            template_id, host, component = key
-            times = group["timestamps"]
-
-            con.execute("""
-                INSERT INTO error_groups (
-                    group_id,
-                    template_id,
-                    host,
-                    component,
-                    level,
-                    count,
-                    first_ts,
-                    last_ts,
-                    status,
-                    sample_event_ids
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, [
-                group_id,
-                template_id,
-                host,
-                component,
-                group["level"],
-                group["count"],
-                min(times) if times else None,
-                max(times) if times else None,
-                "unknown",
-                group["event_ids"][:10]
-            ])
-
-            con.executemany("""
-                INSERT INTO group_members (
-                    group_id, event_pk
-                )
-                VALUES (?, ?)
-            """, [
-                (group_id, event_id)
-                for event_id in group["event_ids"]
-            ])
-
-        con.execute("COMMIT")
-
-    except Exception:
-        con.execute("ROLLBACK")
-        raise
-
-    return {
-        "events_processed": len(rows),
-        "groups_created": len(groups)
-    }
+        con.execute("INSERT INTO group_members SELECT group_id, id FROM grouped_events")
+        con.execute(
+            f"""
+            INSERT INTO error_groups
+            SELECT group_id, mode(template_id), coalesce(any_value(host), 'unknown'),
+                   coalesce(any_value(component), 'unknown'),
+                   arg_max(level, CASE level WHEN 'FATAL' THEN 3 WHEN 'ERROR' THEN 2 ELSE 1 END),
+                   count(*), min(ts_utc), max(ts_utc),
+                   CASE WHEN bool_and(regexp_matches(message, ?, 'i')) THEN 'recovered'
+                        WHEN bool_or(level IN ('ERROR', 'FATAL')) THEN 'failed'
+                        ELSE 'unknown' END,
+                   list(id ORDER BY ts_utc, id)[1:{SAMPLES}]
+            FROM grouped_events GROUP BY group_id
+            """,
+            [RECOVERED],
+        )
+    groups = con.execute("SELECT count(*) FROM error_groups").fetchone()[0]
+    return {"events_processed": events, "groups_created": groups}

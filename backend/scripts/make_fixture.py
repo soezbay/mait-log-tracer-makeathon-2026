@@ -14,6 +14,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
+from logtracer.analysis.pipeline import run_analysis
 from logtracer.core.config import get_settings
 from logtracer.core.logpaket import ensure_from_settings
 from logtracer.ingest.full_ingest import full_ingest
@@ -71,12 +72,14 @@ def main() -> None:
         init_schema(con)
         result = full_ingest(con, tmp_root, default_tz=settings.default_timezone)
         summary = events_summary(con)
+        analysis = run_analysis(con)
         con.close()
 
     print(f"Fixture written to {out}")
     print(f"  files: {result.files}, events: {result.events}, "
           f"duplicates: {result.duplicate_events}, elapsed: {result.elapsed_s} s")
     print(f"  levels: {summary['levels']}")
+    print(f"  incidents: {analysis.counts['incidents_created']}")
 
 
 if __name__ == "__main__":

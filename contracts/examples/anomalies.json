@@ -1,0 +1,39 @@
+{
+  "items": [
+    {
+      "anomaly_id": 21,
+      "host": "mait_linux1_teamcenter_app",
+      "component": "teamcenter/workflow",
+      "kind": "rate_spike",
+      "window_start": "2026-11-24T10:10:00Z",
+      "window_end": "2026-11-24T10:20:00Z",
+      "score": 2.74,
+      "details": {
+        "observed_errors": 50,
+        "baseline_average": 0.69,
+        "threshold": 18.25,
+        "window_minutes": 10,
+        "baseline_type": "previous_24_hours"
+      }
+    },
+    {
+      "anomaly_id": 20,
+      "host": "mait_win03_cad_converter",
+      "component": "nx/batch",
+      "kind": "rate_spike",
+      "window_start": "2026-11-24T09:40:00Z",
+      "window_end": "2026-11-24T09:50:00Z",
+      "score": 10.0,
+      "details": {
+        "observed_errors": 50,
+        "baseline_average": 0,
+        "threshold": 5,
+        "window_minutes": 10,
+        "baseline_type": "previous_24_hours"
+      }
+    }
+  ],
+  "total": 21,
+  "limit": 2,
+  "offset": 0
+}

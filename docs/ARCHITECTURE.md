@@ -177,6 +177,15 @@ Thin layer: accepts requests, validates them with Pydantic and calls services. N
 | `correlation.py` | links groups across servers: hard (same `trace_id`, `job_id` within a time window, object ID, `INC-xx`) and soft (temporal proximity, ordering, `dependency=<host>`). Result: causal chain with confidence |
 | `graph.py` | builds the server dependency graph and the causal chain as a directed graph using networkx |
 
+**How the analysis runs** (`analysis/pipeline.py`): after each ingest that changed something, and on start if it has never run (`AUTO_ANALYSIS`), in the ingest thread, so there is one writer. All tables are rebuilt in one transaction (about 1 s on 1.67 M events).
+1. `clock.py`: events that declare their own clock error (`clock_offset_seconds`) are moved, only these.
+2. `templates.py`: Drain3 on distinct messages with masked numbers, written in bulk.
+3. `problems.py`: a message is a problem only if at least 10 % of its lines are WARN or worse. This removes harmless messages such as "Job heartbeat".
+4. `error_groups.py`: same message, server and component; a pause of 2 h starts a new group. The group ID is the ID of its first event (stable).
+5. `correlation.py`: one link per pair of groups that share a trace or job ID within 5 min (hard); groups without any ID are linked to the next one within 15 s (soft).
+6. `incidents.py`: connected groups. Trigger = the server named as `dependency=`, else the earliest group. Successful retries alone are no incident.
+7. `anomalies.py`: real errors per 10 min against the 24 h before, spikes in a row are one anomaly.
+
 ### 3.5 `assistant/`: AI assistant
 
 | Component | What it does |
@@ -230,7 +239,7 @@ frontend/src/
 |---|---|---|
 | **Overview** | tiles: servers, events, ERRORs, open error groups, ingest status; list of incidents (linked error groups) and abnormal servers | `/api/stats`, `/api/analysis/incidents`, `/api/analysis/groups` |
 | **Timeline** | one lane per server, error rate + anomaly markers, zoom; click opens the events in that range | `/api/analysis/timeseries`, `/api/events` |
-| **Error groups** | table: template, server, count, time range, status (recovered/failed), linked groups | `/api/analysis/groups` |
+| **Incidents** | list of connected problems (time, trigger, servers, jobs, status); detail: causal chain with log lines, small graph per incident, "explain with the assistant". Events and anomalies link to it | `/api/analysis/incidents`, `/api/analysis/anomalies` |
 | **Dependencies** | server graph; edges from `dependency=` and correlations; causal chain highlighted | `/api/analysis/graph` |
 | **Assistant (chat)** | ask a question, intermediate steps ("searching teamcenter_db…"), structured answer with evidence, uncertainty, verification steps; suggested questions from the logs and the opened event or job, recent questions and favorites (stored in the browser) | `/api/chat` (SSE), `/api/suggestions` |
 | **Quality & cost** | hit rate on test questions, tokens and € per question, "everything into the LLM" vs. "tools" | `/api/eval/*` |
@@ -263,12 +272,13 @@ Base: `http://localhost:8000/api`, OpenAPI at `/docs`. JSON, times always ISO-86
 | `GET` | `/events` | search: `server, component, level, from, to, q, job_id, trace_id, page` |
 | `GET` | `/events/{id}` | single event with all fields |
 | `GET` | `/events/{id}/context?n=10` | original lines around the event |
-| `GET` | `/analysis/timeseries` | events/errors per server and time window |
-| `GET` | `/analysis/groups` | error groups with status and links |
-| `GET` | `/analysis/incidents` | incidents: correlated error groups across servers with time range and status |
-| `GET` | `/analysis/anomalies` | anomalies in a time range |
-| `GET` | `/analysis/graph` | nodes & edges for the dependency graph |
-| `GET` | `/trace/{key}` | all events of a chain (`job_id`, `trace_id`, object ID) |
+| `GET` | `/analysis/status` | state of the last analysis and rows per table; `POST /analysis/run` starts one (`202`, `409` if busy) |
+| `GET` | `/analysis/timeseries` | events/errors per server and time window (planned) |
+| `GET` | `/analysis/groups` | error groups (`id, label, status, event_ids`, …), paginated |
+| `GET` | `/analysis/incidents` | incidents, newest first: `from, to, server, status, q, event_id`; `/analysis/incidents/{id}` with steps, links and anomalies |
+| `GET` | `/analysis/anomalies` | anomalies: `from, to, server` |
+| `GET` | `/analysis/graph` | nodes & edges; with `incident_id` only that incident |
+| `GET` | `/trace/{key}` | all events of a chain (`trace_id`, else `job_id`) |
 | `GET` | `/suggestions?lang=en\|de` | suggested questions for the assistant, derived from the logs by SQL (no LLM call); with `event_id` questions about the opened event |
 | `POST` | `/chat` | ask a question. Answer as **SSE**: `step` (tool call), `token` (text), `answer` (structured), `done`. The frontend reads this stream with `fetch` (e.g. `fetch-event-stream`), because `EventSource` cannot send POST requests |
 | `GET` | `/chat/{conversation_id}` | history |

@@ -419,7 +419,8 @@ class LogStore:
             "COALESCE((SELECT list(m.event_pk) FROM (SELECT event_pk FROM group_members WHERE group_id = g.group_id "
             "ORDER BY event_pk LIMIT 3) m), list_slice(g.sample_event_ids, 1, 3)) AS sample_event_ids "
             f"FROM error_groups g {self._TEMPLATE_JOIN} WHERE {clause} "
-            f"ORDER BY g.count DESC, g.first_ts LIMIT {_clip(limit)}",
+            # recovered problems are harmless: last, whatever their number
+            f"ORDER BY coalesce(g.status = 'recovered', FALSE), g.count DESC, g.first_ts LIMIT {_clip(limit)}",
             params,
         )
         for r in rows:
@@ -475,10 +476,32 @@ class LogStore:
             f"FROM incidents WHERE {clause} ORDER BY first_ts LIMIT {_clip(limit)}",
             params,
         )
+        steps = self._incident_steps([r["incident_id"] for r in rows])
         for r in rows:
             r["first_ts"], r["last_ts"] = iso(r["first_ts"]), iso(r["last_ts"])
             r["title"] = _short(r["title"])
+            mine = steps.get(r["incident_id"], [])
+            r["steps"] = [s["text"] for s in mine]
+            r["sample_event_ids"] = [s["event_id"] for s in mine]  # one per step, to cite
         return {"total_matches": total, "returned": len(rows), "truncated": total > len(rows), "rows": rows}
+
+    def _incident_steps(self, incident_ids: list[int], per_incident: int = 4) -> dict[int, list[dict[str, Any]]]:
+        """The first groups of each incident in time order, each with one event to cite."""
+        rows = self._rows(
+            "SELECT i.incident_id, g.host, g.component, g.level, g.count, e.id AS event_id, e.ts_utc, e.message "
+            "FROM incidents i JOIN error_groups g ON list_contains(i.group_ids, g.group_id) "
+            "JOIN events e ON e.id = COALESCE(g.sample_event_ids[1], "
+            "(SELECT min(m.event_pk) FROM group_members m WHERE m.group_id = g.group_id)) "
+            "WHERE list_contains(?, i.incident_id) "
+            "QUALIFY row_number() OVER (PARTITION BY i.incident_id ORDER BY g.first_ts, g.group_id) <= ? "
+            "ORDER BY i.incident_id, g.first_ts, g.group_id",
+            [incident_ids, per_incident],
+        )
+        steps: dict[int, list[dict[str, Any]]] = {}
+        for r in rows:
+            text = f"{iso(r['ts_utc'])} {r['host']} {r['component']} {r['level']} x{r['count']}: {_short(r['message'], 120)}"
+            steps.setdefault(r["incident_id"], []).append({"event_id": r["event_id"], "text": text})
+        return steps
 
     def correlations(self, group_id: int) -> dict[str, Any]:
         group = self._rows(

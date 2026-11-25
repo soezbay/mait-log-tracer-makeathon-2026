@@ -41,7 +41,8 @@ TOOL_SPECS: list[ToolSpec] = [
     ),
     _spec(
         "get_incidents",
-        "Incidents: error groups from several servers linked as one problem.",
+        "Incidents: error groups from several servers linked as one problem. steps are in time order; "
+        "cite sample_event_ids (one per step), never incident_id or group_ids.",
         {"time_from": _TIME, "time_to": _TIME, "limit": _LIMIT},
     ),
     _spec(

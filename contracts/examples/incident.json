@@ -1,0 +1,156 @@
+{
+  "incident_id": 1276026,
+  "title": "Result upload denied for DEMO-SERVICE; permission=WRITE_DATASET",
+  "first_ts": "2026-11-24T08:30:04Z",
+  "last_ts": "2026-11-24T08:30:12Z",
+  "status": "failed",
+  "hosts": [
+    "mait_linux1_teamcenter_app",
+    "mait_win04_plm_sync"
+  ],
+  "confidence": 0.7,
+  "group_count": 3,
+  "event_count": 101,
+  "root_host": "mait_win04_plm_sync",
+  "root_component": "fms/fcc",
+  "root_level": "ERROR",
+  "root_event_id": 1276026,
+  "jobs": [
+    {
+      "job_id": "JOB-2003",
+      "runs": 50
+    }
+  ],
+  "steps": [
+    {
+      "group_id": 1276026,
+      "is_root": true,
+      "host": "mait_win04_plm_sync",
+      "component": "fms/fcc",
+      "level": "ERROR",
+      "status": "failed",
+      "count": 50,
+      "first_ts": "2026-11-24T08:30:04Z",
+      "last_ts": "2026-11-24T08:30:04Z",
+      "event_id": 1276026,
+      "event_ids": [
+        1276026,
+        1276247,
+        1276468
+      ],
+      "message": "Result upload denied for DEMO-SERVICE; permission=WRITE_DATASET",
+      "job_id": "JOB-2003",
+      "trace_id": null,
+      "clock_offset_s": 0.0,
+      "source_path": "mait_win04_plm_sync/logs/fms/fcc/creative_2026-11-24.jsonl.gz",
+      "line_start": 29,
+      "line_end": 29
+    },
+    {
+      "group_id": 129110,
+      "is_root": false,
+      "host": "mait_linux1_teamcenter_app",
+      "component": "fms/fsc",
+      "level": "ERROR",
+      "status": "failed",
+      "count": 1,
+      "first_ts": "2026-11-24T08:30:08Z",
+      "last_ts": "2026-11-24T08:30:08Z",
+      "event_id": 129110,
+      "event_ids": [
+        129110
+      ],
+      "message": "Upload rejected; access policy lacks target volume write permission",
+      "job_id": "JOB-2003",
+      "trace_id": null,
+      "clock_offset_s": 0.0,
+      "source_path": "mait_linux1_teamcenter_app/logs/fms/fsc/creative_2026-11-24.txt",
+      "line_start": 29,
+      "line_end": 29
+    },
+    {
+      "group_id": 205678,
+      "is_root": false,
+      "host": "mait_linux1_teamcenter_app",
+      "component": "teamcenter/workflow",
+      "level": "ERROR",
+      "status": "failed",
+      "count": 50,
+      "first_ts": "2026-11-24T08:30:12Z",
+      "last_ts": "2026-11-24T08:30:12Z",
+      "event_id": 205678,
+      "event_ids": [
+        205678,
+        205905,
+        206132
+      ],
+      "message": "Publish task failed: no registered result; converter status=SUCCESS",
+      "job_id": "JOB-2003",
+      "trace_id": null,
+      "clock_offset_s": 0.0,
+      "source_path": "mait_linux1_teamcenter_app/logs/teamcenter/workflow/creative_2026-11-24.jsonl",
+      "line_start": 30,
+      "line_end": 30
+    }
+  ],
+  "links": [
+    {
+      "group_a": 129110,
+      "group_b": 205678,
+      "kind": "hard",
+      "link_key": "job_id=JOB-2003",
+      "lag_s": 4.0,
+      "confidence": 0.7
+    },
+    {
+      "group_a": 1276026,
+      "group_b": 129110,
+      "kind": "hard",
+      "link_key": "job_id=JOB-2003",
+      "lag_s": 4.0,
+      "confidence": 0.7
+    },
+    {
+      "group_a": 1276026,
+      "group_b": 205678,
+      "kind": "hard",
+      "link_key": "job_id=JOB-2003",
+      "lag_s": 8.0,
+      "confidence": 0.7
+    }
+  ],
+  "anomalies": [
+    {
+      "anomaly_id": 17,
+      "host": "mait_linux1_teamcenter_app",
+      "component": "teamcenter/workflow",
+      "kind": "rate_spike",
+      "window_start": "2026-11-24T08:30:00Z",
+      "window_end": "2026-11-24T09:10:00Z",
+      "score": 10.0,
+      "details": {
+        "observed_errors": 100,
+        "baseline_average": 0,
+        "threshold": 5,
+        "window_minutes": 10,
+        "baseline_type": "previous_24_hours"
+      }
+    },
+    {
+      "anomaly_id": 18,
+      "host": "mait_win04_plm_sync",
+      "component": "fms/fcc",
+      "kind": "rate_spike",
+      "window_start": "2026-11-24T08:30:00Z",
+      "window_end": "2026-11-24T08:40:00Z",
+      "score": 10.0,
+      "details": {
+        "observed_errors": 50,
+        "baseline_average": 0,
+        "threshold": 5,
+        "window_minutes": 10,
+        "baseline_type": "previous_24_hours"
+      }
+    }
+  ]
+}

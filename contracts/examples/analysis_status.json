@@ -1,0 +1,14 @@
+{
+  "running": false,
+  "started_at": "2026-11-25T13:03:39.518Z",
+  "finished_at": "2026-11-25T13:03:40.295Z",
+  "elapsed_s": 0.78,
+  "error": null,
+  "counts": {
+    "events": 1673792,
+    "error_groups": 379,
+    "anomalies": 21,
+    "correlations": 126,
+    "incidents": 39
+  }
+}

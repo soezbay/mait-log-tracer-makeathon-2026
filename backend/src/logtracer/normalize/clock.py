@@ -85,3 +85,29 @@ def apply_clock_correction(con, host, offset_seconds):
         raise
 
     return {"events_updated": updated}
+
+
+def apply_declared_offsets(con):
+    """
+    Correct events that state their own clock error (attrs.clock_offset_seconds).
+
+    Only these events are moved, not everything from the same server: the offset is known
+    for them alone. Events that are already corrected stay as they are.
+    """
+
+    updated = con.execute(
+        """
+        UPDATE events
+        SET ts_utc = ts_utc - to_microseconds(CAST(o.offset_s * 1000000 AS BIGINT)),
+            clock_offset_s = o.offset_s
+        FROM (
+            SELECT id, TRY_CAST(attrs ->> 'clock_offset_seconds' AS DOUBLE) AS offset_s
+            FROM events
+            WHERE CAST(attrs AS VARCHAR) LIKE '%clock_offset_seconds%'
+        ) o
+        WHERE events.id = o.id AND o.offset_s <> 0 AND events.clock_offset_s = 0
+          AND events.ts_utc IS NOT NULL
+        """
+    ).fetchone()[0]
+
+    return {"clock_corrected": updated}

@@ -124,7 +124,9 @@ def test_context_cross_server_window(box):
 def test_stats_incidents_anomalies(box):
     s = box.execute("get_stats", {"time_from": "2026-11-24"})
     assert s["by_host"][0]["errors"] >= 1
-    assert box.execute("get_incidents", {})["returned"] == 1
+    incidents = box.execute("get_incidents", {})
+    assert incidents["returned"] == 1
+    assert 1002 in box.seen_event_ids  # incidents come with events the model may cite
     assert box.execute("get_anomalies", {"server": "linux1"})["returned"] == 1
 
 

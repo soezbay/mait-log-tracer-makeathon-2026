@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     ingest_workers: int = 1  # >1: parse files in parallel processes, one writer stays
     default_timezone: str = "UTC"  # for timestamps without a time zone (import_*.log)
 
+    # --- Analysis (P2) ---------------------------------------------------------------------
+    auto_analysis: bool = True  # run the analysis after each ingest and on start if needed
+
     # --- Continuous ingest (P1, day 3) -----------------------------------------------------
     watch_enabled: bool = False
     watch_debounce_s: float = 1.5

@@ -42,7 +42,7 @@ data/                      derived DuckDB files and the extraction marker, git-i
 | Role | Person | Owns |
 |---|---|---|
 | P1 ingest & storage | Safak | `ingest/`, `normalize/` (except `clock.py`), `storage/`, `api/health.py`, `api/ingest.py`, `api/events.py`, `api/sources.py`, `api/schemas.py`, `api/deps.py`, `api/suggestions.py`, `services/event_service.py`, `services/ingest_service.py`, `services/suggestion_service.py`, `scripts/ingest.py`, `scripts/make_fixture.py` |
-| P2 analysis & correlation | Harsh | `analysis/`, `normalize/clock.py`, `api/analysis.py` |
+| P2 analysis & correlation | Harsh | `analysis/`, `normalize/clock.py`, `api/analysis.py`, `api/trace.py`, `services/analysis_service.py`, `storage/repositories/analysis.py` |
 | P3 AI assistant | Tarun | `assistant/`, `api/chat.py` |
 | P4 frontend | Adnan | `frontend/` |
 | P5 data, evaluation & pitch | open | `eval/`, `scripts/evaluate.py`, `api/eval.py`, `docs/`, `README.md` |

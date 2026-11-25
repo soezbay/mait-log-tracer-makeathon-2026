@@ -2,10 +2,12 @@
 
 Only one ingest runs at a time. Changes reported by the watcher while an ingest runs are
 queued and processed right after it. All writes go through a cursor of the app's single
-DuckDB connection (DuckDB allows only one writing process).
+DuckDB connection (DuckDB allows only one writing process). After an ingest that changed
+something the analysis (P2) runs in the same thread, so the two never write at the same time.
 """
 
 import asyncio
+import logging
 import threading
 import time
 from collections.abc import Iterable
@@ -15,9 +17,12 @@ from typing import Any
 
 import duckdb
 
+from logtracer.analysis import pipeline
 from logtracer.core.config import Settings
 from logtracer.ingest.full_ingest import full_ingest
 from logtracer.ingest.incremental import incremental_ingest
+
+log = logging.getLogger("logtracer.ingest")
 
 MODES = ("full", "incremental")
 
@@ -39,6 +44,10 @@ class IngestManager:
         self.state: dict[str, Any] = {
             "running": False, "mode": None, "started_at": None, "finished_at": None,
             "last_result": None, "error": None,
+        }
+        self.analysis: dict[str, Any] = {
+            "running": False, "started_at": None, "finished_at": None, "elapsed_s": None,
+            "counts": None, "error": None,
         }
 
     # --- subscribers (SSE) -----------------------------------------------------------------
@@ -83,6 +92,24 @@ class IngestManager:
         )
         self._thread.start()
         return True
+
+    def start_analysis(self, only_if_needed: bool = False) -> bool:
+        """Run only the analysis in the background. False if busy or not needed."""
+        with self._lock:
+            if self.state["running"]:
+                return False
+            if only_if_needed:
+                cursor = self.con.cursor()
+                try:
+                    if not pipeline.is_needed(cursor):
+                        return False
+                finally:
+                    cursor.close()
+            self.state["running"] = True
+            self._thread = threading.Thread(target=self._run_analysis, name="analysis",
+                                            daemon=True)
+            self._thread.start()
+            return True
 
     def on_files_changed(self, paths: list[Path]) -> None:
         """Watcher callback: ingest the changed files now, or right after the running ingest."""
@@ -173,15 +200,43 @@ class IngestManager:
                            "duplicates": res.duplicate_events, "elapsed_s": res.elapsed_s}
             self.state["last_result"] = summary
             self.publish("done", summary)
+            if self.settings.auto_analysis:
+                self._analyze(cursor)
         except Exception as exc:  # noqa: BLE001  report, never kill the API
             self.state["error"] = f"{type(exc).__name__}: {exc}"
             self.publish("error", {"mode": mode, "error": self.state["error"]})
         finally:
             cursor.close()
-            with self._lock:
-                self.state["running"] = False
-                if not silent:
-                    self.state["finished_at"] = _now()
-                queued, self._queued_paths = sorted(self._queued_paths), set()
-                if queued:
-                    self._start_locked("incremental", queued, quiet=True)
+            self._release(finished=not silent)
+
+    def _release(self, finished: bool) -> None:
+        """End of a background run: free the manager and start what was queued meanwhile."""
+        with self._lock:
+            self.state["running"] = False
+            if finished:
+                self.state["finished_at"] = _now()
+            queued, self._queued_paths = sorted(self._queued_paths), set()
+            if queued:
+                self._start_locked("incremental", queued, quiet=True)
+
+    def _run_analysis(self) -> None:
+        cursor = self.con.cursor()
+        try:
+            self._analyze(cursor)
+        finally:
+            cursor.close()
+            self._release(finished=False)
+
+    def _analyze(self, cursor: duckdb.DuckDBPyConnection) -> None:
+        """Run the analysis. A failure is reported but never fails the ingest."""
+        self.analysis.update(running=True, started_at=_now(), error=None)
+        try:
+            result = pipeline.run_analysis(cursor)
+            self.analysis.update(elapsed_s=result.elapsed_s, counts=result.counts)
+            self.publish("analysis", {"elapsed_s": result.elapsed_s, **result.counts})
+        except Exception as exc:
+            log.exception("analysis failed")
+            self.analysis["error"] = f"{type(exc).__name__}: {exc}"
+            self.publish("error", {"mode": "analysis", "error": self.analysis["error"]})
+        finally:
+            self.analysis.update(running=False, finished_at=_now())

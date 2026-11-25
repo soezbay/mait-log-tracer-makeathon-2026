@@ -5,12 +5,14 @@ Usage (from backend/, with the API server stopped: only one process may write th
     python -m uv run python scripts/ingest.py --scan-only        # files, duplicates, encodings
     python -m uv run python scripts/ingest.py --parse-dry-run    # + formats and parser stats
 
-The full ingest rebuilds `servers`, `sources` and `events`; the log files are only read.
+The full ingest rebuilds `servers`, `sources` and `events` and then runs the analysis (P2); the
+log files are only read.
 """
 
 import argparse
 import json
 
+from logtracer.analysis.pipeline import run_analysis
 from logtracer.core.config import get_settings
 from logtracer.core.logpaket import ensure_from_settings
 from logtracer.ingest.full_ingest import full_ingest
@@ -69,6 +71,8 @@ def main() -> None:
             "elapsed_s": result.elapsed_s,
             **events_summary(con),
         })
+        analysis = run_analysis(con)
+        _print("analysis", {"elapsed_s": analysis.elapsed_s, **analysis.counts})
     con.close()
 
 

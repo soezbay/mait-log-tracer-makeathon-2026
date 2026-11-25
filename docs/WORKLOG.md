@@ -511,3 +511,21 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **UI proposal:** replace the empty "Error groups" page by "Incidents" (39 entries instead of a 28,773-edge graph): list with time, servers, title = message of the first error; detail = causal chain with log lines, re-run count and "Ask the assistant"; small graph per incident only. Markers for anomalies in the timeline, "part of incident n" in the event drawer, newest incidents on the start page.
 - **Why:** Safak asked whether P2 works and how to bring it into the UI.
 - **Open:** P2 fixes 1–5, P1 starts the analysis after each ingest in the backend process, API for incidents with chain, then P4 view. Until then do not fill the real tables: the assistant's tools read them, and the giant incidents would mislead it.
+
+### P2 analysis fixed, automatic and visible as incidents
+- **What:**
+  - **Analysis:** rewritten steps with the same names (`build_*`): noise filter, groups per message/server/component with a 2 h gap and stable IDs, one link per pair, incidents with a trigger and a readable title, anomalies against the previous 24 h, clock correction only for events that declare an offset. `analysis/pipeline.py` runs everything in one transaction.
+  - **Automatic:** the ingest manager runs it after each ingest that changed something and on start if it has never run (`AUTO_ANALYSIS`); `scripts/ingest.py` and `scripts/make_fixture.py` run it too.
+  - **API:** `/api/analysis/incidents`, `/incidents/{id}`, `/groups`, `/anomalies`, `/graph?incident_id=`, `/status`, `/run` and `/api/trace/{key}`. SQL moved to `storage/repositories/analysis.py`.
+  - **Assistant:** incidents come with steps and one citable event per step.
+- **Why:** the review showed giant incidents, a write that takes half an hour, stale links and empty tables; the frontend called routes that did not exist. Filling the tables made incident questions fail in the assistant, because the model had no event it was allowed to cite.
+- **Result on the real data:** 1 s; 379 groups, 126 links (before: 28,773), 39 incidents (largest 27 groups: the `import_*` cascade of 6 Oct, linked by time only), 21 anomalies. All 10 `INC-nn` are separate with the server named in `dependency=` as trigger. 25 scenario jobs become 26 incidents; `JOB-2001` now starts with the clock problem. A second run gives identical tables.
+- **Checks:** 168 tests pass (`tests/test_analysis.py` replaces the P2 database tests and uses the real schema), `ruff check` clean. All endpoints answer in under 45 ms on the real data.
+- **Open:** `/analysis/timeseries`; `INC-05` and `INC-08` have no anomaly; the trigger is a rule-based hypothesis; status is based on message texts.
+
+### Incidents view, full-window event details, compact layout
+- **What:** "Error groups" is now **Incidents**. Event details open in a dialog that uses almost the whole window: chain across servers on the left, analysis and original lines in the middle, incident, fields and questions on the right, arrows for the previous/next entry. Page titles are one line with an info icon. The top bar is gone; data source and backend status moved into the sidebar.
+- **Why:** Safak asked for it: more space, better use, the analysis visible.
+- **Where:** `frontend/src/incidents.tsx`, `event-details.tsx`, `data.tsx`, `ui.tsx`, `layout.css`, `main.tsx`, `i18n.tsx`, `api.ts`, `IncidentDetail.tsx`
+- **Checks:** `npm run build` succeeds, 42 jsdom checks with the real app against the running backend (chat mocked), looked at in the browser at 1440 px and 375 px.
+- **Open (P4):** review; `codex/mait-brand-refresh` rewrites `style.css`, so check `layout.css` when merging it.

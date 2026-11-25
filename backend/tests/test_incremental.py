@@ -160,7 +160,9 @@ def test_manager_runs_and_publishes(env):
     kinds = [e[0] for e in events]
     assert kinds[0] == "started" and "new_file" in kinds and kinds[-1] == "done"
     assert events[-1][1]["events_written"] == 1
+    manager.wait(timeout=10)  # the analysis runs after "done"
     assert manager.state["running"] is False
+    assert manager.analysis["error"] is None and manager.analysis["counts"] is not None
 
 
 def test_rescan_picks_up_changes_without_watcher_and_stays_quiet(env):
@@ -199,7 +201,8 @@ def test_ingest_endpoints(tmp_path, env):
     init_schema(con)
     full_ingest(con, root)
     con.close()
-    settings = Settings(_env_file=None, auto_extract=False, log_root=root, db_path=db, watch_enabled=False)
+    settings = Settings(_env_file=None, auto_extract=False, log_root=root, db_path=db, watch_enabled=False,
+                        auto_analysis=False)
     with TestClient(create_app(settings)) as client:
         assert client.get("/api/ingest/status").json()["running"] is False
         (comp / "added.log").write_text(kv(30) + kv(31), encoding="utf-8")
