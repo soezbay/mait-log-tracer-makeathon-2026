@@ -345,6 +345,29 @@ def test_groq_malformed_tool_call_is_asked_again_not_fatal():
     assert client.calls[1]["messages"][-1] == {"role": "user", "content": "Q\n\nUse the tools."}
 
 
+def test_groq_unparsable_output_is_asked_again_not_fatal():
+    from logtracer.assistant.providers.groq import GroqProvider
+
+    parse_failed = _GroqError(
+        400, message="Parsing failed. The model generated output that could not be parsed. "
+                     "See 'failed_generation' for more details.")
+    parse_failed.body["error"]["failed_generation"] = "<|channel|>..."
+    client = FakeGroq(parse_failed, groq_message("ok"))
+    c = GroqProvider(None, "m", client=client, sleep=lambda s: None).start("S", ALL_TOOLS, "Q")
+    r = c.generate()
+    assert r.tool_calls == [] and r.text == ""  # no error: the agent nudges the model
+    assert c.generate().text == "ok"
+
+
+def test_groq_real_bad_requests_still_fail_with_a_clear_message():
+    from logtracer.assistant.providers.groq import GroqProvider
+
+    bad = _GroqError(400, code="invalid_request_error", message="model does not support tools")
+    c = GroqProvider(None, "m", client=FakeGroq(bad), sleep=lambda s: None).start("S", ALL_TOOLS, "Q")
+    with pytest.raises(ProviderError, match="does not support tools"):
+        c.generate()
+
+
 def test_groq_provider_from_settings():
     from logtracer.assistant.config import Settings
     from logtracer.assistant.providers import create_provider
