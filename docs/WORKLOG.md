@@ -160,6 +160,70 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `backend/src/logtracer/api/`, `backend/src/logtracer/services/`, `backend/src/logtracer/main.py`, `backend/scripts/make_fixture.py`, `contracts/examples/`; branch `p1/ingest`, merged into `develop`.
 - **Open:** day 3: checkpoints, watcher, `POST /api/ingest` + `GET /api/ingest/progress` (SSE). Demo docs still show the `JOB-2003` chain with 3 steps.
 
+### Continuous ingest: checkpoints, watcher and /ingest API (P1, MAIT step 3)
+- **What:**
+  - `ingest/incremental.py`: per file the checkpoint decides: unknown → all events; grown → only entries after `checkpoint_line` (the whole file is parsed again so CSV headers and multi-line entries stay correct); shrunk or previously a copy → its events are replaced; byte-identical to another file → duplicate; only touched → skipped. Event duplicates are flagged for the new ids only. Deleted files keep their events.
+  - `ingest/event_writer.py`: row building shared by full and incremental ingest.
+  - `services/ingest_service.py`: one ingest at a time in a background thread through a cursor of the single DuckDB connection; changes arriving during a run are queued; progress is pushed to SSE subscribers.
+  - `ingest/watcher.py`: watchdog observer with debounce. **Safety net** `WATCH_RESCAN_S` (default 10 s): a quiet size/mtime check of the whole package, because in the live test Windows delivered change notifications for shell appends late or not at all. Watcher and rescan runs stay silent when nothing changed.
+  - API: `POST /api/ingest` (`full` | `incremental`, 202 / 409), `GET /api/ingest/status`, `GET /api/ingest/progress` (SSE: `state`, `started`, `progress`, `new_file`, `done`, `error`).
+  - Contract examples `ingest_status.json` and `ingest_progress.sse.txt`; `AGENTS.md` ownership extended.
+- **Checks:** 51 tests pass (new file, append, CSV append keeps header mapping, rewrite, copy, cross-file duplicate, watcher, manager events, quiet rescan, endpoints), ruff clean. Live on a temporary copy of scenario files (original package untouched): new `.txt` and `.gz` files and four shell appends each became queryable in about 5 s; the SSE stream showed `new_file` and `done`; a line that the watcher had missed earlier was picked up by the rescan.
+- **Where:** `backend/src/logtracer/ingest/`, `backend/src/logtracer/services/ingest_service.py`, `backend/src/logtracer/api/ingest.py`, `backend/src/logtracer/main.py`, `backend/.env.example`, `contracts/examples/`; branch `p1/ingest`, merged into `develop`.
+- **Open:** for the pitch demo, copy new files into a watched folder (a copy of the package or a separate demo folder), never edit the original package.
+
+### Log package via Git LFS with download and extraction on start (P1)
+- **What:**
+  - `MAIT_Makeathon_Logpaket.zip` (83 MB, 13,836 files) is tracked with Git LFS (`.gitattributes`); the extracted folder stays git-ignored.
+  - `core/logpaket.py`, called on every program start (API lifespan, `scripts/ingest.py`, `scripts/make_fixture.py`):
+    - ZIP missing or only an LFS pointer → `git lfs pull --include <zip>` (`AUTO_DOWNLOAD`, uses the same Git login as push, so it works for a private repo).
+    - Marker `data/logpaket.extracted.json` matches the ZIP (size + mtime) → nothing to do.
+    - Otherwise → extract only missing or different files (`AUTO_EXTRACT`); existing files are never rewritten; entries with `..`, absolute paths or drive letters are rejected (zip slip).
+  - Settings `LOGPAKET_ZIP`, `AUTO_EXTRACT`, `AUTO_DOWNLOAD` in `config.py` and `.env.example`; `AGENTS.md` (layout, setup) and `backend/README.md` updated.
+- **Why:** Everyone gets the same log package with `git clone` and a program start, without putting 867 MB of files into normal Git history.
+- **Checks:** 60 tests pass (first extraction, fast second start, repair of a missing file without touching others, new ZIP version, LFS pointer, download then extract, failed download message, missing ZIP with existing folder, zip slip), ruff clean. Real ZIP: existing folder fully compared in 1.25 s, next start 0.00 s; fresh extraction of all 13,836 files in 50 s, content identical to the original.
+- **Where:** `.gitattributes`, `MAIT_Makeathon_Logpaket.zip`, `backend/src/logtracer/core/logpaket.py`, `backend/tests/test_logpaket.py`; branch `p1/ingest`.
+- **Open:** not pushed yet. The repo is still public, and an LFS object in a public repo can be downloaded by anyone. Push after the repo is private. Free GitHub LFS quota is about 1 GB storage and 1 GB download per month (≈ 12 clones of the ZIP).
+
+### Deferred decision: hosting of the log package
+- **What:** New section §17 "Deferred decisions" in `docs/plan.en.md` and `docs/plan.md` with D1: where the log package ZIP lives. Lists options A (whole repo private), B (separate private data repo), C (release asset in a private repo), D (cloud storage) with effort, a recommendation and the question to the organizers about redistribution.
+- **Why:** On GitHub, Git LFS files have the same visibility as the repo; they cannot be made private on their own. The team wants to decide later, so the LFS commit stays unpushed until then.
+- **Where:** `docs/plan.en.md` §17, `docs/plan.md` §17
+- **Open:** team decision; then push `87bfd44` (option A) or rebuild the download for the chosen option.
+
+### JOB-2003 demo chain corrected to 4 steps
+- **What:** Plan §7 (EN + DE) and the example assistant answer in `ARCHITECTURE.md`/`ARCHITEKTUR.md` §5 now show the full chain from the data: win03 `converter/nx_jt` SUCCESS 08:30:00 → win04 `fms/fcc` "Result upload denied for DEMO-SERVICE; permission=WRITE_DATASET" 08:30:04 → linux1 `fms/fsc` upload rejected 08:30:08 → linux1 `teamcenter/workflow` publish failed 08:30:12. The example answer got the extra step, evidence line (`mait_win04_plm_sync/logs/fms/fcc/creative_2026-11-24.jsonl.gz`, line 29), affected system and the service user in summary, uncertainty and verification steps.
+- **Why:** The docs showed only 3 steps on 2 servers; the ingest showed 4 steps on 3 servers. Pitch, assistant prompt tests and evaluation ground truth must match the data.
+- **Where:** `docs/plan.en.md`, `docs/plan.md`, `docs/ARCHITECTURE.md`, `docs/ARCHITEKTUR.md`
+- **Also:** Safak invited Harsh, Tarun and Adnan as GitHub collaborators.
+
+### Push incl. the log package ZIP; main updated
+- **What:** Pushed `p1/ingest` and `develop`. `main` had two pull requests the team merged directly into it (#1 P4 frontend integration, #2 P2 analysis integration); merged `origin/main` into `develop` (conflict only in `docs/AI_LOG.md`, both sides kept), then set `main` to `develop` and pushed both. This includes the Git LFS ZIP (`87bfd44`), uploaded to the repo while it is still public. Plan §17 D1 status updated.
+- **Why:** Safak decided to push everything now, knowing the repo is public; he owns `main` and asked for the merge.
+- **Open:** D1 (private repo or separate data repo) is still open; until the repo is private the ZIP can be downloaded by anyone.
+
+### Remove IDE settings from Git
+- **What:** `git rm --cached -r .idea/` (6 JetBrains files that came in with the merged PRs); `.gitignore` now ignores `.idea/`, `.vscode/` and `data/`.
+- **Why:** IDE settings are personal and cause needless conflicts; `data/` only holds derived files (DuckDB, extraction marker) that are rebuilt by script. Note: pulling this commit deletes the local `.idea/` folder once (Git removes files that a pulled commit stops tracking); JetBrains IDEs recreate it on the next start, and from then on it stays untracked.
+- **Where:** `.gitignore`
+
+### Decision: main stays the default branch
+- **What:** `main` remains the GitHub default branch (Safak). `AGENTS.md` §8 now says to set the base branch to `develop` when opening a pull request.
+- **Why:** PRs #1 and #2 went into `main` because GitHub targets the default branch; the rule makes the base choice explicit.
+- **Where:** `AGENTS.md` §8
+
+### Branch model: only main
+- **What:** Merged `develop` into `main` (contents were identical apart from one PR merge commit), then deleted `develop` locally and on GitHub. `AGENTS.md` §1, §8 and §10 now say: `main` is the only shared branch; small changes are committed on `main`, bigger ones on a short-lived `p<N>/<topic>` branch that is merged back into `main` the same day; `pytest` + `ruff check`, then `git pull --rebase` before every push; no force push.
+- **Why:** Safak's decision. Two long-lived branches caused PRs to land in the wrong one (#1, #2 into `main`, #4 `develop` into `main`) and extra merges.
+- **Where:** `AGENTS.md`
+- **Open:** teammates run `git switch main`, `git pull`, `git fetch --prune`; anyone with local work on `develop` merges it into `main` first. `frontend/README.md` (P4) still mentions `develop`.
+
+### One-command start for backend + frontend
+- **What:** `dev.cmd` in the repo root (calls `scripts/dev.ps1` with the execution policy bypassed). `.\dev` checks Python, uv and Node, creates `backend/.env` from the example if missing, runs `npm install --no-package-lock` on the first run, refuses to start if port 8000 or 5173 is busy, starts the backend, waits for `/api/health` (up to 5 min, first start may extract the log package), then starts Vite and opens the browser. Ctrl+C (or one side exiting) stops both process trees. Options `-NoBrowser`, `-Install`. `.gitattributes` keeps `*.cmd`/`*.ps1` in CRLF.
+- **Why:** Starting two servers in two terminals was error-prone for the team and for the demo.
+- **Where:** `dev.cmd`, `scripts/dev.ps1`, `.gitattributes`, `AGENTS.md` §3, §6
+- **Checks:** started twice from PowerShell: backend healthy, frontend 200, `/api/stats` through the Vite proxy returns the real numbers, no proxy errors with the new start order, both ports free after stopping.
+
 **Open (not done by Claude):** `plan.md`/`plan.en.md` were moved to `docs/` and `docs/todo/` was added to `.gitignore` locally; not committed yet. Links to `../plan*.md` in the architecture docs and the P1 TODO need updating after that move.
 
 ### Frontend API contract binding
@@ -259,3 +323,91 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `frontend/src/main.tsx`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
 - **Checks:** TypeScript `--noEmit` and Vite production build passed.
 - **Open:** -
+### AI assistant and /api/chat (P3, Tarun)
+- **What:**
+  - `assistant/`: provider interface with Gemini (`google-genai`) and Claude (`anthropic`), switch with `LLM_PROVIDER`; 8 SQL tools with `LIMIT` (`get_stats`, `get_incidents`, `get_error_groups`, `get_anomalies`, `search_events`, `trace`, `correlate`, `get_context`); system prompt; answer schema (`answer.py`, interface 3); tool-use loop (`agent.py`, max 8 rounds / 14 tool calls) that ends with `submit_answer`.
+  - Evidence check: every cited event id must exist and must have been returned by a tool in this conversation; `file`/`line`/`ts` always come from the database. Invalid answers are retried twice, then degraded to verified evidence with confidence <= 0.3.
+  - `api/chat.py`: `POST /api/chat` streams SSE with FastAPI's built-in `fastapi.sse` (`token`, `step`, `answer`, `done`, `error`); `GET /api/chat/{conversation_id}` returns the history. Registered in `main.py` (2 lines, shared file).
+  - All SQL in `assistant/data_access.py` follows `storage/schema.sql`; error group titles come from `templates.template`. Every LLM call is written to `llm_calls` with tokens, duration and cost in EUR (list prices in USD, converted with `EUR_PER_USD`, default 0.86).
+  - `assistant/config.py` reads `backend/.env` and resolves `DB_PATH` against `backend/`, same rules as `core/config.py`.
+  - `scripts/make_standin_db.py` builds a stand-in DB with the real schema from the log package until the full ingest exists; `scripts/ask.py` asks one question from the command line.
+  - New dependencies: `google-genai`, `anthropic` (pyproject.toml, uv.lock). `GEMINI_API_KEY` added to `.env.example`; Gemini added to `docs/ARCHITECTURE.md`. Contract examples: `chat_request.json`, `chat_stream.sse`, `chat_answer.json`, `chat_history.json`.
+- **Why:** P3 deliverable from plan.en.md §11: the assistant explains root causes as hypotheses with checked evidence, and the cost per question is measurable.
+- **Where:** `backend/src/logtracer/assistant/`, `backend/src/logtracer/api/chat.py`, `backend/src/logtracer/main.py`, `backend/scripts/`, `backend/tests/`, `contracts/examples/`.
+- **Checks:** 39 tests pass (33 new, no network, providers stubbed with real SDK types), `ruff check` clean, end-to-end check of `/api/chat` through `main.app` (stream, history, `llm_calls`, `hypotheses`).
+- **Open:** Harsh to confirm the analysis table columns the tools read; Safak to share the single DB connection with `chat.configure(cursor_factory=...)`; first call against the live Gemini API; verify prices and `EUR_PER_USD` before quoting cost in the pitch; Ollama provider and `masking.py` not written.
+
+### Readable Gemini errors (P3, Tarun)
+- **What:** Gemini errors now include the HTTP code, status and Google's own message, e.g. `503 UNAVAILABLE: The model is overloaded.`, and say what to try (wait, or change `LLM_MODEL`). The retry warning shows the code too. New test for a 503 from the real `google-genai` error type.
+- **Why:** The first live run against the full log package (stand-in DB: 1,666,054 events, 3,338 ERROR, 446 naive error groups) failed with only `ServerError` after 3 retries, which did not say whether Google was overloaded or rejected the request.
+- **Where:** `backend/src/logtracer/assistant/providers/gemini.py`, `backend/src/logtracer/assistant/providers/base.py`, `backend/tests/test_providers_and_api.py`.
+- **Checks:** 40 tests pass, `ruff check` clean.
+- **Open:** rerun `scripts/ask.py` to see Google's message; first successful live Gemini answer.
+
+### First live Gemini answer, default model gemini-3.6-flash (P3, Tarun)
+- **What:**
+  - First successful run against real Gemini on the stand-in DB built from the full log package. Question: "Why did the publish of JOB-2003 fail on 24 Nov?" Answer: FMS rejected the JT upload (missing write permission), confidence 0.95. Evidence matches the reference chain in ARCHITECTURE.md §5 (converter csv:31 08:30:00, FMS fsc txt:29 08:30:08, workflow jsonl:30 08:30:12) and adds the FMS client denial on mait_win04_plm_sync (fcc jsonl.gz:29, 08:30:04). The decoy `DEMO-Seal-17/C` and harmless retry ERRORs were not named. 6 tool calls, 7 LLM calls, 41,580 input + 2,948 output tokens, 152 s.
+  - Default Gemini model changed from `gemini-2.5-flash` to `gemini-3.6-flash`: 2.5 is only served to keys that used it before; `gemini-3.8-flash` and `gemini-4-hydrogen` answered `503 UNAVAILABLE` (high demand) at the time of testing.
+  - Cost wording: `cost_eur` is the paid-tier list price per question (the pitch metric); free-tier calls are not billed. Models without a known price show "cost unknown" until `PRICE_INPUT_PER_MTOK` / `PRICE_OUTPUT_PER_MTOK` are set.
+- **Why:** New team members' keys cannot use 2.5; the default must work out of the box.
+- **Where:** `backend/src/logtracer/assistant/config.py`, `costs.py`, `backend/scripts/ask.py`, `backend/.env.example`, `docs/ARCHITECTURE.md`, `contracts/examples/chat_stream.sse`.
+- **Checks:** 40 tests pass, `ruff check` clean; live run as above.
+- **Open:** verify gemini-3.6-flash prices and set `PRICE_*` before the pitch; 152 s per answer is too slow for a live demo (fewer rounds or lower thinking level); incidents/correlations empty until P2 delivers.
+
+### Official price for gemini-3.6-flash (P3, Tarun)
+- **What:** Added `gemini-3.6-flash` to the price table in `costs.py` from Google's pricing page (Standard, paid tier): 0.75 USD input and 3.75 USD output (incl. thinking tokens) per 1M tokens through 2026-12-31, then 1.50 / 7.50 from 2027-01-01. The JOB-2003 question (41,580 input + 2,948 output tokens) costs about 0.042 USD = 0.036 EUR on the paid tier (0.073 EUR at 2027 prices); on the free tier it is not billed. New test checks that the default Gemini model has a price.
+- **Why:** The pitch metric "EUR per question" needs a cost for the default model without extra `.env` settings.
+- **Where:** `backend/src/logtracer/assistant/costs.py`, `backend/tests/test_tools_and_agent.py`.
+- **Checks:** 41 tests pass, `ruff check` clean.
+- **Open:** switch to the 2027 prices on 2027-01-01 (or set `PRICE_*` in `.env`).
+
+### p3/assistant brought up to date with develop (P3, Tarun)
+- **What:**
+  - Merged `develop` (same commit as `main`, 9e332b1: P1 ingest pipeline, API, watcher and LFS log package; P4 frontend; PR #2) into `p3/assistant`. Conflicts in `main.py`, `.env.example`, `AI_LOG.md` and `WORKLOG.md` resolved by keeping both sides.
+  - `main.py`: the lifespan now passes the single DuckDB connection to the assistant with `chat.use_connection(app.state.db)` and releases it on shutdown; the chat router is registered in `create_app`. This closes the open item "share the DB connection" from the first P3 entry.
+  - `.env.example`: LLM section lists `gemini` as provider and documents `GEMINI_API_KEY`. `core/config.py` (P1) gets one line, `gemini_api_key`, because `test_example_env_matches_settings` requires every key in `.env.example` to be a setting.
+  - The assistant reads `LLM_MAX_TOOL_ROUNDS` and `LLM_MAX_OUTPUT_TOKENS` (names documented by P1); the output limit is passed to the Claude provider.
+  - New test: starting the full app shares the DB connection with `/api/chat`, LLM calls land in that connection, and it is released on shutdown.
+- **Why:** PR #3 had merge conflicts with `main`, and AGENTS.md §8 now routes all work through `develop`.
+- **Where:** `backend/src/logtracer/main.py`, `api/chat.py`, `core/config.py`, `assistant/config.py`, `assistant/providers/__init__.py`, `backend/.env.example`, `backend/tests/test_providers_and_api.py`.
+- **Checks:** 96 tests pass (P1 + P3), `ruff check` clean.
+- **Open:** for Safak: `tests/test_incremental.py::test_manager_runs_and_publishes` is flaky, it also fails about 1 in 10 runs on a clean `main` (`state["running"]` is still True right after the `done` event).
+
+### Groq as LLM provider (P3, Tarun)
+- **What:**
+  - New `GroqProvider` (`assistant/providers/groq.py`, official `groq` SDK, OpenAI-style chat completions with tool calling). `LLM_PROVIDER=groq`; default model `openai/gpt-oss-120b`, any Groq model through `LLM_MODEL` (e.g. `qwen/qwen3.8-27b`).
+  - Rate limits: on 429 the provider waits as long as Groq's `retry-after` header asks (max 60 s), otherwise exponential backoff; the SDK's own retries are off so there is one retry layer. Errors show Groq's status and message (rate limit, request too large, bad key or model, server error).
+  - A malformed tool call from the model (`tool_use_failed`) no longer fails the question: the agent asks the model again. `<think>` text of reasoning models is removed from the answer text.
+  - Optional `LLM_REASONING_EFFORT` (`low` / `medium` / `high`) for Groq reasoning models, to trade quality for speed.
+  - `ask.py --provider groq --model <id>` for comparing models from the command line.
+  - `GROQ_API_KEY` and `LLM_REASONING_EFFORT` in `.env.example`; the same two settings in `core/config.py` (P1), because `test_example_env_matches_settings` requires every documented key to be a setting. New dependency `groq`.
+- **Why:** Gemini 3.6 Flash answered `503 UNAVAILABLE` (high demand) in the UI after a long wait; Groq is built for low latency and lets us compare models.
+- **Where:** `backend/src/logtracer/assistant/providers/groq.py`, `providers/base.py` (`with_retries` takes a `delay_for` hint), `providers/__init__.py`, `assistant/config.py`, `core/config.py`, `backend/.env.example`, `backend/scripts/ask.py`, `backend/tests/test_providers_and_api.py`, `docs/ARCHITECTURE.md`, `pyproject.toml`, `uv.lock`.
+- **Checks:** 100 tests pass, `ruff check` clean. The provider was also run against the real `groq` SDK with a mock HTTP server: request shape, tool-call parsing, `retry-after` wait, `tool_use_failed` and a 401 error.
+- **Open:** live comparison of `openai/gpt-oss-120b` and `qwen/qwen3.8-27b` on the real DB. Groq's docs list 8K tokens per minute for gpt-oss-120b on the developer plan while one question uses about 40-50K tokens, so it may wait for rate limits; Groq's docs do not confirm tool use for qwen3.8-27b. Groq prices are not in `costs.py` yet (set `PRICE_*` in `.env`).
+
+### Fewer tokens per question without missing logs; counter-evidence required (P3, Tarun)
+- **What:**
+  - Measured on the real database (P1 ingest, 1.67 M events): the system prompt and tool definitions were 91% of the input, because every model call resends them. Tool definitions went from 5,463 to 2,771 characters (time format explained once in the prompt), `submit_answer` from 1,614 to about 700.
+  - Recall fixes found while measuring: `search_events(text="JOB-2003")` returned 0 events because it only searched `message`, while the job id sits in its own field. It now searches the whole original line (`raw`) and finds all 102. `trace("JOB-2003")` showed 4 events and nothing about the 49 re-runs `JOB-2003-R01..R49` (98 more events with the same failure); it now adds `related`: the related keys and groups with counts and citable sample ids.
+  - Compact results: event lists are tables (`cols` once, `rows` as lists; empty columns left out). When more events match than fit, the listed rows are different lines (max 2 per host/component/level/message pattern) and `groups` summarises ALL matches with counts, time range and sample ids, so no matching line silently disappears. The evidence check reads ids from the table format too.
+  - Prompt: trace first for a named job, then follow the chain across servers; read `groups` and `related`; 2 to 5 tool calls are usually enough.
+  - `counter_evidence` must not be empty: the backend sends the answer back to the model with a clear instruction (the answer format, interface 3, is unchanged).
+- **Why:** On Groq's free plan (8K tokens per minute for gpt-oss-120b) one question (13.9K tokens) waited up to 47 s for rate limits, and the earlier answers missed that the failure repeated in 49 re-runs.
+- **Where:** `backend/src/logtracer/assistant/data_access.py`, `tools.py`, `prompt.py`, `answer.py`, `agent.py`, `backend/tests/test_tools_and_agent.py`, `backend/tests/fixtures.py`.
+- **Checks:** 104 tests pass (new: text search in the raw line, related re-runs are reported and citable, truncated results count all matches and avoid repeats, answer without counter-evidence is sent back), `ruff check` clean. Simulation of the JOB-2003 question on the real DB through the Groq provider and the agent: about 7.8K input tokens instead of 13.9K, same 4 evidence lines (csv:31, fcc jsonl.gz:29, fsc txt:29, workflow jsonl:30).
+- **Open:** live run with Groq; at about 7.8K tokens a question is still close to the 8K-per-minute limit, so a second question within the same minute can wait. For Safak: `data/logpaket.extracted.json` (extraction marker) is not git-ignored and shows up in `git status`.
+
+### Related re-runs are always reported (P3, Tarun)
+- **What:** `trace` now starts with `related_summary`, a plain sentence such as "ALSO: 98 log lines of 49 OTHER jobs (JOB-2003-R01 ... JOB-2003-R49) mention JOB-2003: 49x ERROR mait_win04_plm_sync fms/fcc ...". The ToolBox remembers related jobs that logged WARN/ERROR/FATAL, and an answer that mentions none of them (no related key, no shared prefix such as JOB-2003-R, no count, no word like re-run) is sent back to the model with the facts. Related lines with only INFO do not force a mention.
+- **Why:** The first live run with Groq gpt-oss-120b after the token cut (7.4 s, 3 LLM calls, 6,489 input + 1,171 output tokens, no rate-limit waits, all 4 evidence lines correct, counter-evidence present) did not mention that the same failure happened in 49 re-runs, although trace returned them in a nested table at the end.
+- **Where:** `backend/src/logtracer/assistant/data_access.py`, `tools.py`, `agent.py`, `backend/tests/test_tools_and_agent.py`.
+- **Checks:** 108 tests pass (4 new), `ruff check` clean. Replay on the real DB: the answer from the live run is sent back with "98 log lines of 49 other jobs"; the corrected answer is accepted with the same 4 evidence lines.
+- **Open:** Groq prices for gpt-oss-120b in `costs.py`.
+
+### Resolve frontend pull request conflicts
+- **What:** Merged the latest `main` into `codex/frontend-backend-integration`. Combined the frontend entries with the P1/P3 entries in `docs/AI_LOG.md` and `docs/WORKLOG.md`, keeping the history from both branches.
+- **Why:** The pull request could not merge while both branches had edits in these two append-only logs.
+- **Where:** `docs/AI_LOG.md`, `docs/WORKLOG.md`; branch `codex/frontend-backend-integration`.
+- **Checks:** `git diff --check` passed; no conflict markers remain.
+- **Open:** Commit and push the merge, then confirm GitHub reports the pull request as mergeable.

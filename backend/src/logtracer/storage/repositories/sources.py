@@ -168,5 +168,47 @@ def list_sources(
     return [dict(zip(SOURCE_COLUMNS, row, strict=True)) for row in rows], total
 
 
+def upsert_server(con: duckdb.DuckDBPyConnection, server: ServerInfo) -> None:
+    con.execute(
+        "INSERT INTO servers (server, os, role, info) VALUES (?, ?, ?, ?::JSON) "
+        "ON CONFLICT (server) DO UPDATE SET os = excluded.os, role = excluded.role, "
+        "info = excluded.info",
+        [server.server, server.os, server.role, json.dumps(server.info)],
+    )
+
+
+def source_index(con: duckdb.DuckDBPyConnection) -> dict[str, dict]:
+    """path -> current source row (for the incremental ingest)."""
+    cols = ("source_id", "path", "size", "mtime", "sha256", "duplicate_of", "event_count",
+            "checkpoint_line", "compressed")
+    rows = con.execute(f"SELECT {', '.join(cols)} FROM sources").fetchall()
+    return {row[1]: dict(zip(cols, row, strict=True)) for row in rows}
+
+
+def original_for_hash(con: duckdb.DuckDBPyConnection, digest: str,
+                      exclude_id: int | None = None) -> int | None:
+    row = con.execute(
+        "SELECT min(source_id) FROM sources WHERE sha256 = ? AND duplicate_of IS NULL "
+        "AND source_id IS DISTINCT FROM ?",
+        [digest, exclude_id],
+    ).fetchone()
+    return row[0]
+
+
+def next_source_id(con: duckdb.DuckDBPyConnection) -> int:
+    return con.execute("SELECT coalesce(max(source_id), 0) + 1 FROM sources").fetchone()[0]
+
+
+def save_source(con: duckdb.DuckDBPyConnection, row: dict) -> None:
+    """Insert or replace one source row (all columns of the table)."""
+    cols = list(row)
+    updates = ", ".join(f"{c} = excluded.{c}" for c in cols if c not in ("source_id", "path"))
+    con.execute(
+        f"INSERT INTO sources ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))}) "
+        f"ON CONFLICT (source_id) DO UPDATE SET {updates}",
+        [row[c] for c in cols],
+    )
+
+
 def last_ingest_at(con: duckdb.DuckDBPyConnection):
     return con.execute("SELECT max(ingested_at) FROM sources").fetchone()[0]

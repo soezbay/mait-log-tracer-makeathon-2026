@@ -60,7 +60,7 @@ def client(tmp_path):
     full_ingest(con, root)
     con.close()
 
-    settings = Settings(_env_file=None, db_path=db, log_root=root)
+    settings = Settings(_env_file=None, auto_extract=False, db_path=db, log_root=root)
     with TestClient(create_app(settings)) as c:
         yield c
 

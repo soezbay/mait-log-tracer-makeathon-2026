@@ -19,6 +19,9 @@ class Settings(BaseSettings):
 
     # --- Paths (relative paths are resolved against backend/) ---------------------------
     log_root: Path = Path("../MAIT_Makeathon_Logpaket")
+    logpaket_zip: Path = Path("../MAIT_Makeathon_Logpaket.zip")  # Git LFS, extracted on start
+    auto_extract: bool = True
+    auto_download: bool = True  # `git lfs pull` the ZIP on start if it is missing
     db_path: Path = Path("../data/logtracer.duckdb")
     fixture_db_path: Path = Path("../data/fixture.duckdb")
     eval_questions_path: Path = Path("../eval/questions.yaml")
@@ -38,17 +41,22 @@ class Settings(BaseSettings):
     # --- Continuous ingest (P1, day 3) -----------------------------------------------------
     watch_enabled: bool = False
     watch_debounce_s: float = 1.5
+    watch_rescan_s: float = 10.0  # safety net: full size/mtime check every N s (0 = off)
 
     # --- LLM (P3) --------------------------------------------------------------------------
-    llm_provider: str = "claude"  # claude | ollama
+    llm_provider: str = "claude"  # claude | gemini | groq | ollama
     llm_model: str = "claude-sonnet-5-5"
     anthropic_api_key: SecretStr | None = None
+    gemini_api_key: SecretStr | None = None
+    groq_api_key: SecretStr | None = None
+    llm_reasoning_effort: str | None = None  # groq reasoning models: low | medium | high
     llm_max_tool_rounds: int = 8
     llm_max_output_tokens: int = 4096
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.1"
 
-    @field_validator("log_root", "db_path", "fixture_db_path", "eval_questions_path")
+    @field_validator("log_root", "logpaket_zip", "db_path", "fixture_db_path",
+                     "eval_questions_path")
     @classmethod
     def resolve_relative_to_backend(cls, value: Path) -> Path:
         """Relative paths are resolved against `backend/`, not the current directory."""

@@ -12,6 +12,7 @@ import argparse
 import json
 
 from logtracer.core.config import get_settings
+from logtracer.core.logpaket import ensure_from_settings
 from logtracer.ingest.full_ingest import full_ingest
 from logtracer.ingest.parse_run import dry_run
 from logtracer.ingest.pipeline import scan_sources
@@ -39,6 +40,10 @@ def main() -> None:
     args = parser.parse_args()
 
     settings = get_settings()
+    package = ensure_from_settings(settings)
+    print(f"Log package: {package.action} ({package.message})", flush=True)
+    if not package.ok:
+        raise SystemExit(package.message)
     con = connect(args.db or settings.db_path)
     init_schema(con)
     print(f"Log package: {settings.log_root}\nDatabase:    {args.db or settings.db_path}",

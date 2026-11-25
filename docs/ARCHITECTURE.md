@@ -104,6 +104,8 @@ flowchart LR
 | Service | Role | Note |
 |---|---|---|
 | **Claude API** (Anthropic) | LLM for the assistant (tool use) | e.g. `claude-sonnet-5-5`; key in the backend only (`.env`) |
+| **Gemini API** (Google) | alternative LLM provider (tool use), free tier for development | e.g. `gemini-3.6-flash` (free tier available); key in the backend only (`.env`) |
+| **Groq** | fast inference of open models (tool use) | e.g. `openai/gpt-oss-120b`, `qwen/qwen3.8-27b`; free plan with tokens-per-minute limits; key in the backend only (`.env`) |
 | **Ollama** (optional) | local LLM | privacy argument: no logs leave the premises |
 
 ---
@@ -178,7 +180,7 @@ Thin layer: accepts requests, validates them with Pydantic and calls services. N
 
 | Component | What it does |
 |---|---|
-| `providers/` | common `LLMProvider` interface with `ClaudeProvider` (default) and `OllamaProvider` (local). Switchable via `.env` |
+| `providers/` | common `LLMProvider` interface with `ClaudeProvider` (default), `GeminiProvider`, `GroqProvider` and `OllamaProvider` (local, planned). Switchable via `.env` |
 | `tools.py` | tool definitions for the LLM, each calling into `services/`: `search_events`, `get_error_groups`, `get_anomalies`, `trace`, `correlate`, `get_context` |
 | `prompt.py` | system prompt: role, rules (answer only with evidence, state uncertainty, recognize harmless ERRORs as such), answer format |
 | `answer.py` | Pydantic schema of the answer: `summary`, `causal_chain[]`, `affected_systems[]`, `evidence[]` (event IDs), `uncertainty`, `counter_evidence[]`, `verification_steps[]`, `recommendation`. Checks that every cited event ID exists |
@@ -275,22 +277,24 @@ Base: `http://localhost:8000/api`, OpenAPI at `/docs`. JSON, times always ISO-86
 
 ```json
 {
-  "summary": "Publishing JOB-2003 failed because FMS rejected the JT upload (missing write permission on the target volume), although the converter reported success.",
+  "summary": "Publishing JOB-2003 failed because FMS rejected the JT upload (service user DEMO-SERVICE lacks WRITE_DATASET on the target volume), although the converter reported success.",
   "causal_chain": [
     {"step": 1, "server": "mait_win03_cad_converter", "event_ids": [1001], "text": "Conversion succeeded; JT output=DEMO-301.jt"},
-    {"step": 2, "server": "mait_linux1_teamcenter_app", "event_ids": [1002], "text": "FMS upload rejected: access policy lacks target volume write permission"},
-    {"step": 3, "server": "mait_linux1_teamcenter_app", "event_ids": [1003], "text": "Publish task failed: no registered result; converter status=SUCCESS"}
+    {"step": 2, "server": "mait_win04_plm_sync", "event_ids": [1002], "text": "FMS client: result upload denied for DEMO-SERVICE; permission=WRITE_DATASET"},
+    {"step": 3, "server": "mait_linux1_teamcenter_app", "event_ids": [1003], "text": "FMS server cache: upload rejected; access policy lacks target volume write permission"},
+    {"step": 4, "server": "mait_linux1_teamcenter_app", "event_ids": [1004], "text": "Publish task failed: no registered result; converter status=SUCCESS"}
   ],
-  "affected_systems": ["mait_win03_cad_converter", "mait_linux1_teamcenter_app"],
+  "affected_systems": ["mait_win03_cad_converter", "mait_win04_plm_sync", "mait_linux1_teamcenter_app"],
   "evidence": [
     {"event_id": 1001, "file": "mait_win03_cad_converter/logs/converter/nx_jt/creative_2026-11-24.csv", "line": 31, "ts": "2026-11-24T08:30:00Z"},
-    {"event_id": 1002, "file": "mait_linux1_teamcenter_app/logs/fms/fsc/creative_2026-11-24.txt", "line": 29, "ts": "2026-11-24T08:30:08Z"},
-    {"event_id": 1003, "file": "mait_linux1_teamcenter_app/logs/teamcenter/workflow/creative_2026-11-24.jsonl", "line": 30, "ts": "2026-11-24T08:30:12Z"}
+    {"event_id": 1002, "file": "mait_win04_plm_sync/logs/fms/fcc/creative_2026-11-24.jsonl.gz", "line": 29, "ts": "2026-11-24T08:30:04Z"},
+    {"event_id": 1003, "file": "mait_linux1_teamcenter_app/logs/fms/fsc/creative_2026-11-24.txt", "line": 29, "ts": "2026-11-24T08:30:08Z"},
+    {"event_id": 1004, "file": "mait_linux1_teamcenter_app/logs/teamcenter/workflow/creative_2026-11-24.jsonl", "line": 30, "ts": "2026-11-24T08:30:12Z"}
   ],
   "confidence": 0.85,
-  "uncertainty": "No log shows why the write permission is missing (changed policy or new volume).",
+  "uncertainty": "No log shows why DEMO-SERVICE lacks the write permission (changed policy or new volume).",
   "counter_evidence": ["The converter reports SUCCESS, so the conversion itself is not the cause"],
-  "verification_steps": ["Check the FMS volume's access policy for the uploading service user", "Check whether other uploads to the same volume failed around 08:30"],
+  "verification_steps": ["Check the FMS volume's access policy for DEMO-SERVICE", "Check whether other uploads to the same volume failed around 08:30"],
   "recommendation": "Grant write permission on the target volume, then resubmit the publish task."
 }
 ```
@@ -450,8 +454,11 @@ The frontend runs on `http://localhost:5173` and proxies `/api` to the backend. 
 |---|---|
 | `LOG_ROOT` | path to the log package (e.g. `../MAIT_Makeathon_Logpaket`) |
 | `DB_PATH` | path to the DuckDB file (`../data/logtracer.duckdb`) |
-| `LLM_PROVIDER` | `claude` or `ollama` |
+| `LLM_PROVIDER` | `claude`, `gemini`, `groq` or `ollama` |
 | `ANTHROPIC_API_KEY` | key for the Claude API (backend only, never in Git) |
+| `GEMINI_API_KEY` | key for the Gemini API (backend only, never in Git) |
+| `GROQ_API_KEY` | key for Groq (backend only, never in Git) |
+| `LLM_REASONING_EFFORT` | Groq reasoning models: `low`, `medium` or `high`; empty = model default, lower is faster |
 | `LLM_MODEL` | model ID, e.g. `claude-sonnet-5-5` |
 | `WATCH_ENABLED` | watcher on/off |
 
