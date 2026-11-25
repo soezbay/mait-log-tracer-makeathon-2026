@@ -75,14 +75,31 @@ function Analysis({ answer, open }: { answer: Answer; open: (id: number) => void
   </>
 }
 
-/** One question with its steps and answer. The analysis of older turns is folded. */
+/** One line for an older question: the question and the start of its answer. */
+function firstSentence(text: string) {
+  const sentence = text.split(/(?<=[.!?])\s/)[0] ?? ''
+  return sentence.length > 140 ? sentence.slice(0, 137) + '…' : sentence
+}
+
+/** One question with its steps and answer. Older turns fold into one line; the newest is open. */
 export function TurnView({ turn, latest, open }: { turn: Turn; latest: boolean; open: (id: number) => void }) {
+  if (!latest) {
+    const gist = turn.answer ? firstSentence(turn.answer.reply || turn.answer.summary) : turn.error ?? ''
+    return <details className="turn turn-older">
+      <summary><span className="turn-question">{turn.question}</span>{gist && <small>{gist}</small>}</summary>
+      <TurnBody turn={turn} latest={false} open={open} />
+    </details>
+  }
+  return <TurnBody turn={turn} latest open={open} />
+}
+
+function TurnBody({ turn, latest, open }: { turn: Turn; latest: boolean; open: (id: number) => void }) {
   const { t } = useI18n()
   const element = useRef<HTMLElement>(null)
-  useEffect(() => { if (turn.run?.state === 'running') element.current?.scrollIntoView?.({ block: 'start', behavior: 'smooth' }) }, [turn.id])
+  useEffect(() => { if (latest && turn.run?.state === 'running') element.current?.scrollIntoView?.({ block: 'start', behavior: 'smooth' }) }, [turn.id])
   const { answer } = turn
   const natural = answer?.reply && answer.reply !== answer.summary ? answer.reply : ''
-  return <section className="turn" ref={element}>
+  return <section className={latest ? 'turn' : 'turn-body'} ref={element}>
     {turn.run && <RunPanel run={turn.run} />}
     {answer && <article className="panel answer">
       {!turn.run && <p className="question">{turn.question}</p>}

@@ -161,6 +161,16 @@ main { padding: 1rem clamp(.9rem, 2vw, 1.6rem) 1.6rem; max-width: 1600px }
 
 /* --- assistant: chat with follow-ups --- */
 .turn { scroll-margin-top: .6rem }
+/* Older questions of a chat: one line each (question + first sentence of the answer), click to open */
+.turn-older { margin-bottom: .45rem; border: 1px solid var(--line); border-radius: 9px; background: var(--surface) }
+.turn-older > summary { display: grid; gap: .1rem; padding: .5rem .8rem; cursor: pointer; list-style: none }
+.turn-older > summary::-webkit-details-marker { display: none }
+.turn-older .turn-question::before { content: "▸"; display: inline-block; width: 1.1rem; color: var(--muted) }
+.turn-older[open] .turn-question::before { content: "▾" }
+.turn-older > summary small { padding-left: 1.1rem; color: var(--muted); font-weight: 450 }
+.turn-older .turn-question { font-weight: 650 }
+.turn-older[open] > summary { border-bottom: 1px solid var(--line) }
+.turn-older .turn-body { padding: .6rem .6rem 0 }
 .turn .run { margin-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0 }
 .turn .run:last-child, .turn .run + .notice { margin-bottom: .6rem }
 .turn .run + .answer { border-top: 0; border-top-left-radius: 0; border-top-right-radius: 0 }

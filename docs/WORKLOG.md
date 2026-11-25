@@ -636,3 +636,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Why:** the prompt rule did not stop it (JOB-2003 and JOB-2007 answers); sending the answer back would cost another 10 to 20 s.
 - **Where:** `backend/src/logtracer/assistant/agent.py`, test in `backend/tests/test_tools_and_agent.py`.
 - **Checks:** 205 tests pass, ruff clean. JOB-2007 answer checked against the full data: correct cause and chain, all 3 ERRORs cited; only "aborts" should be "paused".
+
+### Older chat questions fold into one line (P3, Tarun, in P4 files)
+- **What:** in a chat, only the newest question shows in full. Older ones fold into one line with the question and the first sentence of the answer; a click opens the full steps and analysis. Follow-ups and the conversation memory are unchanged.
+- **Why:** with several questions the page became a long stack of full answers; the newest answer should be what the user sees.
+- **Where:** `frontend/src/conversation.tsx` (TurnView, TurnBody), `frontend/src/layout.css`.
+- **Checks:** Playwright with a mocked `/api/chat`: after 3 questions, 2 folded and 1 open; clicking a folded one shows its analysis; `npm run build` OK.
+- **Open:** Adnan (P4) and Safak (follow-up chat) please review.
