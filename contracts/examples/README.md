@@ -13,7 +13,8 @@ The endpoint list is in [docs/ARCHITECTURE.md §5](../../docs/ARCHITECTURE.md).
 |---|---|---|
 | `health.json` | `GET /api/health` | P1 |
 | `stats.json` | `GET /api/stats` | P1 |
-| `sources.json` | `GET /api/sources` | P1 |
+| `sources.json` | `GET /api/sources` (filters `server, format, duplicates, q`; copies name their original in `original_path`, originals count their `copies`) | P1 |
+| `sources_summary.json` | `GET /api/sources/summary` (files, copies, events, real errors per server and per format) | P1 |
 | `events.json` | `GET /api/events?job_id=JOB-2003` | P1 |
 | `event.json` | `GET /api/events/{id}` | P1 |
 | `jobs.json` | `GET /api/jobs?q=JOB-2003` (filters `status, server, q, conversion, from, to`; `sort=problems\|recent\|oldest\|duration\|errors\|job`). `by_status` ignores the status filter. `GET /api/jobs/{job_pk}` one job, `/api/jobs/{job_pk}/events?problems=true` its events (like `events.json`) | P1 |

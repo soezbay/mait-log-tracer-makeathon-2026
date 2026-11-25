@@ -109,6 +109,7 @@ def search(
     q: str | None = None,
     job_id: str | None = None,
     trace_id: str | None = None,
+    source_id: int | None = None,
     include_duplicates: bool = False,
     limit: int = 50,
     offset: int = 0,
@@ -120,6 +121,9 @@ def search(
         if value:
             where.append(f"e.{column} = ?")
             params.append(value)
+    if source_id is not None:
+        where.append("e.source_id = ?")
+        params.append(source_id)
     if levels:
         where.append(f"e.level IN ({', '.join('?' * len(levels))})")
         params.extend(levels)

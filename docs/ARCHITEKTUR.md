@@ -256,8 +256,9 @@ Basis: `http://localhost:8000/api`, OpenAPI unter `/docs`. JSON, Zeiten immer IS
 | `GET` | `/stats` | Zählwerte: Quellen, Events, Duplikate, Level-Verteilung |
 | `POST` | `/ingest` | Ingest starten (`mode: full \| incremental`) |
 | `GET` | `/ingest/progress` | **SSE**: Fortschritt, neue Dateien |
-| `GET` | `/sources` | Quellen mit Format, Kodierung, Duplikat-Status, Checkpoint |
-| `GET` | `/events` | Suche: `server, component, level, from, to, q, job_id, trace_id, page` |
+| `GET` | `/sources` | Quellen mit Format, Kodierung, Duplikat-Status, Original, Anzahl Kopien, Checkpoint; Filter `server, format, duplicates, q` |
+| `GET` | `/sources/summary` | Dateien, Kopien, Events, echte Fehler je Server und je Format |
+| `GET` | `/events` | Suche: `server, component, level, from, to, q, job_id, trace_id, source_id, include_duplicates, page` |
 | `GET` | `/jobs` | Jobs über alle Events mit Status, Servern, Fehlern, erstem Problem und Incident; `/jobs/{job_pk}`, `/jobs/{job_pk}/events` |
 | `GET` | `/events/{id}` | Einzelevent mit allen Feldern |
 | `GET` | `/events/{id}/context?n=10` | Originalzeilen um das Event |

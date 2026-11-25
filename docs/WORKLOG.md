@@ -575,3 +575,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Coverage check (Safak's question):** read from the ZIP, not from the extracted folder. All 13,643 log files are in `sources` with the same SHA-256; the other 193 entries are READMEs, two docs and 14 `server_info.json` (stored in `servers`). In the 5,068 unique files every non-empty line belongs to an event, except 48 CSV headers and 70 XML wrapper lines. 8,575 files are byte-identical copies and not parsed twice. The timeline reaches 1,662,667 events; 11,125 duplicate lines are hidden by default.
 - **Checks:** 192 tests pass (13 new), `ruff check` clean, build OK, 96 jsdom UI checks, seen in the browser.
 - **Open:** duplicates, copies, the source list and the server information are in the database and the API but not visible in the UI.
+
+### Data sources page (branch `p1/data-sources`, not on `main`)
+- **What:** New Live page "Data sources": totals, files per format, the 14 servers with system, role, files, copies, events, duplicate lines, real errors, size and period, and a searchable list of all log files. A copy names its original, an original counts its copies. A file's event count opens the timeline with only that file. The timeline can also show duplicate lines, marked "Duplicate".
+- **API (additive):** `GET /api/sources/summary`; `/api/sources` got `q`, `original_path`, `copies`, and copies take the format of their original; `/api/events` got `source_id`.
+- **Why:** The coverage check showed that everything is in DuckDB, but copies, duplicate lines, the file list and the server information were not visible. Safak decides later whether the page stays, so it lives on its own branch.
+- **Checks:** 195 tests pass (3 new), `ruff check` clean, build OK, 106 jsdom UI checks, seen in the browser at 1400 px and checked for horizontal scroll at 390 px. Totals match the coverage check: 13,643 files, 5,068 different, 8,575 copies, 1,673,792 events, 11,125 duplicate lines.
+- **Open:** Safak: merge into `main` or delete the branch. P4 (Adnan): review if it is kept.

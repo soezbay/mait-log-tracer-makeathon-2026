@@ -1,0 +1,320 @@
+{
+  "servers": [
+    {
+      "server": "mait_linux1",
+      "os": "Linux",
+      "role": "Teamcenter Backend",
+      "files": 410,
+      "copies": 245,
+      "events": 83541,
+      "duplicate_events": 0,
+      "unparsed_events": 0,
+      "errors": 80,
+      "bytes": 42447610,
+      "formats": [
+        "csv_semicolon",
+        "jsonl",
+        "kv_log"
+      ],
+      "first_ts": "2026-10-01T00:01:20Z",
+      "last_ts": "2026-11-23T11:59:54Z"
+    },
+    {
+      "server": "mait_linux1_teamcenter_app",
+      "os": "Linux",
+      "role": null,
+      "files": 1461,
+      "copies": 931,
+      "events": 133475,
+      "duplicate_events": 0,
+      "unparsed_events": 0,
+      "errors": 275,
+      "bytes": 73595191,
+      "formats": [
+        "bracket_json",
+        "csv_semicolon",
+        "freetext",
+        "jsonl",
+        "xml_events"
+      ],
+      "first_ts": "2026-10-01T00:00:21Z",
+      "last_ts": "2026-11-24T11:54:35Z"
+    },
+    {
+      "server": "mait_linux2",
+      "os": "Linux",
+      "role": "Web und Suche",
+      "files": 360,
+      "copies": 196,
+      "events": 83131,
+      "duplicate_events": 0,
+      "unparsed_events": 0,
+      "errors": 124,
+      "bytes": 38029162,
+      "formats": [
+        "csv_semicolon",
+        "jsonl",
+        "kv_log"
+      ],
+      "first_ts": "2026-10-01T00:01:15Z",
+      "last_ts": "2026-11-23T11:59:53Z"
+    },
+    {
+      "server": "mait_linux2_teamcenter_db",
+      "os": "Linux",
+      "role": null,
+      "files": 1231,
+      "copies": 784,
+      "events": 121188,
+      "duplicate_events": 0,
+      "unparsed_events": 0,
+      "errors": 45,
+      "bytes": 67141105,
+      "formats": [
+        "bracket_json",
+        "csv_semicolon",
+        "jsonl",
+        "xml_events"
+      ],
+      "first_ts": "2026-10-01T00:01:23Z",
+      "last_ts": "2026-11-24T11:54:35Z"
+    },
+    {
+      "server": "mait_linux3",
+      "os": "Linux",
+      "role": "Gateway und Infrastruktur",
+      "files": 610,
+      "copies": 343,
+      "events": 145147,
+      "duplicate_events": 0,
+      "unparsed_events": 0,
+      "errors": 57,
+      "bytes": 64303382,
+      "formats": [
+        "csv_semicolon",
+        "jsonl",
+        "kv_log"
+      ],
+      "first_ts": "2026-10-01T00:01:20Z",
+      "last_ts": "2026-11-23T11:59:54Z"
+    },
+    {
+      "server": "mait_linux3_cad_service",
+      "os": "Linux",
+      "role": null,
+      "files": 1380,
+      "copies": 882,
+      "events": 132552,
+      "duplicate_events": 0,
+      "unparsed_events": 0,
+      "errors": 19,
+      "bytes": 71779724,
+      "formats": [
+        "bracket_json",
+        "csv_semicolon",
+        "jsonl",
+        "xml_events"
+      ],
+      "first_ts": "2026-10-01T00:01:14Z",
+      "last_ts": "2026-11-24T11:54:32Z"
+    },
+    {
+      "server": "mait_linux4_dispatcher_service",
+      "os": "Linux",
+      "role": null,
+      "files": 1580,
+      "copies": 1029,
+      "events": 145154,
+      "duplicate_events": 0,
+      "unparsed_events": 0,
+      "errors": 20,
+      "bytes": 84028696,
+      "formats": [
+        "bracket_json",
+        "csv_semicolon",
+        "jsonl",
+        "xml_events"
+      ],
+      "first_ts": "2026-10-01T00:01:26Z",
+      "last_ts": "2026-11-24T11:54:34Z"
+    },
+    {
+      "server": "mait_win01_dispatcher_master",
+      "os": "Windows",
+      "role": null,
+      "files": 1330,
+      "copies": 882,
+      "events": 121198,
+      "duplicate_events": 0,
+      "unparsed_events": 0,
+      "errors": 89,
+      "bytes": 68221040,
+      "formats": [
+        "bracket_json",
+        "csv_semicolon",
+        "freetext",
+        "jsonl",
+        "xml_events"
+      ],
+      "first_ts": "2026-10-01T00:00:29Z",
+      "last_ts": "2026-11-24T11:54:35Z"
+    },
+    {
+      "server": "mait_win02_dispatcher_worker",
+      "os": "Windows",
+      "role": null,
+      "files": 1280,
+      "copies": 784,
+      "events": 132119,
+      "duplicate_events": 11124,
+      "unparsed_events": 0,
+      "errors": 44,
+      "bytes": 70704632,
+      "formats": [
+        "bracket_json",
+        "csv_semicolon",
+        "jsonl",
+        "xml_events"
+      ],
+      "first_ts": "2026-10-01T00:00:07Z",
+      "last_ts": "2026-11-24T11:54:33Z"
+    },
+    {
+      "server": "mait_win03_cad_converter",
+      "os": "Windows",
+      "role": null,
+      "files": 1430,
+      "copies": 882,
+      "events": 143662,
+      "duplicate_events": 0,
+      "unparsed_events": 0,
+      "errors": 152,
+      "bytes": 71699547,
+      "formats": [
+        "bracket_json",
+        "csv_semicolon",
+        "freetext",
+        "jsonl",
+        "xml_events"
+      ],
+      "first_ts": "2026-10-01T00:01:06Z",
+      "last_ts": "2026-11-24T11:54:34Z"
+    },
+    {
+      "server": "mait_win04_plm_sync",
+      "os": "Windows",
+      "role": null,
+      "files": 1331,
+      "copies": 882,
+      "events": 121800,
+      "duplicate_events": 0,
+      "unparsed_events": 0,
+      "errors": 130,
+      "bytes": 69661229,
+      "formats": [
+        "bracket_json",
+        "csv_semicolon",
+        "freetext",
+        "jsonl",
+        "xml_events"
+      ],
+      "first_ts": "2026-10-01T00:01:00Z",
+      "last_ts": "2026-11-24T11:54:35Z"
+    },
+    {
+      "server": "mait_windows1",
+      "os": "Windows",
+      "role": "Dispatcher und NX",
+      "files": 430,
+      "copies": 245,
+      "events": 113488,
+      "duplicate_events": 1,
+      "unparsed_events": 0,
+      "errors": 41,
+      "bytes": 50789581,
+      "formats": [
+        "csv_semicolon",
+        "jsonl",
+        "kv_log"
+      ],
+      "first_ts": "2026-10-01T00:01:01Z",
+      "last_ts": "2026-11-23T11:59:47Z"
+    },
+    {
+      "server": "mait_windows2",
+      "os": "Windows",
+      "role": "CAD und weitere Konverter",
+      "files": 430,
+      "copies": 245,
+      "events": 113912,
+      "duplicate_events": 0,
+      "unparsed_events": 0,
+      "errors": 133,
+      "bytes": 51289602,
+      "formats": [
+        "csv_semicolon",
+        "jsonl",
+        "kv_log"
+      ],
+      "first_ts": "2026-10-01T00:00:23Z",
+      "last_ts": "2026-11-23T11:59:52Z"
+    },
+    {
+      "server": "mait_windows3",
+      "os": "Windows",
+      "role": "Integrationsclients",
+      "files": 380,
+      "copies": 245,
+      "events": 83425,
+      "duplicate_events": 0,
+      "unparsed_events": 0,
+      "errors": 21,
+      "bytes": 43140453,
+      "formats": [
+        "csv_semicolon",
+        "jsonl",
+        "kv_log"
+      ],
+      "first_ts": "2026-10-01T00:00:22Z",
+      "last_ts": "2026-11-23T11:59:51Z"
+    }
+  ],
+  "formats": [
+    {
+      "format": "jsonl",
+      "files": 4843,
+      "copies": 0,
+      "events": 1613567
+    },
+    {
+      "format": "bracket_json",
+      "files": 3450,
+      "copies": 3332,
+      "events": 26330
+    },
+    {
+      "format": "csv_semicolon",
+      "files": 2400,
+      "copies": 2352,
+      "events": 15303
+    },
+    {
+      "format": "kv_log",
+      "files": 900,
+      "copies": 882,
+      "events": 10808
+    },
+    {
+      "format": "xml_events",
+      "files": 1750,
+      "copies": 1715,
+      "events": 7701
+    },
+    {
+      "format": "freetext",
+      "files": 300,
+      "copies": 294,
+      "events": 83
+    }
+  ]
+}

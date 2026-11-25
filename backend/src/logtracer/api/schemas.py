@@ -56,6 +56,8 @@ class Source(BaseModel):
     checkpoint_bytes: int
     checkpoint_line: int
     ingested_at: UtcDatetime = None
+    original_path: str | None = None  # for a copy: the file it is identical to
+    copies: int = 0  # for an original: number of identical files
 
 
 class EventListItem(BaseModel):

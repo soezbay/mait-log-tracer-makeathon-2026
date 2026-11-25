@@ -269,8 +269,9 @@ Base: `http://localhost:8000/api`, OpenAPI at `/docs`. JSON, times always ISO-86
 | `GET` | `/stats` | counts: sources, events, duplicates, level distribution |
 | `POST` | `/ingest` | start ingest (`mode: full \| incremental`) |
 | `GET` | `/ingest/progress` | **SSE**: progress, new files |
-| `GET` | `/sources` | sources with format, encoding, duplicate status, checkpoint |
-| `GET` | `/events` | search: `server, component, level, from, to, q, job_id, trace_id, page` |
+| `GET` | `/sources` | sources with format, encoding, duplicate status, original, number of copies, checkpoint; filters `server, format, duplicates, q` |
+| `GET` | `/sources/summary` | files, copies, events, real errors per server and per format |
+| `GET` | `/events` | search: `server, component, level, from, to, q, job_id, trace_id, source_id, include_duplicates, page` |
 | `GET` | `/events/{id}` | single event with all fields |
 | `GET` | `/jobs` | jobs over all events with status, servers, errors, first problem and incident; `/jobs/{job_pk}`, `/jobs/{job_pk}/events` |
 | `GET` | `/events/{id}/context?n=10` | original lines around the event |

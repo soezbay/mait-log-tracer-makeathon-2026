@@ -133,3 +133,37 @@ def test_context_for_multiline_and_gzip(client):
 def test_not_found(client):
     assert client.get("/api/events/999999").status_code == 404
     assert client.get("/api/events/999999/context").status_code == 404
+
+
+def test_sources_name_originals_and_copies(client):
+    copies = client.get("/api/sources", params={"duplicates": True}).json()
+    assert copies["total"] == 1
+    copy = copies["items"][0]
+    assert copy["path"].endswith("creative_2026-11-24_run01.csv")
+    assert copy["original_path"].endswith("creative_2026-11-24.csv") and copy["copies"] == 0
+    assert copy["format"] == "csv_semicolon"  # taken from the original
+    original = client.get("/api/sources", params={"q": "nx_jt/creative_2026-11-24.csv"}).json()
+    assert original["total"] == 1 and original["items"][0]["copies"] == 1
+    assert original["items"][0]["original_path"] is None
+    assert client.get("/api/sources", params={"format": "csv_semicolon"}).json()["total"] == 2
+    assert client.get("/api/sources", params={"q": "nothing"}).json()["total"] == 0
+
+
+def test_source_summary_per_server_and_format(client):
+    client.app.state.ingest.wait(timeout=20)  # real errors come from the analysis
+    body = client.get("/api/sources/summary").json()
+    linux, win = body["servers"]
+    assert (linux["server"], linux["os"], linux["files"], linux["copies"]) == \
+        ("mait_linux1_teamcenter_app", "Linux", 2, 0)
+    assert (linux["events"], linux["errors"], linux["formats"]) == (4, 2, ["bracket_json", "jsonl"])
+    assert (win["files"], win["copies"], win["events"], win["errors"]) == (2, 1, 2, 1)
+    assert win["first_ts"] == "2026-11-24T08:30:00Z" and win["unparsed_events"] == 0
+    formats = {f["format"]: (f["files"], f["copies"], f["events"]) for f in body["formats"]}
+    assert formats == {"bracket_json": (1, 0, 3), "csv_semicolon": (2, 1, 2), "jsonl": (1, 0, 1)}
+
+
+def test_events_of_one_file(client):
+    source = client.get("/api/sources", params={"q": "fms/fsc"}).json()["items"][0]["source_id"]
+    page = client.get("/api/events", params={"source_id": source}).json()
+    assert page["total"] == 3 and {e["component"] for e in page["items"]} == {"fms/fsc"}
+    assert client.get("/api/events", params={"source_id": 9999}).json()["total"] == 0
