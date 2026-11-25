@@ -266,6 +266,7 @@ Basis: `http://localhost:8000/api`, OpenAPI unter `/docs`. JSON, Zeiten immer IS
 | `GET` | `/analysis/anomalies` | Anomalien im Zeitraum |
 | `GET` | `/analysis/graph` | Knoten & Kanten für den Abhängigkeitsgraph |
 | `GET` | `/trace/{key}` | Alle Events einer Kette (`job_id`, `trace_id`, Objekt-ID) |
+| `GET` | `/suggestions?lang=en\|de` | Vorgeschlagene Fragen für den Assistenten, per SQL aus den Logs (kein LLM-Aufruf); mit `event_id` Fragen zum geöffneten Ereignis |
 | `POST` | `/chat` | Frage stellen. Antwort als **SSE**: `step` (Tool-Aufruf), `token` (Text), `answer` (strukturiert), `done`. Das Frontend liest den Stream mit `fetch` (z. B. `fetch-event-stream`), weil `EventSource` keine POST-Anfragen senden kann |
 | `GET` | `/chat/{conversation_id}` | Verlauf |
 | `POST` | `/eval/run` | Evaluationslauf starten |

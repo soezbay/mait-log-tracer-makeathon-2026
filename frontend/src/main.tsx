@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { HashRouter, NavLink, Route, Routes, useSearchParams } from 'react-router-dom'
+import { HashRouter, NavLink, Route, Routes, useNavigate, useSearchParams } from 'react-router-dom'
 import { MantineProvider, Drawer } from '@mantine/core'
 import '@mantine/core/styles.css'
 import './style.css'
@@ -13,6 +13,7 @@ import { IncidentDetail } from './IncidentDetail'
 import { buildProcesses } from './processes'
 import type { ImportedLogs } from './import-zip'
 import { I18nProvider, useI18n } from './i18n'
+import { AssistantLinkContext, EventQuestions, SuggestionPanel, useSavedQuestions } from './suggestions'
 import { browserTimeZone, currentLocalDateTime, isValidDateTimeLocal, localDateTimeToUtcIso, utcDateTimeToEpoch, utcDateTimeToLocal } from './time'
 
 type Mode = 'demo' | 'live' | 'import'
@@ -201,12 +202,16 @@ function ErrorGroups({ mode, open }: { mode: Mode; open: (id: number) => void })
   </>
 }
 
-function Assistant({ mode, open }: { mode: Mode; open: (id: number) => void }) {
+type AssistantProps = { mode: Mode; open: (id: number) => void; contextId: number | null; clearContext: () => void; requested: string | null; clearRequested: () => void }
+
+function Assistant({ mode, open, contextId, clearContext, requested, clearRequested }: AssistantProps) {
   const { language, t } = useI18n()
   const [question, setQuestion] = useState('')
   const [result, setResult] = useState<{ question: string; answer: Answer } | null>(null)
   const [step, setStep] = useState('')
   const [error, setError] = useState('')
+  const saved = useSavedQuestions()
+  const [expanded, setExpanded] = useState(true)
   const active = React.useRef<{ target: AssistantTarget; controller: AbortController } | null>(null)
   useEffect(() => () => { active.current?.controller.abort(); active.current = null }, [])
   function isAlreadyOpen(prompt: string) {
@@ -215,11 +220,20 @@ function Assistant({ mode, open }: { mode: Mode; open: (id: number) => void }) {
     return (!!visibleTarget && sameAssistantTarget(visibleTarget, target))
       || (!!active.current && sameAssistantTarget(active.current.target, target))
   }
-  async function ask(prompt: string, clearComposer = false) {
+  // Suggestions may ask several things about one job, so only the very same question is blocked.
+  function isSameQuestionOpen(prompt: string) {
+    const text = assistantTarget(prompt).question
+    return (!!result && assistantTarget(result.question).question === text) || active.current?.target.question === text
+  }
+  async function ask(prompt: string, clearComposer = false, blocked = isAlreadyOpen) {
     const cleanPrompt = prompt.trim()
     const target = assistantTarget(cleanPrompt)
-    if (!cleanPrompt || isAlreadyOpen(cleanPrompt)) return
+    if (!cleanPrompt || blocked(cleanPrompt)) return
     if (clearComposer) setQuestion('')
+    if (mode === 'live') {
+      saved.recent.add(cleanPrompt)
+      setExpanded(false)
+    }
     active.current?.controller.abort()
     const controller = new AbortController()
     const request = { target, controller }
@@ -243,9 +257,18 @@ function Assistant({ mode, open }: { mode: Mode; open: (id: number) => void }) {
       }
     }
   }
+  const askSuggestion = (prompt: string) => void ask(prompt, false, isSameQuestionOpen)
+  useEffect(() => {
+    if (requested === null) return
+    clearRequested()
+    askSuggestion(requested)
+  }, [requested])
+  const draft = question.trim()
+  const draftSaved = saved.favorites.has(draft)
   return <>
     <Heading caption={t('assistant.caption')} title={t('assistant.title')}>{mode === 'demo' ? t('assistant.demoDescription') : t('assistant.liveDescription')}</Heading>
-    <div className="actions">{[t('assistant.prompt2003'), t('assistant.prompt2010'), t('assistant.promptSync')].map(prompt => <button type="button" key={prompt} className="secondary" disabled={isAlreadyOpen(prompt)} onClick={() => void ask(prompt)}>{prompt}</button>)}</div>
+    {mode === 'live' && <SuggestionPanel contextId={contextId} clearContext={clearContext} saved={saved} isOpen={isSameQuestionOpen} ask={askSuggestion} expanded={expanded} setExpanded={setExpanded} />}
+    {mode === 'demo' && <div className="actions">{[t('assistant.prompt2003'), t('assistant.prompt2010'), t('assistant.promptSync')].map(prompt => <button type="button" key={prompt} className="secondary" disabled={isAlreadyOpen(prompt)} onClick={() => void ask(prompt)}>{prompt}</button>)}</div>}
     {result && <article className="panel answer">
       <p className="question">{result.question}</p><h2>{t('assistant.hypothesis')}</h2><p>{result.answer.summary}</p>
       <h3>{t('assistant.causalChain')}</h3><ol>{result.answer.causal_chain.map(item => <li key={item.step}><strong>{item.server}</strong> · {item.text}</li>)}</ol>
@@ -256,8 +279,9 @@ function Assistant({ mode, open }: { mode: Mode; open: (id: number) => void }) {
     </article>}
     <Feedback pending={false} error={error} />
     {step && <p className="notice" role="status">{step}</p>}
-    <form className="panel composer" onSubmit={event => { event.preventDefault(); void ask(question, true) }}>
+    <form className={'panel composer' + (mode === 'live' ? ' composer-live' : '')} onSubmit={event => { event.preventDefault(); void ask(question, true) }}>
       <label>{t('assistant.question')}<input value={question} onChange={event => setQuestion(event.target.value)} placeholder={t('assistant.placeholder')} /></label>
+      {mode === 'live' && <button type="button" className="secondary" disabled={!draft} aria-pressed={!!draft && draftSaved} onClick={() => draftSaved ? saved.favorites.remove(draft) : saved.favorites.add(draft)}>{draftSaved && draft ? '★' : '☆'} {t('suggest.saveDraft')}</button>}
       <button disabled={!question.trim() || isAlreadyOpen(question)}>{t('assistant.ask')}</button>
     </form>
   </>
@@ -285,6 +309,7 @@ function EventDetail({ id, mode, logs, open }: { id: number; mode: Mode; logs: I
   const original = <Source key={id} id={id} mode={mode} logs={logs} />
   if (!selected) return <><Feedback {...context} />{original}</>
   return <>
+    <EventQuestions id={id} />
     {mode === 'live' && <Feedback {...live} />}
     <IncidentDetail selected={selected} process={mode === 'live' ? liveProcess : localProcess} onSelect={open}>{original}</IncidentDetail>
   </>
@@ -310,7 +335,16 @@ function App() {
       setImporting(false)
     }
   }
+  const navigate = useNavigate()
   const [id, setId] = useState<number | null>(null)
+  const [contextId, setContextId] = useState<number | null>(null)
+  const [requested, setRequested] = useState<string | null>(null)
+  const open = React.useCallback((next: number) => { setId(next); setContextId(next) }, [])
+  const assistantLink = React.useMemo(() => ({
+    live: mode === 'live',
+    ask: (question: string) => { setId(null); setRequested(question); navigate('/chat') },
+    setContext: setContextId,
+  }), [mode, navigate])
   const [health, setHealth] = useState(offline ? t('backend.offlineDemo') : t('backend.checking'))
   const [check, setCheck] = useState(0)
   useEffect(() => {
@@ -326,8 +360,8 @@ function App() {
     ).finally(() => clearTimeout(timeout))
     return () => { clearTimeout(timeout); controller.abort() }
   }, [check, language, t])
-  function switchMode(next: Mode) { setId(null); setMode(next); if (next === 'live') setCheck(value => value + 1) }
-  return <div className="shell">
+  function switchMode(next: Mode) { setId(null); setContextId(null); setRequested(null); setMode(next); if (next === 'live') setCheck(value => value + 1) }
+  return <AssistantLinkContext.Provider value={assistantLink}><div className="shell">
     <aside className="sidebar">
       <div className="brand"><span className="brand-icon" aria-hidden="true">⌁</span><div>Log Tracer<small>MAIT MAKEATHON</small></div></div>
       <nav aria-label={t('nav.primary')}><NavLink to="/" end>{t('nav.overview')}</NavLink><NavLink to="/timeline">{t('nav.timeline')}</NavLink><NavLink to="/groups">{t('nav.groups')}</NavLink><NavLink to="/chat">{t('nav.assistant')}</NavLink></nav>
@@ -347,10 +381,10 @@ function App() {
     <div className="workspace">
       <div className="topbar"><button className="health secondary" disabled={offline} onClick={() => setCheck(value => value + 1)} title={t('backend.recheck')} aria-live="polite">{health}</button>
         <div className="modes" role="group" aria-label={t('mode.source')}><button aria-pressed={mode === 'demo'} onClick={() => switchMode('demo')}>{t('mode.demo')}</button>{logs && <button aria-pressed={mode === 'import'} onClick={() => switchMode('import')}>{t('mode.import')}</button>}<button aria-pressed={mode === 'live'} disabled={offline} onClick={() => switchMode('live')}>{t('mode.live')}</button></div></div>
-      <main><Routes><Route path="/" element={<Overview mode={mode} logs={logs} onImport={file => void loadLogs(file)} onViewImport={() => switchMode('import')} pending={importing} importError={importError} open={setId} />} /><Route path="/timeline" element={<Timeline mode={mode} open={setId} logs={logs} />} /><Route path="/groups" element={<ErrorGroups mode={mode} open={setId} />} /><Route path="/chat" element={mode === 'import' ? <p className="notice">{t('assistant.importNotice')}</p> : <Assistant key={mode} mode={mode} open={setId} /> } /><Route path="*" element={<p className="notice">{t('route.notFound')} <NavLink to="/">{t('route.goHome')}</NavLink></p>} /></Routes></main>
+      <main><Routes><Route path="/" element={<Overview mode={mode} logs={logs} onImport={file => void loadLogs(file)} onViewImport={() => switchMode('import')} pending={importing} importError={importError} open={open} />} /><Route path="/timeline" element={<Timeline mode={mode} open={open} logs={logs} />} /><Route path="/groups" element={<ErrorGroups mode={mode} open={open} />} /><Route path="/chat" element={mode === 'import' ? <p className="notice">{t('assistant.importNotice')}</p> : <Assistant key={mode} mode={mode} open={open} contextId={contextId} clearContext={() => setContextId(null)} requested={requested} clearRequested={() => setRequested(null)} /> } /><Route path="*" element={<p className="notice">{t('route.notFound')} <NavLink to="/">{t('route.goHome')}</NavLink></p>} /></Routes></main>
     </div>
-    <Drawer opened={id !== null} onClose={() => setId(null)} position="right" size="min(1150px, 100%)" title={t('details.title', { id: id ?? '' })}>{id !== null && <EventDetail id={id} mode={mode} logs={logs} open={setId} />}</Drawer>
-  </div>
+    <Drawer opened={id !== null} onClose={() => setId(null)} position="right" size="min(1150px, 100%)" title={t('details.title', { id: id ?? '' })}>{id !== null && <EventDetail id={id} mode={mode} logs={logs} open={open} />}</Drawer>
+  </div></AssistantLinkContext.Provider>
 }
 
 createRoot(document.getElementById('root')!).render(<MantineProvider><I18nProvider><HashRouter><App /></HashRouter></I18nProvider></MantineProvider>)

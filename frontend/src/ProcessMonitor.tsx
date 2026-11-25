@@ -1,9 +1,10 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { Entry } from './demo'
 import { buildProcesses } from './processes'
 import type { Process } from './processes'
 import { useI18n } from './i18n'
 import type { MessageKey } from './i18n'
+import { AssistantLinkContext, EventQuestions } from './suggestions'
 import { browserTimeZone, currentLocalDateTime, isValidDateTimeLocal, localDateTimeToEpoch } from './time'
 
 const date = (value: string | undefined, locale: string) => value
@@ -159,6 +160,10 @@ function ProcessDetails({ id, process, open }: { id: string; process: Process; o
   const [visible, setVisible] = useState(50)
   const heading = useRef<HTMLHeadingElement>(null)
   useEffect(() => { if (process) heading.current?.focus() }, [process])
+  // An opened job is the assistant's context: its first error, else its first entry.
+  const { setContext } = useContext(AssistantLinkContext)
+  const contextId = (process.errors[0] ?? process.logs[0]).id
+  useEffect(() => setContext(contextId), [contextId, setContext])
   const list = errorsOnly ? process.errors : process.logs
   return <section id={id} className="panel process-details process-details-inline" aria-label={t('process.logs')}>
     <h2 ref={heading} tabIndex={-1}>{t('process.logsHeading', { job: process.job || process.trace })}</h2>
@@ -166,6 +171,7 @@ function ProcessDetails({ id, process, open }: { id: string; process: Process; o
     <p>{t('process.observedPeriod')} · {date(process.first, locale)} – {date(process.last, locale)}</p>
     {process.errors.length > 0 && <div className="process-alert"><strong>{t('process.firstError')}</strong><br />
       <button className="link" onClick={() => open(process.errors[0].id)}>{process.errors[0].host} · {process.errors[0].component} · {process.errors[0].message}</button></div>}
+    <EventQuestions id={contextId} />
     <button className="secondary" aria-pressed={errorsOnly} onClick={() => { setErrorsOnly(value => !value); setVisible(50) }}>{errorsOnly ? t('process.allLogs') : t('process.onlyErrors')}</button>
     {list.length === 0 && <p>{t('process.noErrors')}</p>}
     <ul className="process-logs">{list.slice(0, visible).map(entry => <li key={entry.id}><small>{date(entry.ts_utc, locale)} UTC · {entry.host} · {entry.component} · {entry.level}</small><button className="link" onClick={() => open(entry.id)}>{entry.message}</button></li>)}</ul>

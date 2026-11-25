@@ -231,7 +231,7 @@ frontend/src/
 | **Timeline** | one lane per server, error rate + anomaly markers, zoom; click opens the events in that range | `/api/analysis/timeseries`, `/api/events` |
 | **Error groups** | table: template, server, count, time range, status (recovered/failed), linked groups | `/api/analysis/groups` |
 | **Dependencies** | server graph; edges from `dependency=` and correlations; causal chain highlighted | `/api/analysis/graph` |
-| **Assistant (chat)** | ask a question, intermediate steps ("searching teamcenter_db…"), structured answer with evidence, uncertainty, verification steps | `/api/chat` (SSE) |
+| **Assistant (chat)** | ask a question, intermediate steps ("searching teamcenter_db…"), structured answer with evidence, uncertainty, verification steps; suggested questions from the logs and the opened event or job, recent questions and favorites (stored in the browser) | `/api/chat` (SSE), `/api/suggestions` |
 | **Quality & cost** | hit rate on test questions, tokens and € per question, "everything into the LLM" vs. "tools" | `/api/eval/*` |
 
 ### 4.2 Building blocks (`components/`)
@@ -268,6 +268,7 @@ Base: `http://localhost:8000/api`, OpenAPI at `/docs`. JSON, times always ISO-86
 | `GET` | `/analysis/anomalies` | anomalies in a time range |
 | `GET` | `/analysis/graph` | nodes & edges for the dependency graph |
 | `GET` | `/trace/{key}` | all events of a chain (`job_id`, `trace_id`, object ID) |
+| `GET` | `/suggestions?lang=en\|de` | suggested questions for the assistant, derived from the logs by SQL (no LLM call); with `event_id` questions about the opened event |
 | `POST` | `/chat` | ask a question. Answer as **SSE**: `step` (tool call), `token` (text), `answer` (structured), `done`. The frontend reads this stream with `fetch` (e.g. `fetch-event-stream`), because `EventSource` cannot send POST requests |
 | `GET` | `/chat/{conversation_id}` | history |
 | `POST` | `/eval/run` | start an evaluation run |

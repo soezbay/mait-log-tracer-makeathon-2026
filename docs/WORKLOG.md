@@ -446,3 +446,16 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `backend/src/logtracer/analysis/anomalies.py`, `backend/tests/test_p2_anomalies.py`
 - **Checks:** 126 tests pass, `ruff check` clean.
 - **Open (P2):** the title mentions the full pipeline, but nothing calls the `build_*` functions on the real database yet. `p3/kiconnect-provider` (2 commits, no pull request) was left alone.
+
+### Dynamic question suggestions for the Live assistant
+- **What:** The Live assistant no longer offers three fixed questions. It offers:
+  - **From the logs (backend):** `GET /api/suggestions?lang=en|de&limit=8`. SQL only, no LLM call. Kinds: jobs with recent errors (re-runs `-Rnn` count as one job, widest spread first), `INC-nn` numbers, days with clearly more errors than a typical day, servers, frequent older messages, and one question about harmless ERROR lines. "Recent" means 24 h before the newest real error in the logs, not the wall clock.
+  - **Context:** `?event_id=` returns questions about the opened event, its job, the other runs and what happened on that server at that time. Shown in the event drawer, in an opened job of the process monitor, and in the assistant for the last opened event or job (removable).
+  - **Recently asked:** the last 8 questions, removable one by one or all at once.
+  - **Favorites:** star on every suggestion and at the composer, up to 20. Both lists live in the browser's `localStorage`.
+- **Noise rule:** a message counts as a real error only if at least 10 % of its lines are ERROR/FATAL. In the data the two sides are clearly apart: 8 harmless messages are at about 0.5 %, all 80 others at 17 % or more. Harmless messages never lead to a "what caused" question.
+- **Why:** The fixed questions did not fit live data; `SYNC-312` does not exist in the log package.
+- **Design:** The question texts (EN/DE) come from the backend, so a new kind needs no frontend change. Suggestions block only the very same question, because several different questions about one job are wanted; typed questions keep Adnan's rule. The panel folds while an answer is shown. Demo mode keeps its three prepared questions, since its answers are prepared too.
+- **Where:** `backend/src/logtracer/api/suggestions.py`, `services/suggestion_service.py`, `storage/repositories/suggestions.py`, `main.py`; `frontend/src/suggestions.tsx`, `main.tsx`, `ProcessMonitor.tsx`, `i18n.tsx`, `style.css`; `contracts/examples/suggestions.json`, `docs/ARCHITECTURE.md`, `docs/ARCHITEKTUR.md`, `frontend/README.md`, `AGENTS.md` §4
+- **Checks:** 136 backend tests pass (10 new), `ruff check` clean, `npm run build` succeeds. 24 UI checks with the real app in jsdom against the running backend and the real database; only the chat answer was mocked.
+- **Open:** Not seen in a real browser (the built-in browser did not load localhost), so the look is unchecked; P4 please review. The suggested questions were not run through the LLM. Typed questions: `assistantTarget` reads "on 2026-11-24" as a job ID and can block a different question with the same date (P4).
