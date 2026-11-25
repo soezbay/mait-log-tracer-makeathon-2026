@@ -254,6 +254,75 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Checks:** TypeScript `--noEmit` and Vite production build passed. Checked the responsive Demo preview; Vite reports existing dependency `use client` warnings. No automated tests run.
 - **Open:** During preview, Live `/stats` and `/events` requests returned HTTP 500. P2 groups/trace and P3 chat routes are still absent from `develop` and need integration for full Live functionality.
 
+### Compact page layout and centered headings
+- **What:** Reduced main page padding, card spacing, notice height and heading/metric type sizes. Centered page headings and their descriptions, with a comfortable description width on large screens.
+- **Why:** Make the dashboard and other screens less oversized while keeping the page hierarchy easy to scan.
+- **Where:** `frontend/src/style.css`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
+- **Checks:** TypeScript `--noEmit` and Vite production build passed.
+- **Open:** -
+
+### Smaller dashboard content
+- **What:** Reduced card and notice padding, form control and body-copy sizes, table cell spacing, and metric values. Kept the page heading and its centered alignment unchanged.
+- **Why:** Make the dashboard content more compact while preserving the heading treatment the user approved.
+- **Where:** `frontend/src/style.css`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
+- **Checks:** TypeScript `--noEmit` and Vite production build passed.
+- **Open:** -
+
+### Validate timeline date filter values
+- **What:** Restrict `from` and `to` query values to valid four-digit `datetime-local` values. Invalid dates, including years with extra digits, now display empty and are omitted from the API query.
+- **Why:** Prevent malformed URL dates from rendering as impossible years in the browser's UTC date controls.
+- **Where:** `frontend/src/main.tsx`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
+- **Checks:** TypeScript `--noEmit` and Vite production build passed.
+- **Open:** -
+
+### Limit date filters to the current time
+- **What:** Set a dynamic `max` on both timeline date/time controls and reject URL or typed values after the current UTC minute. Future values are omitted from the API query.
+- **Why:** Prevent selecting a date or time in the future.
+- **Where:** `frontend/src/main.tsx`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
+- **Checks:** TypeScript `--noEmit` and Vite production build passed. In the preview, a five-digit-year query rendered blank and the date control exposed the current UTC minute as its maximum.
+- **Open:** -
+
+### Apply the UTC date limit to the process monitor
+- **What:** Moved date/time validation into a shared frontend helper and applied the same current UTC minute maximum to both process monitor filters. Out-of-range values are excluded from process results.
+- **Why:** Keep date filtering consistent between the process monitor and event timeline when investigating logs from multiple systems.
+- **Where:** `frontend/src/time.ts`, `frontend/src/main.tsx`, `frontend/src/ProcessMonitor.tsx`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
+- **Checks:** TypeScript `--noEmit` and Vite production build passed. Preview showed the current UTC maximum on both fields; a forced future value was marked invalid and did not filter the demo results.
+- **Open:** -
+
+### Add confirmation to process monitor filters
+- **What:** Added an Apply filters button so process-monitor changes remain pending until confirmed. The To date now has From as its minimum; moving From later clears any earlier To value. The current UTC maximum remains active.
+- **Why:** Make filter changes explicit and prevent reversed date ranges.
+- **Where:** `frontend/src/ProcessMonitor.tsx`, `frontend/src/i18n.tsx`, `frontend/src/style.css`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
+- **Checks:** TypeScript `--noEmit` and Vite production build passed. In the preview, setting From to 10:00 set To's minimum to 10:00; an earlier To value was cleared. Apply filters reduced the demo list from three jobs to two.
+- **Open:** -
+
+### Use browser-local time in date filters
+- **What:** Date/time inputs now use the browser's local wall clock and show the corresponding time zone. Timeline URL values stay canonical UTC timestamps; API filters convert local input to UTC. Process-monitor comparisons convert local boundaries to UTC instants and keep the current-time and To-after-From rules.
+- **Why:** `datetime-local` controls accept local wall-clock values. Treating them as UTC shifted selections by the browser's UTC offset, so the chosen log time could be an hour off.
+- **Where:** `frontend/src/time.ts`, `frontend/src/main.tsx`, `frontend/src/ProcessMonitor.tsx`, `frontend/src/i18n.tsx`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
+- **Checks:** TypeScript `--noEmit` and Vite production build passed. Timeline parameters are converted to UTC ISO strings before API filtering.
+- **Open:** -
+
+### Pull and start the backend
+- **What:** The feature branch was already current with its upstream. Installed Python 3.12.10 for the current Windows user, synced backend dependencies from `uv.lock`, and started the API in a hidden background process at `http://127.0.0.1:8000`.
+- **Why:** Make the local backend available to the frontend for development.
+- **Where:** Local runtime in `backend/.venv`; generated database in `data/logtracer.duckdb`; no backend source files changed.
+- **Checks:** `GET /api/health` returns `status: ok` and `db_found: true`.
+- **Open:** `log_root_found: false`; `MAIT_Makeathon_Logpaket/` is absent from this checkout, so the local database is empty until the log package is provided.
+
+### Prevent duplicate assistant answers
+- **What:** Kept only one assistant answer visible. Repeated normalized questions and repeated job IDs are ignored; a new question aborts an in-flight search and replaces the previous answer.
+- **Why:** Avoid duplicate answer cards and requests when the same question or job is clicked again.
+- **Where:** `frontend/src/main.tsx`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
+- **Checks:** TypeScript `--noEmit` and Vite production build passed.
+- **Open:** -
+
+### Remember previously answered assistant targets
+- **What:** The Assistant now remembers successfully answered normalized questions and job IDs for the current session. Reopening a previous target stays disabled after another answer replaces it; failed requests can still be retried.
+- **Why:** Keep the same question or job from being opened again after switching to another answer.
+- **Where:** `frontend/src/main.tsx`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
+- **Checks:** TypeScript `--noEmit` and Vite production build passed.
+- **Open:** -
 ### AI assistant and /api/chat (P3, Tarun)
 - **What:**
   - `assistant/`: provider interface with Gemini (`google-genai`) and Claude (`anthropic`), switch with `LLM_PROVIDER`; 8 SQL tools with `LIMIT` (`get_stats`, `get_incidents`, `get_error_groups`, `get_anomalies`, `search_events`, `trace`, `correlate`, `get_context`); system prompt; answer schema (`answer.py`, interface 3); tool-use loop (`agent.py`, max 8 rounds / 14 tool calls) that ends with `submit_answer`.
@@ -335,3 +404,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `backend/src/logtracer/assistant/data_access.py`, `tools.py`, `agent.py`, `backend/tests/test_tools_and_agent.py`.
 - **Checks:** 108 tests pass (4 new), `ruff check` clean. Replay on the real DB: the answer from the live run is sent back with "98 log lines of 49 other jobs"; the corrected answer is accepted with the same 4 evidence lines.
 - **Open:** Groq prices for gpt-oss-120b in `costs.py`.
+
+### Resolve frontend pull request conflicts
+- **What:** Merged the latest `main` into `codex/frontend-backend-integration`. Combined the frontend entries with the P1/P3 entries in `docs/AI_LOG.md` and `docs/WORKLOG.md`, keeping the history from both branches.
+- **Why:** The pull request could not merge while both branches had edits in these two append-only logs.
+- **Where:** `docs/AI_LOG.md`, `docs/WORKLOG.md`; branch `codex/frontend-backend-integration`.
+- **Checks:** `git diff --check` passed; no conflict markers remain.
+- **Open:** Commit and push the merge, then confirm GitHub reports the pull request as mergeable.

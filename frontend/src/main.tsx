@@ -13,11 +13,23 @@ import { IncidentDetail } from './IncidentDetail'
 import { buildProcesses } from './processes'
 import type { ImportedLogs } from './import-zip'
 import { I18nProvider, useI18n } from './i18n'
+import { browserTimeZone, currentLocalDateTime, isValidDateTimeLocal, localDateTimeToUtcIso, utcDateTimeToEpoch, utcDateTimeToLocal } from './time'
 
 type Mode = 'demo' | 'live' | 'import'
 const offline = window.location.protocol === 'file:'
 const formatTime = (timestamp: string) => timestamp.replace('T', ' ').replace(/(?:\.\d+)?Z$/, ' UTC')
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error)
+type AssistantTarget = { question: string; jobIds: string[] }
+
+function assistantTarget(question: string): AssistantTarget {
+  const normalized = question.trim().replace(/\s+/g, ' ').toLowerCase()
+  const jobIds = [...new Set((normalized.match(/\b[a-z][a-z0-9]*[-_ ]\d+[a-z0-9._-]*\b/g) ?? []).map(id => id.replace(/[\s_]+/g, '-')))]
+  return { question: normalized, jobIds }
+}
+
+function sameAssistantTarget(first: AssistantTarget, second: AssistantTarget) {
+  return first.question === second.question || first.jobIds.some(id => second.jobIds.includes(id))
+}
 
 function useData<T>(path: string, mode: Mode, sample: T) {
   const { language } = useI18n()
@@ -98,10 +110,12 @@ function Heading({ caption, title, children }: React.PropsWithChildren<{ caption
 function Timeline({ mode, open, logs }: { mode: Mode; open: (id: number) => void; logs: ImportedLogs | null }) {
   const { language, t } = useI18n()
   const locale = language === 'en' ? 'en-GB' : 'de-DE'
+  const latestDateTime = currentLocalDateTime()
+  const timeZone = browserTimeZone()
   const filters = [
     ['q', t('filter.text'), t('filter.textPlaceholder')], ['server', t('filter.server'), t('filter.serverPlaceholder')],
     ['component', t('filter.component'), t('filter.componentPlaceholder')], ['job_id', t('filter.job'), t('filter.jobPlaceholder')],
-    ['trace_id', t('filter.trace'), t('filter.tracePlaceholder')], ['from', t('filter.from'), ''], ['to', t('filter.to'), ''],
+    ['trace_id', t('filter.trace'), t('filter.tracePlaceholder')], ['from', t('filter.from', { zone: timeZone }), ''], ['to', t('filter.to', { zone: timeZone }), ''],
   ] as const
   const [params, update] = useSearchParams()
   const query = new URLSearchParams(params)
@@ -109,13 +123,18 @@ function Timeline({ mode, open, logs }: { mode: Mode; open: (id: number) => void
   function set(name: string, value: string) {
     const next = new URLSearchParams(params)
     if (name !== 'page') next.delete('page')
-    if (value) next.set(name, value)
+    if (value && (name === 'from' || name === 'to')) {
+      next.set(name, isValidDateTimeLocal(value, latestDateTime) ? localDateTimeToUtcIso(value) : '')
+    } else if (value) next.set(name, value)
     else next.delete(name)
+    if (next.get(name) === '') next.delete(name)
     update(next, { replace: true })
   }
   for (const field of ['from', 'to']) {
     const date = params.get(field)
-    if (date && Number.isFinite(Date.parse(date + 'Z'))) query.set(field, new Date(date + 'Z').toISOString())
+    const timestamp = utcDateTimeToEpoch(date)
+    if (timestamp !== undefined && timestamp <= Date.now()) query.set(field, new Date(timestamp).toISOString())
+    else query.delete(field)
   }
   const localPageSize = 100
   const apiQuery = new URLSearchParams(query)
@@ -141,7 +160,18 @@ function Timeline({ mode, open, logs }: { mode: Mode; open: (id: number) => void
   return <>
     <Heading caption={t('timeline.caption')} title={t('timeline.title')}>{t('timeline.description')}</Heading>
     <div className="panel filters">
-      {filters.map(([name, label, placeholder]) => <label key={name}>{label}<input type={name === 'from' || name === 'to' ? 'datetime-local' : 'text'} placeholder={placeholder} value={params.get(name) ?? ''} onChange={e => set(name, e.target.value)} /></label>)}
+      {filters.map(([name, label, placeholder]) => {
+        const dateField = name === 'from' || name === 'to'
+        const value = params.get(name)
+        const localValue = dateField ? utcDateTimeToLocal(value) : value
+        return <label key={name}>{label}<input type={dateField ? 'datetime-local' : 'text'} max={dateField ? latestDateTime : undefined} placeholder={placeholder} value={dateField ? (isValidDateTimeLocal(localValue, latestDateTime) ? localValue : '') : value ?? ''} onChange={e => {
+          const nextValue = e.currentTarget.value
+          set(name, dateField && nextValue && !isValidDateTimeLocal(nextValue, latestDateTime) ? '' : nextValue)
+        }} onBlur={e => {
+          const nextValue = e.currentTarget.value
+          if (dateField && nextValue && !isValidDateTimeLocal(nextValue, latestDateTime)) set(name, '')
+        }} /></label>
+      })}
       <label>{t('filter.level')}<select value={params.get('level') ?? ''} onChange={e => set('level', e.target.value)}><option value="">{t('filter.all')}</option>{['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'].map(level => <option key={level}>{level}</option>)}</select></label>
       <button type="button" className="secondary" onClick={() => update({})} disabled={!params.size}>{t('filter.clear')}</button>
     </div>
@@ -174,44 +204,64 @@ function ErrorGroups({ mode, open }: { mode: Mode; open: (id: number) => void })
 function Assistant({ mode, open }: { mode: Mode; open: (id: number) => void }) {
   const { language, t } = useI18n()
   const [question, setQuestion] = useState('')
-  const [history, setHistory] = useState<{ question: string; answer: Answer }[]>([])
+  const [result, setResult] = useState<{ question: string; answer: Answer } | null>(null)
   const [step, setStep] = useState('')
   const [error, setError] = useState('')
-  const active = React.useRef<AbortController>()
-  useEffect(() => () => active.current?.abort(), [])
-  async function ask(prompt: string) {
-    if (!prompt.trim() || active.current) return
+  const active = React.useRef<{ target: AssistantTarget; controller: AbortController } | null>(null)
+  const opened = React.useRef({ questions: new Set<string>(), jobIds: new Set<string>() })
+  useEffect(() => () => { active.current?.controller.abort(); active.current = null }, [])
+  function isAlreadyOpen(prompt: string) {
+    const target = assistantTarget(prompt)
+    return opened.current.questions.has(target.question)
+      || target.jobIds.some(id => opened.current.jobIds.has(id))
+      || (!!active.current && sameAssistantTarget(active.current.target, target))
+  }
+  async function ask(prompt: string, clearComposer = false) {
+    const cleanPrompt = prompt.trim()
+    const target = assistantTarget(cleanPrompt)
+    if (!cleanPrompt || isAlreadyOpen(cleanPrompt)) return
+    if (clearComposer) setQuestion('')
+    active.current?.controller.abort()
     const controller = new AbortController()
-    active.current = controller
+    const request = { target, controller }
+    active.current = request
+    setResult(null)
     setError('')
     setStep(t('assistant.searching'))
     try {
-      const answer = mode === 'demo' ? demoAnswer(prompt, language) : await chat(prompt, setStep, controller.signal)
-      setHistory(previous => [...previous, { question: prompt, answer }])
-      setQuestion('')
+      const answer = mode === 'demo'
+        ? demoAnswer(cleanPrompt, language)
+        : await chat(cleanPrompt, message => { if (active.current === request) setStep(message) }, controller.signal)
+      if (active.current === request) {
+        setResult({ question: cleanPrompt, answer })
+        opened.current.questions.add(target.question)
+        target.jobIds.forEach(id => opened.current.jobIds.add(id))
+      }
     } catch (error) {
-      if (!controller.signal.aborted) setError(errorText(error))
+      if (!controller.signal.aborted && active.current === request) setError(errorText(error))
     } finally {
-      active.current = undefined
-      setStep('')
+      if (active.current === request) {
+        active.current = null
+        setStep('')
+      }
     }
   }
   return <>
     <Heading caption={t('assistant.caption')} title={t('assistant.title')}>{mode === 'demo' ? t('assistant.demoDescription') : t('assistant.liveDescription')}</Heading>
-    <div className="actions">{[t('assistant.prompt2003'), t('assistant.prompt2010'), t('assistant.promptSync')].map(prompt => <button type="button" key={prompt} className="secondary" disabled={!!step} onClick={() => void ask(prompt)}>{prompt}</button>)}</div>
-    {history.map(({ question: asked, answer }, index) => <article className="panel answer" key={index}>
-      <p className="question">{asked}</p><h2>{t('assistant.hypothesis')}</h2><p>{answer.summary}</p>
-      <h3>{t('assistant.causalChain')}</h3><ol>{answer.causal_chain.map(item => <li key={item.step}><strong>{item.server}</strong> · {item.text}</li>)}</ol>
-      <h3>{t('assistant.evidence')}</h3><div className="evidence">{answer.evidence.map((item, index) => <button key={index} className="secondary" onClick={() => open(item.event_id)} title={item.file}>{item.file.split('/').at(-1)}:{item.line} <small>{formatTime(item.ts)}</small></button>)}</div>
-      <h3>{t('assistant.uncertainty')}{typeof answer.confidence === 'number' ? ' · ' + t('assistant.confidence', { percent: Math.round(answer.confidence * 100) }) : ''}</h3><p>{answer.uncertainty}</p>
-      {!!answer.counter_evidence?.length && <><h3>{t('assistant.counterEvidence')}</h3><ul>{answer.counter_evidence.map(text => <li key={text}>{text}</li>)}</ul></>}
-      <h3>{t('assistant.verification')}</h3><ul>{answer.verification_steps.map(text => <li key={text}>{text}</li>)}</ul>
-    </article>)}
+    <div className="actions">{[t('assistant.prompt2003'), t('assistant.prompt2010'), t('assistant.promptSync')].map(prompt => <button type="button" key={prompt} className="secondary" disabled={isAlreadyOpen(prompt)} onClick={() => void ask(prompt)}>{prompt}</button>)}</div>
+    {result && <article className="panel answer">
+      <p className="question">{result.question}</p><h2>{t('assistant.hypothesis')}</h2><p>{result.answer.summary}</p>
+      <h3>{t('assistant.causalChain')}</h3><ol>{result.answer.causal_chain.map(item => <li key={item.step}><strong>{item.server}</strong> · {item.text}</li>)}</ol>
+      <h3>{t('assistant.evidence')}</h3><div className="evidence">{result.answer.evidence.map((item, index) => <button key={index} className="secondary" onClick={() => open(item.event_id)} title={item.file}>{item.file.split('/').at(-1)}:{item.line} <small>{formatTime(item.ts)}</small></button>)}</div>
+      <h3>{t('assistant.uncertainty')}{typeof result.answer.confidence === 'number' ? ' · ' + t('assistant.confidence', { percent: Math.round(result.answer.confidence * 100) }) : ''}</h3><p>{result.answer.uncertainty}</p>
+      {!!result.answer.counter_evidence?.length && <><h3>{t('assistant.counterEvidence')}</h3><ul>{result.answer.counter_evidence.map(text => <li key={text}>{text}</li>)}</ul></>}
+      <h3>{t('assistant.verification')}</h3><ul>{result.answer.verification_steps.map(text => <li key={text}>{text}</li>)}</ul>
+    </article>}
     <Feedback pending={false} error={error} />
     {step && <p className="notice" role="status">{step}</p>}
-    <form className="panel composer" onSubmit={event => { event.preventDefault(); void ask(question) }}>
+    <form className="panel composer" onSubmit={event => { event.preventDefault(); void ask(question, true) }}>
       <label>{t('assistant.question')}<input value={question} onChange={event => setQuestion(event.target.value)} placeholder={t('assistant.placeholder')} /></label>
-      <button disabled={!question.trim() || !!step}>{t('assistant.ask')}</button>
+      <button disabled={!question.trim() || isAlreadyOpen(question)}>{t('assistant.ask')}</button>
     </form>
   </>
 }
