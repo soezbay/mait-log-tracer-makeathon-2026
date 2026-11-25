@@ -443,3 +443,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Why:** The answer stated something the logs contradict, which is the error the check exists to prevent.
 - **Where:** `backend/src/logtracer/assistant/agent.py`, `backend/tests/test_tools_and_agent.py`.
 - **Checks:** 117 tests pass (1 new), `ruff check` clean; the live Mistral answer replayed on the real DB is sent back with "98 log lines of 49 other jobs".
+
+### KI:connect tuning: complete causal chain, no per-re-run searches (P3, Tarun)
+- **What:** Two prompt rules. (1) The causal chain has one step per server/component that logged the failure in its time cluster, in time order, starting with the last step that still succeeded. (2) `related` groups already count every re-run and give sample ids, so the model must not search related keys one by one.
+- **Why:** Live runs with KI:connect `inferenz-openai-gpt-oss-120b-stud`: with `LLM_REASONING_EFFORT=medium` 41.3 s, 7 LLM calls, 25,644 + 2,319 tokens, full 4-step chain, but two extra searches for JOB-2003-R01 and R02; with `low` 19.0 s, 3 calls, 5,939 + 870 tokens, 49 re-runs named, but only a 2-step chain (fms/fsc step skipped). The second question, asked right after the first, did not wait: KI:connect sends no rate-limit headers and showed no per-minute cap; `inferenz-qwen-qwen3-8-27b-stud` returned 503 over capacity.
+- **Where:** `backend/src/logtracer/assistant/prompt.py`.
+- **Checks:** 117 tests pass, `ruff check` clean.
+- **Open:** live re-test with `low`; expected about 20 s with the full chain.
