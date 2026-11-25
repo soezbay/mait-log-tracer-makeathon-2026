@@ -52,6 +52,24 @@ def _error_code(exc: Exception) -> str | None:
     return None
 
 
+# 400 errors that mean "the model produced output Groq could not use" (a broken tool call, or text
+# that is not valid output at all). The request itself was fine, so the agent simply asks again.
+_BAD_GENERATION_CODES = {"tool_use_failed", "output_parse_failed", "json_validate_failed"}
+
+
+def _bad_generation(exc: Exception) -> bool:
+    if getattr(exc, "status_code", None) != 400:
+        return False
+    if _error_code(exc) in _BAD_GENERATION_CODES:
+        return True
+    body = getattr(exc, "body", None)
+    err = body.get("error", body) if isinstance(body, dict) else None
+    if isinstance(err, dict) and "failed_generation" in err:
+        return True
+    text = str(getattr(exc, "message", None) or exc).lower()
+    return "failed_generation" in text or "could not be parsed" in text
+
+
 def _retry_after(exc: Exception) -> float | None:
     """Seconds Groq asks us to wait (``retry-after`` header), capped at one minute."""
     response = getattr(exc, "response", None)
@@ -127,9 +145,10 @@ class GroqConversation(Conversation):
         except Exception as exc:
             status = getattr(exc, "status_code", None)
             detail = _describe(exc)
-            if status == 400 and _error_code(exc) == "tool_use_failed":
-                # The model wrote a malformed tool call. Keep the history valid; the agent nudges it.
-                log.warning("Groq tool_use_failed, asking the model again [%s]", detail)
+            if _bad_generation(exc):
+                # The model wrote output Groq could not parse (e.g. a malformed tool call). The
+                # request was fine: keep the history valid and let the agent ask the model again.
+                log.warning("Groq could not parse the model output, asking again [%s]", detail)
                 return LLMResponse()
             if status == 429:
                 raise ProviderError(
