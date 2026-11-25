@@ -577,3 +577,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `backend/src/logtracer/assistant/data_access.py`, `prompt.py`, `agent.py`, `backend/tests/test_tools_and_agent.py`; branch `p3/analyze-upload`.
 - **Checks:** 185 tests pass (1 new), ruff clean. The Q6 search on the test package now returns 0 with the hint "7 events between 2026-10-04 and 2026-10-05".
 - **Open:** re-test Q1, Q2, Q3 and Q6 live.
+
+### Assistant: a sample id for every re-run, no skipped job errors (P3, Tarun)
+- **What:** `trace` lists up to 5 sample ids per related group (before: 2). New answer check: when `trace` listed all of a job's WARN/ERROR/FATAL lines (at most 8), the answer must cite each of them, in the chain or as explained noise; otherwise it goes back once with the uncited lines, and the second answer is accepted. The fallback after repeated bad answers caps confidence at 0.3 and adds the "ids removed" note only when ids really were removed.
+- **Why:** third test-package run. JOB-2010, JOB-2001 and "Search query completed" pass now, but JOB-2003 fell to 30%: with 3 re-runs and 2 sample ids the model guessed the third id, and its chain left out the Teamcenter "Upload rejected" ERROR (csv:31).
+- **Where:** `backend/src/logtracer/assistant/data_access.py`, `tools.py`, `agent.py`, `backend/tests/test_tools_and_agent.py`; branch `p3/analyze-upload`.
+- **Checks:** 188 tests pass (3 new), ruff clean. On the test package, trace(JOB-2003) now gives 3 sample ids per re-run group and requires the 3 ERROR lines (plm_sync, Upload rejected, Publish failed).
+- **Open:** re-test JOB-2003 live.

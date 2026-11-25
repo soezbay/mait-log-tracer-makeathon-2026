@@ -18,6 +18,7 @@ from .providers.base import ToolSpec
 log = logging.getLogger(__name__)
 
 MAX_RESULT_CHARS = 9000
+TRACE_FAILURES_MAX = 8  # more failing lines than this: the job is too big to require citing each
 
 _TIME = {"type": "string", "description": "UTC time or date"}
 _LIMIT = {"type": "integer", "description": "max rows (default 20)"}
@@ -189,6 +190,8 @@ class ToolBox:
         self.seen_event_ids: set[int] = set()
         # trace key -> related jobs that logged WARN/ERROR/FATAL (the answer must mention them)
         self.related_failures: dict[str, dict[str, Any]] = {}
+        # trace key -> its own WARN/ERROR/FATAL lines, when trace listed all of them (few)
+        self.trace_failures: dict[str, list[dict[str, Any]]] = {}
         self._handlers: dict[str, Callable[..., dict[str, Any]]] = {
             "get_stats": store.stats,
             "get_incidents": lambda **kw: store.incidents(**kw),
@@ -228,7 +231,20 @@ class ToolBox:
         self.seen_event_ids |= collect_event_ids(result)
         if name == "trace":
             self._remember_related(result)
+            self._remember_failures(result)
         return result
+
+    def _remember_failures(self, result: dict[str, Any]) -> None:
+        """The job's own WARN/ERROR/FATAL lines, if trace listed them all and there are few."""
+        cols, rows = result.get("cols") or [], result.get("rows") or []
+        if result.get("truncated") or not {"id", "level"} <= set(cols):
+            return
+        failing = [
+            dict(zip(cols, row, strict=False)) for row in rows
+            if str(row[cols.index("level")]).upper() in ("WARN", "ERROR", "FATAL")
+        ]
+        if 0 < len(failing) <= TRACE_FAILURES_MAX:
+            self.trace_failures[str(result.get("key"))] = failing
 
     def _remember_related(self, result: dict[str, Any]) -> None:
         rel = result.get("related")

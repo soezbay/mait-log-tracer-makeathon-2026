@@ -43,6 +43,9 @@ def _now() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
 
 
+RELATED_SAMPLES = 5
+
+
 def iso(dt: Any) -> str | None:
     if dt is None:
         return None
@@ -159,12 +162,13 @@ class LogStore:
     # Messages that differ only in numbers belong to one pattern (e.g. retry counters, sizes).
     _PATTERN = "regexp_replace(coalesce(e.message, ''), '[0-9]+', '#', 'g')"
 
-    def _groups(self, clause: str, params: list[Any], limit: int = 15) -> dict[str, Any]:
+    def _groups(self, clause: str, params: list[Any], limit: int = 15,
+                samples: int = 2) -> dict[str, Any]:
         """Summary of ALL events matching ``clause``: one row per host/component/level/message pattern."""
         rows = self.cur.execute(
             f"SELECT count(*) AS n, min(e.ts_utc) AS first_ts, max(e.ts_utc) AS last_ts, e.host, "
             f"e.component, e.level, any_value(e.message) AS example, "
-            f"list(e.id ORDER BY e.ts_utc, e.id)[1:2] AS sample_event_ids, "
+            f"list(e.id ORDER BY e.ts_utc, e.id)[1:{int(samples)}] AS sample_event_ids, "
             f"count(DISTINCT e.job_id) AS jobs "
             f"{self._EVENT_FROM} WHERE {clause} GROUP BY e.host, e.component, e.level, {self._PATTERN} "
             f"ORDER BY n DESC, first_ts LIMIT {int(limit) + 1}",
@@ -345,7 +349,8 @@ class LogStore:
                 ).fetchall()
                 if r[0]
             ]
-            groups = self._groups(related, rparams)
+            # Up to 5 sample ids per group: one per re-run for a few re-runs, so none has to be guessed.
+            groups = self._groups(related, rparams, samples=RELATED_SAMPLES)
             out["related"] = {
                 "events": n_related,
                 "keys": _compress_keys(keys),

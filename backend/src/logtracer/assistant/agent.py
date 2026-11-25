@@ -205,6 +205,17 @@ class LogTracerAgent:
                                "re-runs) and how many there are. Keep the rest, also the form of reply the user wants, and call "
                                f"{SUBMIT_TOOL_NAME} again.",
             }
+        uncited = _uncited_trace_failures(sub, box)
+        if uncited:
+            box.trace_failures.clear()  # ask once; a second answer is accepted as it is
+            return None, {
+                "error": "The answer leaves out WARN/ERROR lines that trace found for this job.",
+                "uncited_lines": uncited,
+                "instruction": "Put each line in the causal chain if it is part of the failure (cite "
+                               "its id), or say in counter_evidence why it is not (e.g. harmless) and "
+                               "cite its id in evidence_event_ids. Keep the rest and call "
+                               f"{SUBMIT_TOOL_NAME} again.",
+            }
         if not cited and sub.confidence > 0.2:
             return None, {
                 "error": "No evidence cited.",
@@ -239,19 +250,31 @@ class LogTracerAgent:
         cited = sub.cited_event_ids()
         existing = self.store.existing_event_ids(cited)
         valid = [i for i in cited if i in existing and i in box.seen_event_ids]
-        for step in sub.causal_chain:
-            step.event_ids = [i for i in step.event_ids if i in valid]
-        sub.evidence_event_ids = [i for i in sub.evidence_event_ids if i in valid]
-        sub.confidence = min(sub.confidence, 0.3)
+        if len(valid) < len(cited):  # only then is the evidence weaker than the model claimed
+            for step in sub.causal_chain:
+                step.event_ids = [i for i in step.event_ids if i in valid]
+            sub.evidence_event_ids = [i for i in sub.evidence_event_ids if i in valid]
+            sub.confidence = min(sub.confidence, 0.3)
+            sub.uncertainty += (" [Automatic check: some cited event ids could not be verified and "
+                                "were removed.]")
         if not [c for c in sub.counter_evidence if c.strip()]:
             sub.counter_evidence = ["The assistant gave no counter-evidence; treat the hypothesis with care."]
-        sub.uncertainty += " [Automatic check: some cited event ids could not be verified and were removed.]"
         return self._build(sub, valid)
 
 
 # Words that only count as a mention in the plural or as a phrase: "re-run the publish" is advice
 # (seen live), not a statement about the 49 failed re-runs.
 _RERUN_WORDS = ("re-runs", "reruns", "re runs", "other jobs", "other runs", "repeated", "recurr")
+
+
+def _uncited_trace_failures(sub: AnswerSubmission, box: ToolBox) -> list[dict[str, Any]]:
+    """WARN/ERROR lines of a traced job that the answer neither cites nor explains away."""
+    cited = set(sub.cited_event_ids())
+    return [
+        {k: line.get(k) for k in ("id", "host", "component", "level", "message")}
+        for lines in box.trace_failures.values() for line in lines
+        if line.get("id") not in cited
+    ]
 
 
 def _unmentioned_related(

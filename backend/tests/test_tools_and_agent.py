@@ -81,6 +81,14 @@ def test_trace_reports_related_reruns_and_makes_them_citable(con, box):
     assert sum(col(rel["groups"], "count")) == 14  # every related line is counted
     samples = [i for s in col(rel["groups"], "sample_event_ids") for i in s]
     assert samples and set(samples) <= box.seen_event_ids  # the model may cite them
+    assert all(len(s) == 5 for s in col(rel["groups"], "sample_event_ids"))  # up to 5 per group
+
+
+def test_few_reruns_each_get_a_sample_id(con, box):
+    # 3 re-runs, 2 lines each: every re-run has a citable id, so none has to be guessed
+    add_reruns(con, 3)
+    rel = box.execute("trace", {"key": "JOB-2003"})["related"]
+    assert sorted(i for s in col(rel["groups"], "sample_event_ids") for i in s) == list(range(5002, 5008))
 
 
 def test_truncated_search_lists_different_lines_and_counts_all(con, box):
@@ -234,6 +242,32 @@ def test_repeated_bad_submissions_degrade_to_verified_evidence(con):
     assert ans["confidence"] <= 0.3 and "removed" in ans["uncertainty"]
     assert {e["event_id"] for e in ans["evidence"]} == {1001, 1002, 1003}
     assert 9999 not in {e["event_id"] for e in ans["evidence"]}
+
+
+def test_uncited_trace_errors_are_sent_back_once(con):
+    # The answer skips the FMS rejection (1002, ERROR) that trace found for the job.
+    skip = good_submission(evidence_event_ids=[1001, 1003],
+                           causal_chain=[good_submission()["causal_chain"][i] for i in (1, 2)])
+    p = ScriptedProvider([
+        resp(call("trace", key="JOB-2003")),
+        resp(call("submit_answer", **skip)),
+        resp(call("submit_answer", **skip)),  # asked once only: the second answer is accepted
+    ])
+    ev = run(con, p)
+    err = p.tool_results[1][0][1]
+    assert [line["id"] for line in err["uncited_lines"]] == [1002]
+    ans = next(e["data"] for e in ev if e["event"] == "answer")
+    assert ans["confidence"] == 0.85 and "removed" not in ans["uncertainty"]
+
+
+def test_degrade_without_bad_ids_keeps_the_confidence(con):
+    # Three answers without counter-evidence: degraded, but no id was wrong, so no 0.3 cap.
+    weak = good_submission(counter_evidence=[])
+    p = ScriptedProvider([resp(call("trace", key="JOB-2003"))]
+                         + [resp(call("submit_answer", **weak))] * 3)
+    ans = next(e["data"] for e in run(con, p) if e["event"] == "answer")
+    assert ans["confidence"] == 0.85 and "removed" not in ans["uncertainty"]
+    assert ans["counter_evidence"]
 
 
 def test_no_evidence_needs_low_confidence(con):
