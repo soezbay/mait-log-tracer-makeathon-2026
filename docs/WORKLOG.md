@@ -529,3 +529,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `frontend/src/incidents.tsx`, `event-details.tsx`, `data.tsx`, `ui.tsx`, `layout.css`, `main.tsx`, `i18n.tsx`, `api.ts`, `IncidentDetail.tsx`
 - **Checks:** `npm run build` succeeds, 42 jsdom checks with the real app against the running backend (chat mocked), looked at in the browser at 1440 px and 375 px.
 - **Open (P4):** review; `codex/mait-brand-refresh` rewrites `style.css`, so check `layout.css` when merging it.
+
+### Assistant steps as a foldable timeline
+- **What:** The one-line notice of the assistant is now a timeline of its steps: tool, search term, result and duration, with the model's own phases (reading the question, evaluating, writing the answer) in between, plus a running clock. It folds to "Done: 2 steps in 35 s" when the answer arrives and can be opened again. After an error it stays open and marks the step. Failed tool calls that the model works around are yellow. `chat()` passes the structured step events on and reads the `done` event, so model, calls and tokens are shown.
+- **Why:** Safak asked for it; an answer takes 20 to 75 s and the old notice showed only the latest message.
+- **Where:** `frontend/src/assistant-run.tsx`, `api.ts`, `main.tsx`, `i18n.tsx`, `layout.css`
+- **Checks:** `npm run build` succeeds; 62 jsdom checks (20 new, with a simulated stream: steps, folding, error, replaced question, German, Demo); one real question in the browser.
+- **Open:** the Demo mode has no steps, because its answers are prepared. The backend sends no event when an answer is rejected by the evidence check (P3).

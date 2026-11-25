@@ -6,6 +6,8 @@ import '@mantine/core/styles.css'
 import './style.css'
 import './layout.css'
 import { chat, request } from './api'
+import { addStep, finishRun, RunPanel, startRun } from './assistant-run'
+import type { AssistantRun } from './assistant-run'
 import { errorText, Feedback, formatTime, offline, useData } from './data'
 import type { Mode } from './data'
 import { demoAnswer, entries, groups } from './demo'
@@ -186,7 +188,7 @@ function Assistant({ mode, open, contextId, clearContext, requested, clearReques
   const { language, t } = useI18n()
   const [question, setQuestion] = useState('')
   const [result, setResult] = useState<{ question: string; answer: Answer } | null>(null)
-  const [step, setStep] = useState('')
+  const [run, setRun] = useState<AssistantRun | null>(null)
   const [error, setError] = useState('')
   const saved = useSavedQuestions()
   const [expanded, setExpanded] = useState(true)
@@ -218,21 +220,23 @@ function Assistant({ mode, open, contextId, clearContext, requested, clearReques
     active.current = request
     setResult(null)
     setError('')
-    setStep(t('assistant.searching'))
+    setRun(mode === 'live' ? startRun(cleanPrompt) : null)
+    const update = (change: (run: AssistantRun) => AssistantRun) => {
+      if (active.current === request) setRun(current => current && change(current))
+    }
     try {
-      const answer = mode === 'demo'
-        ? demoAnswer(cleanPrompt, language)
-        : await chat(cleanPrompt, message => { if (active.current === request) setStep(message) }, controller.signal)
-      if (active.current === request) {
-        setResult({ question: cleanPrompt, answer })
-      }
+      const { answer, usage } = mode === 'demo'
+        ? { answer: demoAnswer(cleanPrompt, language), usage: undefined }
+        : await chat(cleanPrompt, step => update(current => addStep(current, step)), controller.signal, language)
+      update(current => finishRun(current, 'done', usage))
+      if (active.current === request) setResult({ question: cleanPrompt, answer })
     } catch (error) {
-      if (!controller.signal.aborted && active.current === request) setError(errorText(error))
-    } finally {
-      if (active.current === request) {
-        active.current = null
-        setStep('')
+      if (!controller.signal.aborted && active.current === request) {
+        update(current => finishRun(current, 'error'))
+        setError(errorText(error))
       }
+    } finally {
+      if (active.current === request) active.current = null
     }
   }
   const askSuggestion = (prompt: string) => void ask(prompt, false, isSameQuestionOpen)
@@ -247,8 +251,9 @@ function Assistant({ mode, open, contextId, clearContext, requested, clearReques
     <PageTitle title={t('assistant.title')} info={mode === 'demo' ? t('assistant.demoDescription') : t('assistant.liveDescription')} />
     {mode === 'live' && <SuggestionPanel contextId={contextId} clearContext={clearContext} saved={saved} isOpen={isSameQuestionOpen} ask={askSuggestion} expanded={expanded} setExpanded={setExpanded} />}
     {mode === 'demo' && <div className="actions">{[t('assistant.prompt2003'), t('assistant.prompt2010'), t('assistant.promptSync')].map(prompt => <button type="button" key={prompt} className="secondary" disabled={isAlreadyOpen(prompt)} onClick={() => void ask(prompt)}>{prompt}</button>)}</div>}
+    {run && <RunPanel run={run} />}
     {result && <article className="panel answer">
-      <p className="question">{result.question}</p><h2>{t('assistant.hypothesis')}</h2><p>{result.answer.summary}</p>
+      {!run && <p className="question">{result.question}</p>}<h2>{t('assistant.hypothesis')}</h2><p>{result.answer.summary}</p>
       <h3>{t('assistant.causalChain')}</h3><ol>{result.answer.causal_chain.map(item => <li key={item.step}><strong>{item.server}</strong> · {item.text}</li>)}</ol>
       <h3>{t('assistant.evidence')}</h3><div className="evidence">{result.answer.evidence.map((item, index) => <button key={index} className="secondary" onClick={() => open(item.event_id)} title={item.file}>{item.file.split('/').at(-1)}:{item.line} <small>{formatTime(item.ts)}</small></button>)}</div>
       <h3>{t('assistant.uncertainty')}{typeof result.answer.confidence === 'number' ? ' · ' + t('assistant.confidence', { percent: Math.round(result.answer.confidence * 100) }) : ''}</h3><p>{result.answer.uncertainty}</p>
@@ -256,7 +261,6 @@ function Assistant({ mode, open, contextId, clearContext, requested, clearReques
       <h3>{t('assistant.verification')}</h3><ul>{result.answer.verification_steps.map(text => <li key={text}>{text}</li>)}</ul>
     </article>}
     <Feedback pending={false} error={error} />
-    {step && <p className="notice" role="status">{step}</p>}
     <form className={'panel composer' + (mode === 'live' ? ' composer-live' : '')} onSubmit={event => { event.preventDefault(); void ask(question, true) }}>
       <label>{t('assistant.question')}<input value={question} onChange={event => setQuestion(event.target.value)} placeholder={t('assistant.placeholder')} /></label>
       {mode === 'live' && <button type="button" className="secondary" disabled={!draft} aria-pressed={!!draft && draftSaved} onClick={() => draftSaved ? saved.favorites.remove(draft) : saved.favorites.add(draft)}>{draftSaved && draft ? '★' : '☆'} {t('suggest.saveDraft')}</button>}

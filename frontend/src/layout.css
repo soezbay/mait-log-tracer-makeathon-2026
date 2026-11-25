@@ -124,3 +124,28 @@ main { padding: 1rem clamp(.9rem, 2vw, 1.6rem) 1.6rem; max-width: 1600px }
 .event-main .source div { min-width: 0 }
 .event-main .source span { flex: none }
 .event-main .source code { min-width: 0; overflow-wrap: anywhere }
+
+/* --- assistant: what it did for a question --- */
+.run .question { margin: 0 0 .5rem }
+.run-toggle { display: flex; align-items: center; gap: .6rem; width: 100%; padding: .35rem .5rem; background: transparent; color: inherit; text-align: left; font-weight: 600 }
+.run-toggle:hover:not(:disabled) { background: var(--mait-mint-pale, #eef6f5); color: inherit }
+.run-summary { flex: 1; min-width: 0 }
+.run-toggle small { font-variant-numeric: tabular-nums }
+.run-caret { color: #486173; font-size: 1.15rem; line-height: 1 }
+.run-icon { flex: none; width: .85rem; height: .85rem; border-radius: 50%; background: #0b7464 }
+.run-icon.warn { background: #d99a1c }
+.run-icon.error { background: #b6333e }
+.run-icon.running { border: 2px solid #b8cdd6; border-top-color: #0b7464; background: transparent; animation: run-spin .9s linear infinite }
+@keyframes run-spin { to { transform: rotate(360deg) } }
+.run-steps { list-style: none; margin: .4rem 0 0; padding: .1rem 0 0 .5rem }
+.run-steps li { position: relative; display: flex; gap: .7rem; align-items: baseline; padding: 0 0 .7rem; font-size: .9rem }
+.run-steps li:not(:last-child)::before { content: ""; position: absolute; left: .37rem; top: 1rem; bottom: -.3rem; width: 2px; background: #d3dfe7 }
+.run-steps .run-icon { position: relative; top: .1rem; width: .8rem; height: .8rem }
+.run-steps li.model.done .run-icon { background: #9fb4c0 }
+.run-steps li.model strong { font-weight: 500; color: #486173 }
+.run-text { flex: 1; min-width: 0; overflow-wrap: anywhere }
+.run-text code { padding: .05rem .35rem; border-radius: 5px; background: #edf2f5; font-size: .82rem }
+.run-text small { display: block }
+.run-time { flex: none; font-variant-numeric: tabular-nums }
+.run-usage { margin: 0; padding-left: .5rem; font-size: .82rem; color: #486173 }
+@media (prefers-reduced-motion: reduce) { .run-icon.running { animation-duration: 4s } }

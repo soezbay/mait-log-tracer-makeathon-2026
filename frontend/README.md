@@ -43,6 +43,10 @@ Alle oben genannten Routen sind auf `main` vorhanden; dazu kommen `GET /api/anal
 Details zu den UI-Datentypen stehen in `src/demo.ts`; die Backend-Beispiele sind maßgeblich für die Antwortform. Die Zeitleiste zeigt eine chronologisch sortierte Ereignistabelle mit teilbaren Filtern, einschließlich UTC-Zeitraum. Der Live-Modus lädt Übersicht, Aufträge, Zeitleiste, Fehlergruppen, Quellkontext und Chat über die API. Die Auftragsübersicht gruppiert die erste vom Backend gelieferte Ereignisseite; die vollständige Suche mit serverseitiger `limit/offset`-Paginierung ist in der Zeitleiste verfügbar. Fehlende API-Routen erscheinen als Backend-Fehler. Abhängigkeitsgraph, grafische Zeitreihe und Evaluationsdashboard sind spätere Ausbauschritte.
 
 
+## Schritte des Assistenten
+
+Während der Assistent arbeitet, zeigt `assistant-run.tsx` seine Schritte als Zeitleiste (Werkzeug, Suchbegriff, Ergebnis, Dauer). Mit der Antwort klappt sie zu einer Zeile zusammen und lässt sich wieder öffnen; nach einem Fehler bleibt sie offen.
+
 ## Fragevorschläge im Assistenten
 
 Im Live-Modus zeigt der Assistent Fragen aus vier Quellen (`src/suggestions.tsx`): aus den aktuellen Logs (`GET /api/suggestions`), zum zuletzt geöffneten Ereignis oder Auftrag (`?event_id=`), Favoriten (☆) und die letzten 8 Fragen. Favoriten und letzte Fragen liegen im `localStorage` dieses Browsers. Dieselben Fragen zum Ereignis stehen auch in den Meldungsdetails und im aufgeklappten Auftrag. Der Demo-Modus behält seine drei vorbereiteten Fragen.

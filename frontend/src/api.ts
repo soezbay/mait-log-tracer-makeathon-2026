@@ -93,7 +93,11 @@ export async function request<T>(path: string, options?: RequestInit, language: 
   return normalizeResponse(path, await response.json()) as T
 }
 
-export async function chat(question: string, onStep: (step: string) => void, signal: AbortSignal, language: Language = 'en'): Promise<Answer> {
+/** One tool call of the assistant: sent when it starts and again when it is done. */
+export type ChatStep = { round?: number; tool?: string; args?: Record<string, unknown>; status?: string; message?: string; result?: string }
+export type ChatUsage = { model?: string; llm_calls?: number; input_tokens?: number; output_tokens?: number; duration_ms?: number }
+
+export async function chat(question: string, onStep: (step: ChatStep) => void, signal: AbortSignal, language: Language = 'en'): Promise<{ answer: Answer; usage?: ChatUsage }> {
   const response = await fetch('/api/chat', {
     method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
     body: JSON.stringify({ question }), signal,
@@ -102,17 +106,21 @@ export async function chat(question: string, onStep: (step: string) => void, sig
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader()
   let buffer = ''
   let answer: Answer | undefined
+  let usage: ChatUsage | undefined
   function consume(frame: string) {
     const lines = frame.split(/\r?\n/)
     const event = lines.find(line => line.startsWith('event:'))?.slice(6).trim()
     const data = lines.filter(line => line.startsWith('data:')).map(line => line.slice(5).trimStart()).join('\n')
     if (event === 'step') {
       try {
-        const step = JSON.parse(data) as string | { message?: string; text?: string }
-        onStep(typeof step === 'string' ? step : step.message ?? step.text ?? translate(language, 'assistant.searching'))
+        const step = JSON.parse(data) as string | ChatStep
+        onStep(typeof step === 'string' ? { tool: step, message: step } : step)
       } catch {
-        onStep(data)
+        onStep({ tool: data, message: data })
       }
+    }
+    if (event === 'done') {
+      try { usage = JSON.parse(data) as ChatUsage } catch { usage = {} }
     }
     if (event === 'answer') answer = JSON.parse(data) as Answer
     if (event === 'error') {
@@ -122,7 +130,7 @@ export async function chat(question: string, onStep: (step: string) => void, sig
     }
   }
   try {
-    while (!answer) {
+    while (!usage) { // `done` follows the answer
       const chunk = await reader.read()
       buffer += chunk.value ?? ''
       const frames = buffer.split(/\r?\n\r?\n/)
@@ -137,6 +145,6 @@ export async function chat(question: string, onStep: (step: string) => void, sig
     await reader.cancel().catch(() => undefined)
     reader.releaseLock()
   }
-  if (!answer) throw new Error('Der Chat-Stream endete ohne Antwort.')
-  return answer
+  if (!answer) throw new Error(translate(language, 'assistant.noAnswer'))
+  return { answer, usage }
 }
