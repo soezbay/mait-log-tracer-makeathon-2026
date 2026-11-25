@@ -1,0 +1,17 @@
+{
+  "dataset": {
+    "kind": "upload",
+    "name": "log-tracer-testpack.zip",
+    "activated_at": "2026-11-25T14:10:26Z",
+    "files": 189
+  },
+  "running": false,
+  "error": null,
+  "last_result": {
+    "mode": "full",
+    "files": 182,
+    "events_written": 45265,
+    "duplicates": 1,
+    "elapsed_s": 1.1
+  }
+}

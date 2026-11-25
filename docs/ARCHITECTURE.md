@@ -268,6 +268,9 @@ Base: `http://localhost:8000/api`, OpenAPI at `/docs`. JSON, times always ISO-86
 | `GET` | `/stats` | counts: sources, events, duplicates, level distribution |
 | `POST` | `/ingest` | start ingest (`mode: full \| incremental`) |
 | `GET` | `/ingest/progress` | **SSE**: progress, new files |
+| `POST` | `/ingest/upload?name=` | an uploaded ZIP (body, `application/zip`) becomes the analysed data set: extracted below `data/uploads/` (log files only, size limits, no paths outside the folder), full ingest + analysis; `202`, then follow `/ingest/status` |
+| `POST` | `/ingest/original` | analyse the original package (`LOG_ROOT`) again |
+| `GET` | `/ingest/dataset` | active data set: `original` or `upload` (name, files, time), plus ingest state |
 | `GET` | `/sources` | sources with format, encoding, duplicate status, checkpoint |
 | `GET` | `/events` | search: `server, component, level, from, to, q, job_id, trace_id, page` |
 | `GET` | `/events/{id}` | single event with all fields |

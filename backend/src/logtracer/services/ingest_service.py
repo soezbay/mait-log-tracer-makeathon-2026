@@ -21,6 +21,7 @@ from logtracer.analysis import pipeline
 from logtracer.core.config import Settings
 from logtracer.ingest.full_ingest import full_ingest
 from logtracer.ingest.incremental import incremental_ingest
+from logtracer.services import dataset_service
 
 log = logging.getLogger("logtracer.ingest")
 
@@ -35,6 +36,9 @@ class IngestManager:
     def __init__(self, con: duckdb.DuckDBPyConnection, settings: Settings) -> None:
         self.con = con
         self.settings = settings
+        # Active data set: the original package or an uploaded ZIP (see dataset_service).
+        self.log_root: Path = Path(settings.log_root)
+        self.dataset: dict[str, Any] = dataset_service.original_dataset(settings)
         self._lock = threading.Lock()
         self._thread: threading.Thread | None = None
         self._queued_paths: set[Path] = set()
@@ -111,8 +115,35 @@ class IngestManager:
             self._thread.start()
             return True
 
+    # --- data set (original package or uploaded ZIP) ---------------------------------------
+
+    def restore_dataset(self, dataset: dict[str, Any]) -> None:
+        """On start-up: the database already holds this data set, only point the reads at it."""
+        self.log_root = Path(dataset["log_root"])
+        self.dataset = dataset
+
+    def switch_dataset(self, dataset: dict[str, Any]) -> bool:
+        """Make `dataset` active and rebuild the database from it (full ingest + analysis).
+
+        Returns False if an ingest is running. The watcher and the periodic rescan only follow
+        the original package, so they pause while an upload is active.
+        """
+        with self._lock:
+            if self.state["running"]:
+                return False
+            self.log_root = Path(dataset["log_root"])
+            self.dataset = dataset
+            dataset_service.save_active(self.settings, dataset)
+            return self._start_locked("full", None)
+
+    @property
+    def follows_original(self) -> bool:
+        return self.dataset.get("kind") == "original"
+
     def on_files_changed(self, paths: list[Path]) -> None:
         """Watcher callback: ingest the changed files now, or right after the running ingest."""
+        if not self.follows_original:  # the watcher watches the original package only
+            return
         with self._lock:
             if not self._start_locked("incremental", paths, quiet=True):
                 self._queued_paths.update(paths)
@@ -129,7 +160,8 @@ class IngestManager:
 
         def loop() -> None:
             while not self._rescan_stop.wait(interval_s):
-                self.start("incremental", None, quiet=True)
+                if self.follows_original:
+                    self.start("incremental", None, quiet=True)
 
         self._rescan_thread = threading.Thread(target=loop, name="ingest-rescan", daemon=True)
         self._rescan_thread.start()
@@ -172,7 +204,7 @@ class IngestManager:
                         "elapsed_s": round(time.perf_counter() - started, 1),
                     })
 
-                res = full_ingest(cursor, self.settings.log_root,
+                res = full_ingest(cursor, self.log_root,
                                   batch_size=self.settings.ingest_batch_size,
                                   default_tz=self.settings.default_timezone, progress=progress)
                 summary = {"mode": mode, "files": res.files, "events_written": res.events,
@@ -182,7 +214,7 @@ class IngestManager:
                     self.publish("new_file", {"path": path, "action": action,
                                               "events_written": events})
 
-                res = incremental_ingest(cursor, self.settings.log_root, paths=paths,
+                res = incremental_ingest(cursor, self.log_root, paths=paths,
                                          batch_size=self.settings.ingest_batch_size,
                                          default_tz=self.settings.default_timezone,
                                          on_file=on_file)

@@ -12,6 +12,7 @@ from logtracer.api.analysis import router as analysis_router
 from logtracer.core.config import Settings, get_settings
 from logtracer.core.logpaket import ensure_from_settings
 from logtracer.ingest.watcher import LogWatcher
+from logtracer.services import dataset_service
 from logtracer.services.ingest_service import IngestManager
 from logtracer.storage.db import connect, init_schema
 
@@ -29,6 +30,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # The assistant (P3) reads and writes through the same connection.
         chat.use_connection(app.state.db)
         app.state.ingest = IngestManager(app.state.db, settings)
+        if (uploaded := dataset_service.load_active(settings)) is not None:
+            app.state.ingest.restore_dataset(uploaded)  # the DB holds an uploaded ZIP
         app.state.watcher = None
         if settings.watch_enabled and settings.log_root.is_dir():
             app.state.watcher = LogWatcher(settings.log_root, app.state.ingest.on_files_changed,

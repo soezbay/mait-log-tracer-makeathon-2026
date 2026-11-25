@@ -1,4 +1,4 @@
-"""Request dependencies: a DuckDB cursor per request and the configured log root.
+"""Request dependencies: a DuckDB cursor per request and the active log root.
 
 The app keeps one DuckDB connection (only one process may write the file); each request gets
 its own cursor, which is safe to use from FastAPI's worker threads.
@@ -20,4 +20,6 @@ def get_cursor(request: Request) -> Iterator[duckdb.DuckDBPyConnection]:
 
 
 def get_log_root(request: Request) -> Path:
-    return request.app.state.settings.log_root
+    """The log folder of the active data set (original package or an uploaded ZIP)."""
+    ingest = getattr(request.app.state, "ingest", None)
+    return ingest.log_root if ingest is not None else request.app.state.settings.log_root

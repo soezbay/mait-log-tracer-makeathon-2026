@@ -14,6 +14,8 @@ import { entries, groups } from './demo'
 import type { Entry, EventPage, Group, Stats } from './demo'
 import { EventModal } from './event-details'
 import { importZip } from './import-zip'
+import { getDataset, restoreOriginal, uploadDataset, waitForDataset } from './dataset'
+import type { DatasetState } from './dataset'
 import { AnomalyStrip, IncidentPage, IncidentsPage, LatestIncidents } from './incidents'
 import { ProcessMonitor } from './ProcessMonitor'
 import type { ImportedLogs } from './import-zip'
@@ -34,7 +36,9 @@ function sameAssistantTarget(first: AssistantTarget, second: AssistantTarget) {
   return first.question === second.question || first.jobIds.some(id => second.jobIds.includes(id))
 }
 
-function Overview({ mode, logs, onImport, onViewImport, pending, importError, open }: { mode: Mode; logs: ImportedLogs | null; onImport: (file: File) => void; onViewImport: () => void; pending: boolean; importError: string; open: (id: number) => void }) {
+type ServerJob = { state: 'idle' | 'uploading' | 'ingesting' | 'done' | 'error'; message?: string }
+
+function Overview({ mode, logs, onImport, onViewImport, pending, importError, open, server, onAnalyze }: { mode: Mode; logs: ImportedLogs | null; onImport: (file: File) => void; onViewImport: () => void; pending: boolean; importError: string; open: (id: number) => void; server: ServerJob; onAnalyze: () => void }) {
   const { language, t } = useI18n()
   const fileInput = React.useRef<HTMLInputElement>(null)
   const locale = language === 'en' ? 'en-GB' : 'de-DE'
@@ -64,7 +68,14 @@ function Overview({ mode, logs, onImport, onViewImport, pending, importError, op
       {importError && <p className="notice error" role="alert">{importError}</p>}
       {logs && <div role="status"><p><strong>{logs.filename}</strong> · {t('upload.filesSummary', { events: logs.entries.length.toLocaleString(locale), sources: logs.sources.size.toLocaleString(locale) })}</p>
         {(logs.skipped > 0 || logs.unparsed > 0) && <p>{t('upload.skippedSummary', { skipped: logs.skipped.toLocaleString(locale), unparsed: logs.unparsed.toLocaleString(locale) })}</p>}
-        <NavLink to="/timeline" onClick={() => onViewImport()}>{t('upload.view')}</NavLink></div>}
+        <NavLink to="/timeline" onClick={() => onViewImport()}>{t('upload.view')}</NavLink>
+        {!offline && <div className="server-analyze">
+          <button type="button" className="secondary" disabled={server.state === 'uploading' || server.state === 'ingesting'} onClick={onAnalyze}>{t('upload.analyze')}</button>
+          <span className="muted">{t('upload.analyzeInfo')}</span>
+          {(server.state === 'uploading' || server.state === 'ingesting') && <p role="status">{t(server.state === 'uploading' ? 'upload.uploading' : 'upload.ingesting')}</p>}
+          {server.state === 'done' && <p role="status">{t('upload.analyzed')}</p>}
+          {server.state === 'error' && <p className="notice error" role="alert">{server.message}</p>}
+        </div>}</div>}
     </section>
     {mode !== 'live' && <ProcessMonitor key={mode === 'import' ? logs?.filename : mode} events={mode === 'import' && logs ? logs.entries : entries} open={open} />}
     <Feedback {...result} />
@@ -242,12 +253,20 @@ function App() {
   const [logs, setLogs] = useState<ImportedLogs | null>(null)
   const [importing, setImporting] = useState(false)
   const [importError, setImportError] = useState('')
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [server, setServer] = useState<ServerJob>({ state: 'idle' })
+  const [dataset, setDataset] = useState<DatasetState | null>(null)
+  const [restoring, setRestoring] = useState(false)
+  const [datasetError, setDatasetError] = useState('')
+  const [dataVersion, setDataVersion] = useState(0)
   async function loadLogs(file: File) {
     setImporting(true)
     setImportError('')
     try {
       const imported = await importZip(file, language)
       setLogs(imported)
+      setUploadFile(file)
+      setServer({ state: 'idle' })
       switchMode('import')
     } catch (error) {
       setImportError(errorText(error))
@@ -291,6 +310,43 @@ function App() {
     ).finally(() => clearTimeout(timeout))
     return () => { clearTimeout(timeout); controller.abort() }
   }, [check, language, t])
+  useEffect(() => {
+    if (offline || mode !== 'live') return
+    const controller = new AbortController()
+    getDataset(language, controller.signal).then(setDataset, () => undefined)
+    return () => controller.abort()
+  }, [check, mode, language])
+  // Send the imported ZIP to the backend; when it has imported and analyzed it, show it in Live.
+  async function analyzeOnServer() {
+    if (!uploadFile) return
+    setServer({ state: 'uploading' })
+    try {
+      await uploadDataset(uploadFile, language)
+      setServer({ state: 'ingesting' })
+      setDataset(await waitForDataset(language))
+      setServer({ state: 'done' })
+      setDataVersion(value => value + 1)
+      switchMode('live')
+      navigate('/')
+    } catch (error) {
+      setServer({ state: 'error', message: errorText(error) })
+    }
+  }
+  async function backToOriginal() {
+    setRestoring(true)
+    setDatasetError('')
+    try {
+      await restoreOriginal(language)
+      setDataset(await waitForDataset(language))
+      setDataVersion(value => value + 1)
+      setCheck(value => value + 1)
+      navigate('/')
+    } catch (error) {
+      setDatasetError(errorText(error))
+    } finally {
+      setRestoring(false)
+    }
+  }
   function switchMode(next: Mode) { setId(null); setContextId(null); setRequested(null); setMode(next); if (next === 'live') setCheck(value => value + 1) }
   return <AssistantLinkContext.Provider value={assistantLink}><div className="shell">
     <aside className="sidebar">
@@ -300,6 +356,11 @@ function App() {
         <div className="mode-switch" role="group" aria-label={t('mode.source')}>{(['live', 'demo', ...(logs ? ['import'] : [])] as Mode[]).map(value =>
           <Tooltip key={value} label={t(modeInfo[value])} multiline maw={240} position="right" withArrow><button type="button" aria-pressed={mode === value} disabled={value === 'live' && offline} onClick={() => switchMode(value)}>{t(modeLabel[value])}</button></Tooltip>)}</div>
         <Tooltip label={health.detail} multiline maw={240} position="right" withArrow><button type="button" className={'backend-status ' + health.state} disabled={offline} onClick={() => setCheck(value => value + 1)} aria-label={health.label + '. ' + health.detail} aria-live="polite"><span className="status-dot" aria-hidden="true" />{health.label}</button></Tooltip>
+        {mode === 'live' && dataset && <div className="dataset-status" role="status">
+          <span>{t('dataset.label')}: {dataset.dataset.kind === 'upload' ? t('dataset.uploaded', { name: dataset.dataset.name }) : t('dataset.original')}</span>
+          {dataset.dataset.kind === 'upload' && <button type="button" className="dataset-restore" disabled={restoring} onClick={() => void backToOriginal()}>{t(restoring ? 'dataset.restoring' : 'dataset.restore')}</button>}
+          {datasetError && <span className="dataset-error" role="alert">{datasetError}</span>}
+        </div>}
       </div>
       <div className="sidebar-settings">
         <div className="settings-panel" id="settings-panel" hidden={!settingsOpen}>
@@ -315,7 +376,7 @@ function App() {
       </div>
     </aside>
     <div className="workspace">
-      <main><Routes><Route path="/" element={<Overview mode={mode} logs={logs} onImport={file => void loadLogs(file)} onViewImport={() => switchMode('import')} pending={importing} importError={importError} open={open} />} /><Route path="/timeline" element={<Timeline mode={mode} open={open} logs={logs} />} /><Route path="/incidents" element={mode === 'live' ? <IncidentsPage /> : <ErrorGroups mode={mode} open={open} />} /><Route path="/incidents/:id" element={mode === 'live' ? <IncidentPage open={open} /> : <Navigate to="/incidents" replace />} /><Route path="/groups" element={<Navigate to="/incidents" replace />} /><Route path="/chat" element={mode === 'import' ? <p className="notice">{t('assistant.importNotice')}</p> : <Assistant key={mode} mode={mode} conversation={mode === 'demo' ? demoChat : liveChat} open={open} contextId={contextId} clearContext={() => setContextId(null)} requested={requested} clearRequested={() => setRequested(null)} /> } /><Route path="*" element={<p className="notice">{t('route.notFound')} <NavLink to="/">{t('route.goHome')}</NavLink></p>} /></Routes></main>
+      <main key={dataVersion}><Routes><Route path="/" element={<Overview mode={mode} logs={logs} onImport={file => void loadLogs(file)} onViewImport={() => switchMode('import')} pending={importing} importError={importError} open={open} server={server} onAnalyze={() => void analyzeOnServer()} />} /><Route path="/timeline" element={<Timeline mode={mode} open={open} logs={logs} />} /><Route path="/incidents" element={mode === 'live' ? <IncidentsPage /> : <ErrorGroups mode={mode} open={open} />} /><Route path="/incidents/:id" element={mode === 'live' ? <IncidentPage open={open} /> : <Navigate to="/incidents" replace />} /><Route path="/groups" element={<Navigate to="/incidents" replace />} /><Route path="/chat" element={mode === 'import' ? <p className="notice">{t('assistant.importNotice')}</p> : <Assistant key={mode} mode={mode} conversation={mode === 'demo' ? demoChat : liveChat} open={open} contextId={contextId} clearContext={() => setContextId(null)} requested={requested} clearRequested={() => setRequested(null)} /> } /><Route path="*" element={<p className="notice">{t('route.notFound')} <NavLink to="/">{t('route.goHome')}</NavLink></p>} /></Routes></main>
     </div>
     <EventModal id={id} mode={mode} logs={logs} open={open} close={() => setId(null)} />
   </div></AssistantLinkContext.Provider>

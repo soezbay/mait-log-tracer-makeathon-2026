@@ -19,6 +19,7 @@ The endpoint list is in [docs/ARCHITECTURE.md §5](../../docs/ARCHITECTURE.md).
 | `event_context.json` | `GET /api/events/{id}/context?n=3` | P1 |
 | `ingest_status.json` | `GET /api/ingest/status`, also the `202` body of `POST /api/ingest` (`{"mode": "full" \| "incremental"}`; `409` if one runs) | P1 |
 | `ingest_progress.sse.txt` | `GET /api/ingest/progress` (SSE events `state`, `started`, `progress`, `new_file`, `done`, `error`; read with `EventSource`) | P1 |
+| `ingest_dataset.json` | `GET /api/ingest/dataset`, also the `202` body of `POST /api/ingest/upload?name=<file>.zip` (body: the ZIP, `Content-Type: application/zip`; `400` not a ZIP / no `<server>/logs/` folders, `413` too large, `409` ingest running) and `POST /api/ingest/original` | P1 (added by P3) |
 | `suggestions.json` | `GET /api/suggestions?lang=en\|de&limit=8` (questions from the logs, `scope: logs`); with `&event_id=…` questions about one event (`scope: event`, `404` if unknown). Not paginated. Show `question` and `reason` as they are; `kind` may get new values | P1 |
 | `incidents.json` | `GET /api/analysis/incidents?q=JOB-2003` (filters `from, to, server, status, q, event_id`; newest first). `incident_id` is stable: the ID of the trigger group's first event | P2 |
 | `incident.json` | `GET /api/analysis/incidents/{id}`: plus `steps` in time order, `links`, `anomalies` (lists shortened here) | P2 |
