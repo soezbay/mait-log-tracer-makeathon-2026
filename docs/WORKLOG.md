@@ -479,3 +479,12 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `backend/src/logtracer/assistant/prompt.py`.
 - **Checks:** 117 tests pass, `ruff check` clean.
 - **Open:** live re-test with `low`; expected about 20 s with the full chain.
+
+### Key exposure check and KI:connect preparation
+- **What:** Checked whether API keys are visible from outside, after PR #10 (KI:connect provider) was merged.
+  - Git: 448 file versions and all commit messages on 16 refs (all branches) searched for key patterns (Anthropic, OpenAI-style, Groq, Google, GitHub, AWS, Slack, JWT, private keys, bearer tokens, credentials in URLs, key assignments). One match, a false positive (`settings.…_api_key` attribute name). `.env` was never committed and is git-ignored.
+  - Running app: `backend/.env` cannot be read through Vite (`/@fs/…` returns 403) or the API; `/api/health`, `/api/stats`, `/api/ingest/status` and `/openapi.json` mention no keys; both servers listen on localhost only. The frontend uses no keys.
+  - Log package: no key patterns in the extracted files.
+- **Why:** Safak asked for the check before using the AI in the chat.
+- **Also:** The local `backend/.env` (not in Git) was brought up to date with `.env.example` and set to `LLM_PROVIDER=kiconnect`. Existing values were kept.
+- **Open:** Safak enters `KICONNECT_API_KEY`; then choose `LLM_MODEL` from `ask.py --list-models` and test the chat. A pattern scan cannot rule out keys in unusual formats. The repository is still public, so the log package ZIP is too (plan §17 D1).
