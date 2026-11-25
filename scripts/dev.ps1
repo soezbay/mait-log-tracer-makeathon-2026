@@ -37,6 +37,9 @@ foreach ($port in 8000, 5173) {
 # --- Start both ----------------------------------------------------------------------
 # `uv run` syncs the backend environment by itself; the backend checks/extracts the log
 # package on start (first time ~1 min).
+# No auto-reload here: on Windows uvicorn restarts its worker with Ctrl+C, which reaches every
+# process in this console and would stop the whole app on each backend change or git pull.
+$env:API_RELOAD = 'false'
 Write-Host 'Starting backend on http://localhost:8000 ...' -ForegroundColor Cyan
 $be = Start-Process python -ArgumentList '-m', 'uv', 'run', 'logtracer' `
     -WorkingDirectory $backend -NoNewWindow -PassThru

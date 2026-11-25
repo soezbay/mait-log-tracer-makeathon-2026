@@ -86,7 +86,7 @@ Whole app with one command (repo root, Windows, cmd or PowerShell):
 .\dev -NoBrowser      # same without opening the browser
 .\dev -Install        # also re-run npm install
 ```
-`dev.cmd` calls `scripts/dev.ps1` (execution policy bypassed). It creates `backend/.env` from the example if missing, installs frontend packages on the first run, starts the backend, waits for `/api/health`, then starts Vite.
+`dev.cmd` calls `scripts/dev.ps1` (execution policy bypassed). It creates `backend/.env` from the example if missing, installs frontend packages on the first run, starts the backend, waits for `/api/health`, then starts Vite. The backend runs without auto-reload here (on Windows uvicorn's reload sends Ctrl+C to the whole console): after backend changes, a `git pull` or a change in `backend/.env`, stop with Ctrl+C and start again.
 
 Configuration comes from `backend/.env` (see `backend/.env.example`). Relative paths resolve against `backend/`.
 

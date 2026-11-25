@@ -488,3 +488,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Why:** Safak asked for the check before using the AI in the chat.
 - **Also:** The local `backend/.env` (not in Git) was brought up to date with `.env.example` and set to `LLM_PROVIDER=kiconnect`. Existing values were kept.
 - **Open:** Safak enters `KICONNECT_API_KEY`; then choose `LLM_MODEL` from `ask.py --list-models` and test the chat. A pattern scan cannot rule out keys in unusual formats. The repository is still public, so the log package ZIP is too (plan §17 D1).
+
+### KI:connect chat works; .\dev no longer stops on backend changes
+- **What:** Safak set the KI:connect key in the local `backend/.env`. Model `inferenz-openai-gpt-oss-120b-stud`, `LLM_REASONING_EFFORT=medium`. `scripts/dev.ps1` now starts the backend with `API_RELOAD=false`.
+- **Why:** On Windows uvicorn restarts its reload worker with `CTRL_C_EVENT`, which reaches every process in the same console. A changed backend file (also through `git pull`) therefore stopped Vite and the start script. Reproduced with a minimal app and a sibling process in a separate console.
+- **Where:** `scripts/dev.ps1`, `AGENTS.md` §6
+- **Checks:** `ask.py --list-models` returns 5 models. "What caused the errors in JOB-2003?" through the running app and the real database: 44 s, 3 LLM calls, 6,367 + 1,903 tokens, 4-step chain and the 49 re-runs named. On the fixture database: 25 s. The same reproduction without reload keeps the sibling process and the script running.
+- **Open:** `cost_eur` is empty for KI:connect until `PRICE_INPUT_PER_MTOK` / `PRICE_OUTPUT_PER_MTOK` are set (P3).
