@@ -410,10 +410,23 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Why:** The pull request could not merge while both branches had edits in these two append-only logs.
 - **Where:** `docs/AI_LOG.md`, `docs/WORKLOG.md`; branch `codex/frontend-backend-integration`.
 - **Checks:** `git diff --check` passed; no conflict markers remain.
-- **Open:** Commit and push the merge, then confirm GitHub reports the pull request as mergeable.
+- **Open:** -
+
+### Reopen previously answered Assistant questions
+- **What:** Removed the session-long set of answered targets. Only the currently visible answer and an in-flight request are blocked, so switching to another question makes the previous one available again.
+- **Why:** Let users move back and forth between Assistant questions without showing duplicate answers.
+- **Where:** `frontend/src/main.tsx`, `docs/AI_LOG.md`, `docs/WORKLOG.md`; commit `self`.
+- **Checks:** Reviewed the active-request and visible-answer guards; automated tests were not run.
+- **Open:** -
 
 ### Retry when Groq cannot parse the model output (P3, Tarun)
 - **What:** A Groq 400 "Parsing failed. The model generated output that could not be parsed" no longer ends the question. Like a malformed tool call (`tool_use_failed`), it now returns an empty response and the agent asks the model again. Detection: error code `tool_use_failed`, `output_parse_failed` or `json_validate_failed`, or a `failed_generation` field. Other 400 errors still fail with Groq's own message.
 - **Why:** Seen live in the UI with `openai/gpt-oss-120b`; the question failed with the misleading hint "Check GROQ_API_KEY and LLM_MODEL" although key and model were fine.
 - **Where:** `backend/src/logtracer/assistant/providers/groq.py`, `backend/tests/test_providers_and_api.py`.
 - **Checks:** 110 tests pass (2 new), `ruff check` clean; the exact error body replayed through the real `groq` SDK with a mock server is retried and the next call succeeds.
+
+### Merge pull request #8 into main
+- **What:** Pulled `main` (PR #6 frontend integration and PR #7 Groq parse retry were already merged). Merged the only open pull request, #8 `codex/assistant-reopen` (Adnan: earlier Assistant questions can be reopened), into `main`. Conflicts only in `docs/AI_LOG.md` and `docs/WORKLOG.md`; both sides kept in time order.
+- **Why:** Safak asked to merge the open pull requests.
+- **Where:** `frontend/src/main.tsx`, `docs/AI_LOG.md`, `docs/WORKLOG.md`
+- **Checks:** 110 backend tests pass, `ruff check` clean, `npm run build` (TypeScript + Vite) succeeds.
