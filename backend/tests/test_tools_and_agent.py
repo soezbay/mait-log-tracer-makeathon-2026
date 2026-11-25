@@ -360,3 +360,20 @@ def test_info_only_related_lines_do_not_force_a_mention(con, box):
     r = box.execute("trace", {"key": "JOB-2003"})
     assert r["related"]["events"] == 1  # still reported
     assert box.related_failures == {}  # but nothing failed, so no mention is required
+
+
+def test_advice_to_rerun_is_not_a_mention_of_the_reruns(con):
+    # Seen live (KI:connect, Mistral Small 4): the recommendation said "re-run the publish" and the
+    # check took that as mentioning the 49 failed re-runs.
+    add_reruns(con, 7)
+    advice_only = good_submission(recommendation="Grant write permission, then re-run the publish.")
+    p = ScriptedProvider([
+        resp(call("trace", key="JOB-2003")),
+        resp(call("submit_answer", **advice_only)),
+        resp(call("submit_answer", **good_submission(
+            uncertainty="The same failure hit all 7 re-runs; logs do not show why."))),
+    ])
+    ev = run(con, p)
+    assert any(e["event"] == "answer" for e in ev)
+    sent_back = json.dumps([r for _, r in p.tool_results[-1]])
+    assert "ignores related jobs" in sent_back
