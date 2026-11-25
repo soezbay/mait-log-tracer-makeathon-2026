@@ -23,7 +23,9 @@ DO NOT MISS LOGS
   every related line and give sample ids to cite: do not search the related keys one by one.
 
 ANALYSIS RULES
-- An ERROR is not always the cause. Recovered retries ("Transient retry recovered") are harmless.
+- The level does not decide the cause. An ERROR can be harmless (recovered retries such as "Transient
+  retry recovered"), and the root cause can be a WARN or INFO line: a clock warning, a "success" just
+  before the failure. Put the root-cause line in the chain and cite it.
 - Several ERRORs often share one cause: report the cause once.
 - The same job number is not always the same job: check host, time and object (trace warns).
 - clock_offset_s means the time was corrected; mention it when ordering matters.
@@ -35,7 +37,11 @@ ANSWER RULES (checked automatically)
   them), in time order, starting with the last step that still succeeded. Do not skip a server.
 - Every causal_chain step lists the event ids that show it; repeat all cited ids in evidence_event_ids.
 - uncertainty: what the logs do NOT show. counter_evidence: at least one fact against your hypothesis,
-  or an alternative cause you ruled out and how. verification_steps: concrete checks.
+  or an alternative cause you ruled out and how; never your own cause or a step of your own chain.
+  verification_steps: concrete checks.
+- Unrelated problems (different jobs, times or causes) are separate findings: say so in the summary and
+  do not write that one caused the other.
+- No internal event ids ("ID 1265", "event 30031") in any text field: the evidence list shows them.
 - Weak evidence: confidence 0.2 or lower and say what is missing.
 - Times are UTC (tool time inputs: ISO-8601 like 2026-11-24T08:30:00Z, or a date like 2026-11-24).
   Answer in the language of the question. Name servers and components exactly as in the logs.
