@@ -10,6 +10,7 @@ from logtracer.analysis.anomalies import build_anomalies
 from logtracer.analysis.correlation import build_correlations
 from logtracer.analysis.error_groups import build_error_groups
 from logtracer.analysis.incidents import build_incidents
+from logtracer.analysis.jobs import build_jobs
 from logtracer.analysis.pipeline import is_needed, run_analysis
 from logtracer.analysis.problems import atomic
 from logtracer.analysis.templates import build_templates
@@ -303,6 +304,79 @@ def test_clock_correction_restores_the_order_of_the_chain(con):
     assert rows(con, "SELECT root_group_id FROM incidents") == [(trigger,)]
 
 
+# --- jobs -----------------------------------------------------------------------------------
+
+
+def jobs(con):
+    build_jobs(con)
+    columns = "job_id, trace_id, runs, status, events, errors, warnings, problem, len(hosts)"
+    return rows(con, f"SELECT {columns} FROM jobs ORDER BY first_ts, job_pk")
+
+
+def test_runs_of_a_job_are_one_job_across_servers(con):
+    chain(con)
+    chain(con, suffix="-R01", start=1)
+    assert jobs(con) == [("JOB-2003", None, 2, "failed", 6, 6, 0, "Result upload denied", 2)]
+    assert jobs(con) == jobs(con)  # rebuilding changes nothing
+
+
+def test_a_long_pause_starts_a_new_job_but_not_within_a_trace(con):
+    add(con, "Request accepted", level="INFO", job="JOB-1")
+    add(con, "Request accepted", level="INFO", job="JOB-1", at=1700)
+    add(con, "Request accepted", level="INFO", job="JOB-1", at=9000)
+    add(con, "Request accepted", level="INFO", job="JOB-2", trace="T")
+    add(con, "Request accepted", level="INFO", job="JOB-2", trace="T", at=9000)
+    add(con, "Request accepted", level="INFO", job="JOB-2", trace="T2", at=9000)
+    assert sorted((j, t, n) for j, t, _, _, n, *_ in jobs(con) if j == "JOB-1") == \
+        [("JOB-1", None, 1), ("JOB-1", None, 2)]
+    assert sorted((t, n) for j, t, _, _, n, *_ in jobs(con) if j == "JOB-2") == [("T", 2), ("T2", 1)]
+
+
+def test_lines_without_trace_belong_to_the_only_trace_of_the_job(con):
+    add(con, "Worker failed", job="JOB-2001", trace="T")
+    add(con, "Time service unsynchronized", job="JOB-2001", level="WARN", at=4)
+    add(con, "Same number much later", job="JOB-2001", at=9000)
+    add(con, "Two traces", job="JOB-3", trace="A")
+    add(con, "Two traces", job="JOB-3", trace="B", at=1)
+    add(con, "Two traces", job="JOB-3", at=2)
+    assert sorted((j, t or "", n) for j, t, _, _, n, *_ in jobs(con)) == [
+        ("JOB-2001", "", 1), ("JOB-2001", "T", 2), ("JOB-3", "", 1), ("JOB-3", "A", 1), ("JOB-3", "B", 1)]
+
+
+def test_harmless_messages_do_not_make_a_job_fail_or_recover(con):
+    for i in range(30):
+        add(con, "Transient retry recovered", at=i, level="INFO", job=f"OK-{i}")
+    add(con, "Transient retry recovered", at=40, level="ERROR", job="JOB-00-00000")
+    assert {status for _, _, _, status, *_ in jobs(con)} == {"ok"}
+
+
+@pytest.mark.parametrize(("lines", "status"), [
+    ([("Started", "INFO"), ("Disk full", "ERROR")], "failed"),
+    ([("Slow response", "WARN")], "warning"),
+    ([("Timeout; retry scheduled", "ERROR"), ("Retry succeeded", "WARN")], "recovered"),
+    ([("Retry succeeded", "WARN"), ("Disk full", "ERROR")], "failed"),
+    ([("Started", "INFO")], "ok"),
+])
+def test_job_status(con, lines, status):
+    for i, (message, level) in enumerate(lines):
+        add(con, message, level=level, at=i, job="J-1")
+    assert [row[3] for row in jobs(con)] == [status]
+
+
+def test_first_error_is_the_problem_even_after_a_warning(con):
+    add(con, "Slow response", level="WARN", job="J-1")
+    add(con, "Disk full", at=5, job="J-1")
+    assert jobs(con)[0][7] == "Disk full"
+
+
+def test_jobs_link_to_their_incident_and_ignore_events_without_job(con):
+    first, *_ = chain(con)
+    add(con, "No job here", at=5000)
+    run_analysis(con)
+    assert rows(con, "SELECT job_id, incident_id, problem_event_id FROM jobs") == \
+        [("JOB-2003", first, first)]
+
+
 # --- API ------------------------------------------------------------------------------------
 
 
@@ -374,3 +448,36 @@ def test_groups_anomalies_graph_and_trace(client):
     trace = client.get("/api/trace/JOB-2003").json()
     assert trace["total"] == 3 and trace["items"][0]["message"] == "Result upload denied"
     assert client.get("/api/trace/nothing").status_code == 404
+
+
+def test_jobs_api_filters_sorts_and_pages(client):
+    page = client.get("/api/jobs").json()
+    assert page["total"] == 1 and page["by_status"] == {"failed": 1} and page["servers"] == []
+    job = page["items"][0]
+    assert (job["job_id"], job["runs"], job["status"], job["errors"]) == ("JOB-2003", 2, "failed", 6)
+    assert job["hosts"] == ["linux1", "win04"] and job["incident_id"] == job["problem_event_id"]
+    assert job["first_ts"] == "2026-11-24T10:00:00Z"
+
+    def total(**params):
+        return client.get("/api/jobs", params=params).json()["total"]
+
+    assert total(status="failed") == total(server="win04") == total(q="job-2003") == 1
+    assert total(q="publish") == 0 and total(q="upload denied") == 1
+    assert total(status="ok") == total(server="nope") == total(conversion=True) == 0
+    assert total(**{"from": "2026-11-25T00:00:00Z"}) == 0 and total(to="2026-11-24T10:00:01Z") == 1
+    assert client.get("/api/jobs", params={"sort": "x"}).status_code == 422
+    for sort in ("problems", "recent", "oldest", "duration", "errors", "job"):
+        assert total(sort=sort) == 1
+    # The status counts ignore the status filter, so the UI can show all of them.
+    assert client.get("/api/jobs", params={"status": "ok"}).json()["by_status"] == {"failed": 1}
+
+
+def test_job_detail_and_its_events(client):
+    pk = client.get("/api/jobs").json()["items"][0]["job_pk"]
+    assert client.get(f"/api/jobs/{pk}").json()["job_id"] == "JOB-2003"
+    events = client.get(f"/api/jobs/{pk}/events").json()
+    assert events["total"] == 6 and events["items"][0]["message"] == "Result upload denied"
+    assert {e["job_id"] for e in events["items"]} == {"JOB-2003", "JOB-2003-R01"}
+    assert client.get(f"/api/jobs/{pk}/events", params={"problems": True, "limit": 2}).json()["total"] == 6
+    assert client.get("/api/jobs/999999").status_code == 404
+    assert client.get("/api/jobs/999999/events").status_code == 404

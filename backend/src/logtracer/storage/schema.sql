@@ -136,6 +136,25 @@ CREATE TABLE IF NOT EXISTS incidents (
     confidence    DOUBLE
 );
 
+-- One row per job over all events (analysis/jobs.py). No primary key, rebuilt in bulk.
+CREATE TABLE IF NOT EXISTS jobs (
+    job_pk           BIGINT NOT NULL,       -- id of its first event (stable)
+    job_id           VARCHAR NOT NULL,      -- without the run suffix: JOB-2003 for JOB-2003-R07
+    trace_id         VARCHAR,
+    runs             INTEGER NOT NULL,      -- number of different job_ids, 50 for JOB-2003 … R49
+    status           VARCHAR NOT NULL,      -- failed | warning | recovered | ok
+    first_ts         TIMESTAMP,
+    last_ts          TIMESTAMP,
+    hosts            VARCHAR[],
+    events           BIGINT NOT NULL,
+    errors           BIGINT NOT NULL,       -- real ERROR/FATAL lines, harmless messages left out
+    warnings         BIGINT NOT NULL,
+    problem_event_id BIGINT,                -- first real error, else first warning
+    problem          VARCHAR,
+    conversion       BOOLEAN NOT NULL,
+    incident_id      INTEGER
+);
+
 -- ---------------------------------------------------------------------------
 -- P3 · AI assistant (Tarun). Proposal, to be confirmed at the 13:00 freeze.
 -- ---------------------------------------------------------------------------

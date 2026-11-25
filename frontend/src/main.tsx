@@ -16,6 +16,7 @@ import type { Entry, EventPage, Group, Stats } from './demo'
 import { EventModal } from './event-details'
 import { importZip } from './import-zip'
 import { AnomalyStrip, IncidentPage, IncidentsPage, LatestIncidents } from './incidents'
+import { JobList } from './jobs'
 import { ProcessMonitor } from './ProcessMonitor'
 import type { ImportedLogs } from './import-zip'
 import { I18nProvider, useI18n } from './i18n'
@@ -39,9 +40,6 @@ function Overview({ mode, logs, onImport, onViewImport, pending, importError, op
   const { language, t } = useI18n()
   const fileInput = React.useRef<HTMLInputElement>(null)
   const locale = language === 'en' ? 'en-GB' : 'de-DE'
-  const localEvents = mode === 'import' && logs ? logs.entries : entries
-  const processResult = useData<EventPage>('/events?limit=100&offset=0', mode, { items: localEvents, total: localEvents.length, limit: 100, offset: 0 })
-  const processEvents = processResult.data?.items
   const sample: Stats = mode === 'import' && logs
     ? { sources: logs.sources.size, unique_sources: logs.sources.size, duplicate_sources: 0, duplicate_events: logs.duplicates, events: logs.entries.length, levels: { ERROR: logs.entries.filter(entry => entry.level === 'ERROR').length } }
     : { sources: new Set(entries.map(entry => entry.source)).size, unique_sources: new Set(entries.map(entry => entry.source)).size, duplicate_sources: 0, events: entries.length, levels: { ERROR: entries.filter(entry => entry.level === 'ERROR').length } }
@@ -73,10 +71,7 @@ function Overview({ mode, logs, onImport, onViewImport, pending, importError, op
       [t('metric.sources'), data.sources], [t('metric.events'), data.events], [t('metric.errors'), data.levels?.ERROR ?? 0], [t('metric.duplicates'), data.duplicate_sources ?? 0],
     ].map(([label, value]) => <section className="metric" key={label}><span>{label}</span><strong>{typeof value === 'number' ? value.toLocaleString(locale) : '—'}</strong></section>)}</div>}
     {mode === 'live' && <LatestIncidents />}
-    {mode === 'live' && <><Feedback {...processResult} />{processEvents && <>
-      {processResult.data && processResult.data.total > processResult.data.limit && <p className="process-note">{t('overview.firstPage', { shown: processResult.data.limit.toLocaleString(locale), total: processResult.data.total.toLocaleString(locale) })}</p>}
-      <ProcessMonitor key="live" events={processEvents} open={open} />
-    </>}</>}
+    {mode === 'live' && <JobList open={open} />}
     <section className="panel"><h2>{t('overview.start')}</h2><div className="shortcuts">
       <NavLink to="/timeline">{t('overview.search')}<span>{t('overview.searchDescription')}</span></NavLink>
       <NavLink to="/incidents">{t('overview.groups')}<span>{t('overview.groupsDescription')}</span></NavLink>

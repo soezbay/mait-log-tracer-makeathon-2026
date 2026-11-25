@@ -182,3 +182,21 @@ button:not(.secondary, .link, .icon-button, .info-tip, .run-toggle, .backend-sta
 input:focus-visible, select:focus-visible { border-color: var(--blue) }
 .brand { letter-spacing: -.01em }
 .sidebar :focus-visible { outline-color: var(--blue-light) }
+
+/* --- jobs --- */
+.job-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: .5rem; margin: .5rem 0 .7rem }
+.shell .job-tile { display: grid; gap: .1rem; padding: .5rem .7rem; border: 1px solid var(--line); border-top: 3px solid var(--line-strong); border-radius: 9px; background: var(--surface); color: var(--ink); text-align: left; font-size: .875rem; font-weight: 500 }
+.shell .job-tile:hover:not(:disabled) { background: var(--blue-tint) }
+.shell .job-tile[aria-pressed="true"] { background: var(--blue-tint); border-color: var(--blue) }
+.shell .job-tile strong { font-size: 1.3rem; letter-spacing: -.02em }
+.shell .job-tile.failed { border-top-color: var(--error) }
+.shell .job-tile.warning { border-top-color: var(--warn) }
+.shell .job-tile.recovered, .shell .job-tile.ok { border-top-color: var(--ok) }
+.job-table td:nth-child(3) { white-space: nowrap; font-variant-numeric: tabular-nums }
+.job-table td:nth-child(5) { overflow-wrap: anywhere; min-width: 8.5rem }
+.job-table td:nth-child(6) { overflow-wrap: anywhere; min-width: 11rem }
+.job-table td:nth-child(7), .job-table .badge { white-space: nowrap }
+.job-entries { list-style: none; margin: .4rem 0; padding: 0 }
+.job-entries li { display: grid; gap: .1rem; padding: .4rem 0; border-top: 1px solid var(--line) }
+.job-entries li:first-child { border-top: 0 }
+.job-pager { justify-content: space-between }

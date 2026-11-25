@@ -16,6 +16,7 @@ The endpoint list is in [docs/ARCHITECTURE.md §5](../../docs/ARCHITECTURE.md).
 | `sources.json` | `GET /api/sources` | P1 |
 | `events.json` | `GET /api/events?job_id=JOB-2003` | P1 |
 | `event.json` | `GET /api/events/{id}` | P1 |
+| `jobs.json` | `GET /api/jobs?q=JOB-2003` (filters `status, server, q, conversion, from, to`; `sort=problems\|recent\|oldest\|duration\|errors\|job`). `by_status` ignores the status filter. `GET /api/jobs/{job_pk}` one job, `/api/jobs/{job_pk}/events?problems=true` its events (like `events.json`) | P1 |
 | `event_context.json` | `GET /api/events/{id}/context?n=3` | P1 |
 | `ingest_status.json` | `GET /api/ingest/status`, also the `202` body of `POST /api/ingest` (`{"mode": "full" \| "incremental"}`; `409` if one runs) | P1 |
 | `ingest_progress.sse.txt` | `GET /api/ingest/progress` (SSE events `state`, `started`, `progress`, `new_file`, `done`, `error`; read with `EventSource`) | P1 |

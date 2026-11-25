@@ -41,7 +41,7 @@ data/                      derived DuckDB files and the extraction marker, git-i
 
 | Role | Person | Owns |
 |---|---|---|
-| P1 ingest & storage | Safak | `ingest/`, `normalize/` (except `clock.py`), `storage/`, `api/health.py`, `api/ingest.py`, `api/events.py`, `api/sources.py`, `api/schemas.py`, `api/deps.py`, `api/suggestions.py`, `services/event_service.py`, `services/ingest_service.py`, `services/suggestion_service.py`, `scripts/ingest.py`, `scripts/make_fixture.py` |
+| P1 ingest & storage | Safak | `ingest/`, `normalize/` (except `clock.py`), `storage/`, `api/health.py`, `api/ingest.py`, `api/events.py`, `api/sources.py`, `api/schemas.py`, `api/deps.py`, `api/suggestions.py`, `api/jobs.py`, `storage/repositories/jobs.py`, `analysis/jobs.py`, `services/event_service.py`, `services/ingest_service.py`, `services/suggestion_service.py`, `scripts/ingest.py`, `scripts/make_fixture.py` |
 | P2 analysis & correlation | Harsh | `analysis/`, `normalize/clock.py`, `api/analysis.py`, `api/trace.py`, `services/analysis_service.py`, `storage/repositories/analysis.py` |
 | P3 AI assistant | Tarun | `assistant/`, `api/chat.py` |
 | P4 frontend | Adnan | `frontend/` |
@@ -195,4 +195,5 @@ Decisions that change no file (e.g. "no Docker") are logged too, with `area` = `
 - One Windows-1252 file: `mait_win04_plm_sync/logs/cad/cad_export/creative_2026-11-24.txt`.
 - Data sets: October `ki-integriert` (with `trace_id`, incidents `INC-01…10`), 6 Oct `import_*`, 23 Nov mostly normal (baseline, but contains failing `JOB-1xxx`), 24 Nov `creative_*` scenarios.
 - Known scenarios: `JOB-2003` (converter SUCCESS, FMS upload rejected, publish fails), `JOB-2010` (missing reference `DEMO-Seal-17/C`), `JOB-2001` (clock behind, `clock_offset_seconds: -94`).
+- `job_id` in October: `JOB-<day, from 0>-<number>`, `JOB-00-00000` is the first job of 1 Oct (synthetic background). Verified 2026-11-25: every log file and every non-empty line of the ZIP is in DuckDB (only CSV headers and XML wrapper lines are no events).
 - Missing docs referenced by the package README: `_dokumentation/FORMATE.md`, `INTEGRATION.md` (ask the mentor).

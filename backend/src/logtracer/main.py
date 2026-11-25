@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from logtracer import __version__
-from logtracer.api import chat, events, health, ingest, sources, suggestions, trace
+from logtracer.api import chat, events, health, ingest, jobs, sources, suggestions, trace
 from logtracer.api.analysis import router as analysis_router
 from logtracer.core.config import Settings, get_settings
 from logtracer.core.logpaket import ensure_from_settings
@@ -66,6 +66,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health.router, prefix="/api")
     app.include_router(sources.router, prefix="/api")
     app.include_router(events.router, prefix="/api")
+    app.include_router(jobs.router, prefix="/api")
     app.include_router(ingest.router, prefix="/api")
     app.include_router(suggestions.router, prefix="/api")
     app.include_router(trace.router, prefix="/api")

@@ -258,6 +258,7 @@ Basis: `http://localhost:8000/api`, OpenAPI unter `/docs`. JSON, Zeiten immer IS
 | `GET` | `/ingest/progress` | **SSE**: Fortschritt, neue Dateien |
 | `GET` | `/sources` | Quellen mit Format, Kodierung, Duplikat-Status, Checkpoint |
 | `GET` | `/events` | Suche: `server, component, level, from, to, q, job_id, trace_id, page` |
+| `GET` | `/jobs` | Jobs über alle Events mit Status, Servern, Fehlern, erstem Problem und Incident; `/jobs/{job_pk}`, `/jobs/{job_pk}/events` |
 | `GET` | `/events/{id}` | Einzelevent mit allen Feldern |
 | `GET` | `/events/{id}/context?n=10` | Originalzeilen um das Event |
 | `GET` | `/analysis/timeseries` | Events/Fehler pro Server und Zeitfenster |

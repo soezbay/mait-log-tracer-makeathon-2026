@@ -566,3 +566,12 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **What:** `p1/mait-colors` merged into `main`. Adnan's theme `codex/mait-brand-refresh` (green and coral) is not merged. His branch was not changed or deleted.
 - **Why:** Safak's decision; both change the same files.
 - **Also found (not changed):** the live process monitor groups only the first 100 events. These are 11 minutes of 1 Oct and belong to one trace (`TRC-00-00000`, jobs `JOB-00-00000` and `JOB-00-00001`, 182 lines, 13 on each of the 14 servers). The status "recovered" comes from the harmless message "Transient retry recovered".
+
+### Process monitor shows all jobs; coverage of the log package checked
+- **What:** New table `jobs`, rebuilt with the analysis, and `GET /api/jobs`, `/api/jobs/{id}`, `/api/jobs/{id}/events`. The Live process monitor lists all jobs, problems first, with status tiles, filters, paging, the first problem, a link to the incident and the job's entries. Demo and ZIP import keep the old list.
+- **Definition:** a job is a job number within one trace; without a trace ID a pause of 30 min starts a new job. `JOB-2003-R01 … R49` are runs of `JOB-2003`. Lines without a trace ID next to the only trace of their number belong to it (`JOB-2001`). Status from real problems only, so "Transient retry recovered" no longer makes a job "recovered".
+- **Why:** the old view grouped the first 100 events: one synthetic job, two jobs mixed, wrong status and figures.
+- **Result:** 52,226 jobs cover all 1,662,584 events that have a job: 209 failed (each in an incident), 7 warnings, 802 recovered, 51,208 ok. The analysis takes 1.4 s in total, a list answers in about 20 ms.
+- **Coverage check (Safak's question):** read from the ZIP, not from the extracted folder. All 13,643 log files are in `sources` with the same SHA-256; the other 193 entries are READMEs, two docs and 14 `server_info.json` (stored in `servers`). In the 5,068 unique files every non-empty line belongs to an event, except 48 CSV headers and 70 XML wrapper lines. 8,575 files are byte-identical copies and not parsed twice. The timeline reaches 1,662,667 events; 11,125 duplicate lines are hidden by default.
+- **Checks:** 192 tests pass (13 new), `ruff check` clean, build OK, 96 jsdom UI checks, seen in the browser.
+- **Open:** duplicates, copies, the source list and the server information are in the database and the API but not visible in the UI.
