@@ -365,6 +365,40 @@ def test_reply_is_the_direct_answer_and_kept_in_the_history(con):
     assert stored == [(reply,)]
 
 
+def test_follow_up_may_cite_earlier_evidence_without_a_tool_call(con):
+    store = LogStore(con.cursor())
+    first = ScriptedProvider([resp(call("trace", key="JOB-2003")),
+                              resp(call("submit_answer", **good_submission(reply="FMS rejected it.")))])
+    list(LogTracerAgent(first, store, settings()).run("Why?", conversation_id="c1"))
+    # A question that got no answer must not shift the pairs.
+    store.save_message("c1", "user", "stopped question")
+    history, ids = store.follow_up_context("c1")
+    assert [q for q, _ in history] == ["Why?"] and ids == {1001, 1002, 1003}
+    assert "FMS rejected it." in history[0][1] and "Hypothesis: Publish of JOB-2003" in history[0][1]
+    assert "Cited event ids: [1001, 1002, 1003]" in history[0][1]
+
+    second = ScriptedProvider([resp(call("submit_answer", **good_submission(reply="Simply: no permission.")))])
+    ev = list(LogTracerAgent(second, store, settings()).run(
+        "Simpler please", conversation_id="c1", history=history, known_event_ids=ids))
+    ans = next(e["data"] for e in ev if e["event"] == "answer")
+    assert ans["reply"] == "Simply: no permission." and len(ans["evidence"]) == 3
+    assert [q for q, _ in store.follow_up_context("c1")[0]] == ["Why?", "Simpler please"]
+    # Without that conversation the same ids are still not accepted.
+    other = ScriptedProvider([resp(call("submit_answer", **good_submission()))] * 3)
+    ev = list(LogTracerAgent(other, store, settings()).run("Simpler please", conversation_id="c2"))
+    ans = next(e["data"] for e in ev if e["event"] == "answer")
+    assert ans["evidence"] == [] and ans["confidence"] <= 0.3
+
+
+def test_follow_up_context_keeps_the_last_turns(con):
+    store = LogStore(con.cursor())
+    for i in range(5):
+        store.save_message("c", "user", f"q{i}")
+        store.save_message("c", "assistant", f"a{i}", {"summary": f"a{i}", "evidence": []})
+    assert store.follow_up_context("c") == ([("q2", "a2"), ("q3", "a3"), ("q4", "a4")], set())
+    assert store.follow_up_context("unknown") == ([], set())
+
+
 def test_missing_reply_falls_back_to_the_summary(con):
     p = ScriptedProvider([resp(call("trace", key="JOB-2003")),
                           resp(call("submit_answer", **good_submission()))])

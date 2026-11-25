@@ -544,3 +544,13 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `backend/src/logtracer/assistant/{answer,agent,prompt,data_access}.py`, `backend/scripts/ask.py`, `frontend/src/{main,ui,i18n}.tsx`, `layout.css`, `contracts/examples/chat_answer.json`, `chat_stream.sse`, `docs/ARCHITECTURE.md` §5
 - **Checks:** 177 tests pass (9 new), `ruff check` clean, build OK, 67 jsdom UI checks. Live with KI:connect gpt-oss-120b: both questions from the screenshots, a yes/no question, "only a list", a term and a greeting; the Spanish hypothesis was seen in the browser (22 s).
 - **Open (P3):** review; the model does not always count sentences exactly and sometimes mixes languages in a side field; a question about a term uses many search rounds; each question stands alone because the UI sends no `conversation_id`.
+
+### Follow-up questions in the assistant
+- **What:**
+  - **UI:** the assistant is a chat. All questions and answers stay visible, the analysis of older answers is folded. Input at the bottom stays in view, with Stop while an answer runs, three quick follow-ups and "New chat". The chat lives above the pages (`useConversation`), so it survives navigation and a running question goes on.
+  - **Backend:** `follow_up_context` gives the model the last three answered questions with reply, hypothesis, steps and cited event ids. These ids may be cited again without a tool call. Questions without an answer (failed, stopped) are skipped; before, they shifted the question/answer pairs. The newest messages are read, not the first 50.
+- **Why:** Safak asked for it; "explain that more simply" had no meaning for the assistant.
+- **Where:** `frontend/src/conversation.tsx`, `main.tsx`, `api.ts`, `assistant-run.tsx`, `i18n.tsx`, `layout.css`; `backend/src/logtracer/api/chat.py`, `assistant/data_access.py`, `agent.py`, `prompt.py`
+- **Decision:** in Live only the identical question is blocked. Adnan's block by job number would reject follow-ups about the same job; Demo keeps it.
+- **Checks:** 179 tests pass (2 new), `ruff check` clean, build OK, 81 jsdom UI checks. Live with KI:connect: "Warum ist job 2013 fehlgeschlagen?" → "Erkläre das einfacher …" (15 s, no tool call, 3 evidence lines) → "Und welche anderen Jobs hatten an dem Tag …" (day understood).
+- **Open:** after a page reload a new chat starts (the messages are stored, `GET /chat/{id}` could restore them). The facts of the third live answer were not checked against the logs.

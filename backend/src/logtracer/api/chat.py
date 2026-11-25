@@ -85,13 +85,12 @@ def _stream(req: ChatRequest) -> Iterator[ServerSentEvent]:
         cur = _cursor()
         store = LogStore(cur)
         history: list[tuple[str, str]] = []
+        known_event_ids: set[int] = set()
         if req.conversation_id:
-            rows = store.history(req.conversation_id)
-            pairs = [(rows[i]["content"], rows[i + 1]["content"]) for i in range(0, len(rows) - 1, 2)
-                     if rows[i]["role"] == "user" and rows[i + 1]["role"] == "assistant"]
-            history = pairs[-3:]
+            history, known_event_ids = store.follow_up_context(req.conversation_id)
         agent = LogTracerAgent(_provider(), store)
-        for ev in agent.run(req.question, conversation_id=req.conversation_id, history=history):
+        for ev in agent.run(req.question, conversation_id=req.conversation_id, history=history,
+                            known_event_ids=known_event_ids):
             yield _sse(ev["event"], ev["data"])
     except ProviderError as exc:
         yield _sse("error", {"message": str(exc)})

@@ -624,6 +624,41 @@ class LogStore:
         except duckdb.Error as exc:
             log.warning("could not store llm call: %s", exc)
 
+    def follow_up_context(self, conversation_id: str, turns: int = 3) -> tuple[list[tuple[str, str]], set[int]]:
+        """The last answered questions of a conversation and the event ids their answers cited.
+
+        A question without an answer (failed or stopped) is left out. The ids were checked when the
+        answer was given, so a follow-up may cite them without calling a tool again.
+        """
+        try:
+            rows = self._rows(
+                "SELECT role, content, CAST(answer AS VARCHAR) AS answer FROM chat_messages "
+                "WHERE conversation_id = ? ORDER BY message_id DESC LIMIT ?",
+                [conversation_id, turns * 10],
+            )
+        except duckdb.Error:
+            return [], set()
+        pairs: list[tuple[str, str]] = []
+        ids_per_turn: list[list[int]] = []
+        question: str | None = None
+        for row in reversed(rows):
+            if row["role"] == "user":
+                question = row["content"]
+            elif row["role"] == "assistant" and question is not None:
+                answer = json.loads(row["answer"]) if row["answer"] else {}
+                cited = [e["event_id"] for e in answer.get("evidence", []) if e.get("event_id") is not None]
+                text = row["content"] or ""
+                if answer.get("summary") and answer["summary"] != text:
+                    text += f"\n  Hypothesis: {answer['summary']}"
+                for step in answer.get("causal_chain", []):
+                    text += f"\n  Step {step['step']} {step['server']} {step['event_ids']}: {_short(step['text'], 160)}"
+                if cited:
+                    text += f"\n  Cited event ids: {cited}"
+                pairs.append((question, text))
+                ids_per_turn.append(cited)
+                question = None
+        return pairs[-turns:], {i for ids in ids_per_turn[-turns:] for i in ids}
+
     def history(self, conversation_id: str, limit: int = 50) -> list[dict[str, Any]]:
         try:
             rows = self._rows(

@@ -57,7 +57,11 @@ REPLY (what the user reads first; the other fields are shown below it as the ana
 def build_user_message(question: str, history: list[tuple[str, str]] | None = None) -> str:
     parts: list[str] = []
     if history:
-        parts.append("Earlier in this conversation (for follow-up questions):")
+        parts.append(
+            "Earlier in this conversation. The new question may refer to it (\"that\", \"simpler\", \"and the "
+            "others?\"). You may cite the event ids listed here without calling a tool again; call tools when the "
+            "new question needs facts that are not here."
+        )
         for q, a in history:
             parts.append(f"- Q: {q}\n  A: {a}")
         parts.append("")

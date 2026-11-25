@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import type { ChatStep, ChatUsage } from './api'
 import { useI18n } from './i18n'
 import type { MessageKey } from './i18n'
@@ -64,6 +64,7 @@ export function RunPanel({ run }: { run: AssistantRun }) {
   const { language, t } = useI18n()
   const locale = language === 'en' ? 'en-GB' : 'de-DE'
   const running = run.state === 'running'
+  const bodyId = useId()
   // Open while it works and after an error; folded once the answer is there. The user may change it.
   const [chosen, setChosen] = useState<boolean | null>(null)
   useEffect(() => setChosen(null), [run.start, run.state])
@@ -91,15 +92,16 @@ export function RunPanel({ run }: { run: AssistantRun }) {
   const tools = run.steps.filter(step => step.tool !== null).length
   const current = run.steps.at(-1)
   const summary = running && current ? label(current)
-    : t(run.state === 'error' ? 'run.stopped' : 'run.finished', { steps: t(tools === 1 ? 'run.stepOne' : 'run.stepMany', { count: tools }), time: time(run.start, run.end) })
+    : run.state === 'done' && !tools ? t('run.finishedDirect', { time: time(run.start, run.end) })
+      : t(run.state === 'error' ? 'run.stopped' : 'run.finished', { steps: t(tools === 1 ? 'run.stepOne' : 'run.stepMany', { count: tools }), time: time(run.start, run.end) })
   const usage = run.usage
   return <section className={'panel run ' + run.state}>
     <p className="question">{run.question}</p>
-    <button type="button" className="run-toggle" aria-expanded={open} aria-controls="assistant-run" onClick={() => setChosen(!open)}>
-      <span className={'run-icon ' + run.state} aria-hidden="true" /><span className="run-summary" role="status">{summary}</span>
+    <button type="button" className="run-toggle" aria-expanded={open} aria-controls={bodyId} onClick={() => setChosen(!open)}>
+      <span className={'run-icon ' + run.state} aria-hidden="true" /><span className="run-summary" role={running ? 'status' : undefined}>{summary}</span>
       {running && <small aria-hidden="true">{time(run.start)}</small>}<span className="run-caret" aria-hidden="true">{open ? '▾' : '▸'}</span>
     </button>
-    <div id="assistant-run" hidden={!open}>
+    <div id={bodyId} className="run-body" hidden={!open}>
       <ol className="run-steps">{run.steps.map((step, index) => <li key={index} className={step.state + (step.tool === null ? ' model' : '')}>
         <span className={'run-icon ' + step.state} aria-hidden="true" />
         <span className="run-text"><strong>{label(step)}</strong>{step.detail && <> <code>{step.detail}</code></>}{step.result && <small title={step.state === 'warn' ? step.result : undefined}>{resultText(step)}</small>}</span>

@@ -281,7 +281,7 @@ Base: `http://localhost:8000/api`, OpenAPI at `/docs`. JSON, times always ISO-86
 | `GET` | `/trace/{key}` | all events of a chain (`trace_id`, else `job_id`) |
 | `GET` | `/suggestions?lang=en\|de` | suggested questions for the assistant, derived from the logs by SQL (no LLM call); with `event_id` questions about the opened event |
 | `POST` | `/chat` | ask a question. Answer as **SSE**: `step` (tool call), `token` (text), `answer` (structured), `done`. The frontend reads this stream with `fetch` (e.g. `fetch-event-stream`), because `EventSource` cannot send POST requests |
-| `GET` | `/chat/{conversation_id}` | history |
+| `GET` | `/chat/{conversation_id}` | history. A question with `conversation_id` (from the `done` event) is a follow-up: the model gets the last three answered questions with their steps and may cite the event IDs cited there |
 | `POST` | `/eval/run` | start an evaluation run |
 | `GET` | `/eval/results` | metrics: hit rate, cost, response time |
 

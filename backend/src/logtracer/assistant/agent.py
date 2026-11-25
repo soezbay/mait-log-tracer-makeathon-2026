@@ -73,12 +73,14 @@ class LogTracerAgent:
         *,
         conversation_id: str | None = None,
         history: list[tuple[str, str]] | None = None,
+        known_event_ids: set[int] | None = None,
         persist: bool = True,
     ) -> Iterator[Event]:
         conv_id = conversation_id or uuid.uuid4().hex[:12]
         started = time.monotonic()
         usage = UsageTotals(self.provider.name, self.provider.model)
         box = ToolBox(self.store)
+        box.seen_event_ids |= known_event_ids or set()  # cited earlier in this conversation
         if persist:
             self.store.save_message(conv_id, "user", question)
         try:

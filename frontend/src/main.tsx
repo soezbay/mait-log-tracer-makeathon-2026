@@ -5,13 +5,13 @@ import { MantineProvider, Tooltip } from '@mantine/core'
 import '@mantine/core/styles.css'
 import './style.css'
 import './layout.css'
-import { chat, request } from './api'
-import { addStep, finishRun, RunPanel, startRun } from './assistant-run'
-import type { AssistantRun } from './assistant-run'
+import { request } from './api'
+import { TurnView, useConversation } from './conversation'
+import type { Conversation } from './conversation'
 import { errorText, Feedback, formatTime, offline, useData } from './data'
 import type { Mode } from './data'
-import { demoAnswer, entries, groups } from './demo'
-import type { Answer, Entry, EventPage, Group, Stats } from './demo'
+import { entries, groups } from './demo'
+import type { Entry, EventPage, Group, Stats } from './demo'
 import { EventModal } from './event-details'
 import { importZip } from './import-zip'
 import { AnomalyStrip, IncidentPage, IncidentsPage, LatestIncidents } from './incidents'
@@ -19,7 +19,7 @@ import { ProcessMonitor } from './ProcessMonitor'
 import type { ImportedLogs } from './import-zip'
 import { I18nProvider, useI18n } from './i18n'
 import { AssistantLinkContext, SuggestionPanel, useSavedQuestions } from './suggestions'
-import { PageTitle, RichText } from './ui'
+import { PageTitle } from './ui'
 import { browserTimeZone, currentLocalDateTime, isValidDateTimeLocal, localDateTimeToUtcIso, utcDateTimeToEpoch, utcDateTimeToLocal } from './time'
 
 type AssistantTarget = { question: string; jobIds: string[] }
@@ -182,91 +182,51 @@ function ErrorGroups({ mode, open }: { mode: Mode; open: (id: number) => void })
   </>
 }
 
-type AssistantProps = { mode: Mode; open: (id: number) => void; contextId: number | null; clearContext: () => void; requested: string | null; clearRequested: () => void }
+type AssistantProps = { mode: Mode; conversation: Conversation; open: (id: number) => void; contextId: number | null; clearContext: () => void; requested: string | null; clearRequested: () => void }
 
-function Assistant({ mode, open, contextId, clearContext, requested, clearRequested }: AssistantProps) {
-  const { language, t } = useI18n()
+function Assistant({ mode, conversation, open, contextId, clearContext, requested, clearRequested }: AssistantProps) {
+  const { t } = useI18n()
+  const { turns, running } = conversation
+  const last = turns.at(-1)
   const [question, setQuestion] = useState('')
-  const [result, setResult] = useState<{ question: string; answer: Answer } | null>(null)
-  const [run, setRun] = useState<AssistantRun | null>(null)
-  const [error, setError] = useState('')
   const saved = useSavedQuestions()
-  const [expanded, setExpanded] = useState(true)
-  const active = React.useRef<{ target: AssistantTarget; controller: AbortController } | null>(null)
-  useEffect(() => () => { active.current?.controller.abort(); active.current = null }, [])
-  function isAlreadyOpen(prompt: string) {
-    const target = assistantTarget(prompt)
-    const visibleTarget = result ? assistantTarget(result.question) : null
-    return (!!visibleTarget && sameAssistantTarget(visibleTarget, target))
-      || (!!active.current && sameAssistantTarget(active.current.target, target))
+  const [expanded, setExpanded] = useState(turns.length === 0)
+  // Demo has one prepared answer per case. In a live chat only the very same question is blocked.
+  function isOpen(prompt: string) {
+    if (!last || last.error) return false
+    const target = assistantTarget(prompt), shown = assistantTarget(last.question)
+    return mode === 'demo' ? sameAssistantTarget(shown, target) : shown.question === target.question && (running || !!last.answer)
   }
-  // Suggestions may ask several things about one job, so only the very same question is blocked.
-  function isSameQuestionOpen(prompt: string) {
-    const text = assistantTarget(prompt).question
-    return (!!result && assistantTarget(result.question).question === text) || active.current?.target.question === text
-  }
-  async function ask(prompt: string, clearComposer = false, blocked = isAlreadyOpen) {
-    const cleanPrompt = prompt.trim()
-    const target = assistantTarget(cleanPrompt)
-    if (!cleanPrompt || blocked(cleanPrompt)) return
-    if (clearComposer) setQuestion('')
+  function ask(prompt: string, remember = true) {
+    const text = prompt.trim()
+    if (text.length < 3 || isOpen(text)) return
     if (mode === 'live') {
-      saved.recent.add(cleanPrompt)
+      if (remember) saved.recent.add(text)
       setExpanded(false)
     }
-    active.current?.controller.abort()
-    const controller = new AbortController()
-    const request = { target, controller }
-    active.current = request
-    setResult(null)
-    setError('')
-    setRun(mode === 'live' ? startRun(cleanPrompt) : null)
-    const update = (change: (run: AssistantRun) => AssistantRun) => {
-      if (active.current === request) setRun(current => current && change(current))
-    }
-    try {
-      const { answer, usage } = mode === 'demo'
-        ? { answer: demoAnswer(cleanPrompt, language), usage: undefined }
-        : await chat(cleanPrompt, step => update(current => addStep(current, step)), controller.signal, language)
-      update(current => finishRun(current, 'done', usage))
-      if (active.current === request) setResult({ question: cleanPrompt, answer })
-    } catch (error) {
-      if (!controller.signal.aborted && active.current === request) {
-        update(current => finishRun(current, 'error'))
-        setError(errorText(error))
-      }
-    } finally {
-      if (active.current === request) active.current = null
-    }
+    void conversation.ask(text)
   }
-  const askSuggestion = (prompt: string) => void ask(prompt, false, isSameQuestionOpen)
   useEffect(() => {
     if (requested === null) return
     clearRequested()
-    askSuggestion(requested)
+    ask(requested)
   }, [requested])
   const draft = question.trim()
   const draftSaved = saved.favorites.has(draft)
+  const followUps = [t('chat.simpler'), t('chat.checkFirst'), t('chat.howOften')]
   return <>
-    <PageTitle title={t('assistant.title')} info={mode === 'demo' ? t('assistant.demoDescription') : t('assistant.liveDescription')} />
-    {mode === 'live' && <SuggestionPanel contextId={contextId} clearContext={clearContext} saved={saved} isOpen={isSameQuestionOpen} ask={askSuggestion} expanded={expanded} setExpanded={setExpanded} />}
-    {mode === 'demo' && <div className="actions">{[t('assistant.prompt2003'), t('assistant.prompt2010'), t('assistant.promptSync')].map(prompt => <button type="button" key={prompt} className="secondary" disabled={isAlreadyOpen(prompt)} onClick={() => void ask(prompt)}>{prompt}</button>)}</div>}
-    {run && <RunPanel run={run} />}
-    {result && <article className="panel answer">
-      {!run && <p className="question">{result.question}</p>}
-      {result.answer.reply && result.answer.reply !== result.answer.summary && <><RichText className="reply" text={result.answer.reply} /><p className="analysis-label">{t('assistant.analysis')}</p></>}
-      <h3>{t('assistant.hypothesis')}</h3><p>{result.answer.summary}</p>
-      {result.answer.causal_chain.length > 0 && <><h3>{t('assistant.causalChain')}</h3><ol>{result.answer.causal_chain.map(item => <li key={item.step}><strong>{item.server}</strong> · {item.text}</li>)}</ol></>}
-      {result.answer.evidence.length > 0 && <h3>{t('assistant.evidence')}</h3>}<div className="evidence">{result.answer.evidence.map((item, index) => <button key={index} className="secondary" onClick={() => open(item.event_id)} title={item.file}>{item.file.split('/').at(-1)}:{item.line} <small>{formatTime(item.ts)}</small></button>)}</div>
-      <h3>{t('assistant.uncertainty')}{typeof result.answer.confidence === 'number' ? ' · ' + t('assistant.confidence', { percent: Math.round(result.answer.confidence * 100) }) : ''}</h3><p>{result.answer.uncertainty}</p>
-      {!!result.answer.counter_evidence?.length && <><h3>{t('assistant.counterEvidence')}</h3><ul>{result.answer.counter_evidence.map(text => <li key={text}>{text}</li>)}</ul></>}
-      <h3>{t('assistant.verification')}</h3><ul>{result.answer.verification_steps.map(text => <li key={text}>{text}</li>)}</ul>
-    </article>}
-    <Feedback pending={false} error={error} />
-    <form className={'panel composer' + (mode === 'live' ? ' composer-live' : '')} onSubmit={event => { event.preventDefault(); void ask(question, true) }}>
-      <label>{t('assistant.question')}<input value={question} onChange={event => setQuestion(event.target.value)} placeholder={t('assistant.placeholder')} /></label>
+    <PageTitle title={t('assistant.title')} info={mode === 'demo' ? t('assistant.demoDescription') : t('assistant.liveDescription')}>
+      {mode === 'live' && turns.length > 0 && <button type="button" className="secondary" onClick={() => { conversation.reset(); setExpanded(true) }}>{t('chat.new')}</button>}
+    </PageTitle>
+    {mode === 'live' && <SuggestionPanel contextId={contextId} clearContext={clearContext} saved={saved} isOpen={isOpen} ask={ask} expanded={expanded} setExpanded={setExpanded} />}
+    {mode === 'demo' && <div className="actions">{[t('assistant.prompt2003'), t('assistant.prompt2010'), t('assistant.promptSync')].map(prompt => <button type="button" key={prompt} className="secondary" disabled={isOpen(prompt)} onClick={() => ask(prompt)}>{prompt}</button>)}</div>}
+    {turns.map(turn => <TurnView key={turn.id} turn={turn} latest={turn === last} open={open} />)}
+    {mode === 'live' && last?.answer && <div className="follow-ups" role="group" aria-label={t('chat.followUps')}>{followUps.map(text => <button type="button" className="secondary" key={text} disabled={isOpen(text)} onClick={() => ask(text, false)}>{text}</button>)}</div>}
+    <form className={'panel composer' + (mode === 'live' ? ' composer-live' : '')} onSubmit={event => { event.preventDefault(); if (draft.length >= 3 && !isOpen(draft)) { ask(draft); setQuestion('') } }}>
+      <label>{t(turns.length && mode === 'live' ? 'chat.followUp' : 'assistant.question')}<input value={question} maxLength={2000} onChange={event => setQuestion(event.target.value)} placeholder={t(turns.length && mode === 'live' ? 'chat.placeholder' : 'assistant.placeholder')} /></label>
       {mode === 'live' && <button type="button" className="secondary" disabled={!draft} aria-pressed={!!draft && draftSaved} onClick={() => draftSaved ? saved.favorites.remove(draft) : saved.favorites.add(draft)}>{draftSaved && draft ? '★' : '☆'} {t('suggest.saveDraft')}</button>}
-      <button disabled={!question.trim() || isAlreadyOpen(question)}>{t('assistant.ask')}</button>
+      {running && !draft ? <button type="button" onClick={conversation.stop}>{t('chat.stop')}</button>
+        : <button disabled={draft.length < 3 || isOpen(draft)}>{t('assistant.ask')}</button>}
     </form>
   </>
 }
@@ -299,6 +259,8 @@ function App() {
   const [id, setId] = useState<number | null>(null)
   const [contextId, setContextId] = useState<number | null>(null)
   const [requested, setRequested] = useState<string | null>(null)
+  const liveChat = useConversation('live')
+  const demoChat = useConversation('demo')
   const open = React.useCallback((next: number) => { setId(next); setContextId(next) }, [])
   const assistantLink = React.useMemo(() => ({
     live: mode === 'live',
@@ -353,7 +315,7 @@ function App() {
       </div>
     </aside>
     <div className="workspace">
-      <main><Routes><Route path="/" element={<Overview mode={mode} logs={logs} onImport={file => void loadLogs(file)} onViewImport={() => switchMode('import')} pending={importing} importError={importError} open={open} />} /><Route path="/timeline" element={<Timeline mode={mode} open={open} logs={logs} />} /><Route path="/incidents" element={mode === 'live' ? <IncidentsPage /> : <ErrorGroups mode={mode} open={open} />} /><Route path="/incidents/:id" element={mode === 'live' ? <IncidentPage open={open} /> : <Navigate to="/incidents" replace />} /><Route path="/groups" element={<Navigate to="/incidents" replace />} /><Route path="/chat" element={mode === 'import' ? <p className="notice">{t('assistant.importNotice')}</p> : <Assistant key={mode} mode={mode} open={open} contextId={contextId} clearContext={() => setContextId(null)} requested={requested} clearRequested={() => setRequested(null)} /> } /><Route path="*" element={<p className="notice">{t('route.notFound')} <NavLink to="/">{t('route.goHome')}</NavLink></p>} /></Routes></main>
+      <main><Routes><Route path="/" element={<Overview mode={mode} logs={logs} onImport={file => void loadLogs(file)} onViewImport={() => switchMode('import')} pending={importing} importError={importError} open={open} />} /><Route path="/timeline" element={<Timeline mode={mode} open={open} logs={logs} />} /><Route path="/incidents" element={mode === 'live' ? <IncidentsPage /> : <ErrorGroups mode={mode} open={open} />} /><Route path="/incidents/:id" element={mode === 'live' ? <IncidentPage open={open} /> : <Navigate to="/incidents" replace />} /><Route path="/groups" element={<Navigate to="/incidents" replace />} /><Route path="/chat" element={mode === 'import' ? <p className="notice">{t('assistant.importNotice')}</p> : <Assistant key={mode} mode={mode} conversation={mode === 'demo' ? demoChat : liveChat} open={open} contextId={contextId} clearContext={() => setContextId(null)} requested={requested} clearRequested={() => setRequested(null)} /> } /><Route path="*" element={<p className="notice">{t('route.notFound')} <NavLink to="/">{t('route.goHome')}</NavLink></p>} /></Routes></main>
     </div>
     <EventModal id={id} mode={mode} logs={logs} open={open} close={() => setId(null)} />
   </div></AssistantLinkContext.Provider>

@@ -95,12 +95,12 @@ export async function request<T>(path: string, options?: RequestInit, language: 
 
 /** One tool call of the assistant: sent when it starts and again when it is done. */
 export type ChatStep = { round?: number; tool?: string; args?: Record<string, unknown>; status?: string; message?: string; result?: string }
-export type ChatUsage = { model?: string; llm_calls?: number; input_tokens?: number; output_tokens?: number; duration_ms?: number }
+export type ChatUsage = { conversation_id?: string; model?: string; llm_calls?: number; input_tokens?: number; output_tokens?: number; duration_ms?: number }
 
-export async function chat(question: string, onStep: (step: ChatStep) => void, signal: AbortSignal, language: Language = 'en'): Promise<{ answer: Answer; usage?: ChatUsage }> {
+export async function chat(question: string, onStep: (step: ChatStep) => void, signal: AbortSignal, language: Language = 'en', conversationId?: string): Promise<{ answer: Answer; usage?: ChatUsage }> {
   const response = await fetch('/api/chat', {
     method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-    body: JSON.stringify({ question }), signal,
+    body: JSON.stringify({ question, conversation_id: conversationId }), signal,
   })
   if (!response.ok || !response.body) throw new Error(translate(language, 'assistant.startError', { status: response.status }))
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader()
