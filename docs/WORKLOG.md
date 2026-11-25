@@ -430,3 +430,12 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Why:** Safak asked to merge the open pull requests.
 - **Where:** `frontend/src/main.tsx`, `docs/AI_LOG.md`, `docs/WORKLOG.md`
 - **Checks:** 110 backend tests pass, `ruff check` clean, `npm run build` (TypeScript + Vite) succeeds.
+
+### Merge P2 analysis into main (Harsh's branch, no pull request)
+- **What:** Merged `p2/analysis-implementation` (Harsh, 2 commits from 25 Nov) into `main`: `analysis/` (Drain3 templates, error groups, anomalies, correlation, incidents, dependency graph), `normalize/clock.py`, the router `/api/analysis` (`stats`, `incidents`, `incidents/{id}`, `anomalies`, `graph`) and 7 test files.
+  - Conflicts: `backend/pyproject.toml` (kept P3's `anthropic`, `google-genai`, `groq` and P2's `drain3`), `backend/src/logtracer/main.py` (both the chat and the analysis router). `uv.lock` regenerated (adds `drain3`, `jsonpickle`).
+  - Lint fixes in P2 code so `ruff check` stays clean, no behavior change: removed an empty stub `build_error_groups` that was redefined below, an unused variable and unused imports; `Depends` via an `Annotated` alias as in the P1 routers; `con` moved before parameters with defaults.
+- **Why:** Safak asked to merge it; the frontend's error-group view waits for P2.
+- **Where:** `backend/src/logtracer/analysis/`, `backend/src/logtracer/api/analysis.py`, `backend/src/logtracer/main.py`, `backend/pyproject.toml`, `backend/uv.lock`
+- **Checks:** 125 tests pass (15 new from P2), `ruff check` clean. On the real DB all 5 analysis endpoints answer 200.
+- **Open (P2):** nothing calls the `build_*` functions on the real database yet, so the analysis tables are empty and the endpoints return empty lists. The frontend calls `/api/analysis/groups`, which does not exist (404). Empty stray package `normalise/` (British spelling) can be removed.
