@@ -596,3 +596,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `docs/templates/`
 - **Checks:** schema validation of both files, all sample slides and one new slide per layout rendered with PowerPoint. Figures on the sample slides come from `GET /api/sources/summary` and earlier checks.
 - **Open:** insert the official logo; unused cards must be deleted on a slide because empty cards keep their color.
+
+### 5-minute pitch deck on the MAIT template
+- **What:** `docs/Log Tracer – Pitch 5 Minuten.pptx`, 9 slides with speaker notes and a time plan (about 4:50 min): title; hook with real raw lines from CSV, JSON Lines, text with JSON, XML, key=value and free text plus the folder tree (375 directories, 13,836 files), no text; problem with clock icon and an empty picture area; solution as a diagram (five file types, curved arrows into DuckDB, DuckDB connected to an AI agent), no text; "Webapp" with the same diagram in an arrow-shaped frame pointing to a screenshot of the process monitor; empty slide for the demo video; benefit; team; ask.
+- **Figures:** "about 90 % less time" is an estimate (manual search about 30 min per error chain, Log Tracer under 3 min) and is marked as such; "under 3 min" comes from the JOB-2003 test (152 s, see the assistant entry above).
+- **Images:** raw log views drawn from the package files, UI screenshot from headless Edge, icons from Tabler Icons 3.19.0 (MIT), DuckDB mark from simple-icons 13.0.0 (CC0, brand of DuckDB).
+- **Checks:** schema validation passed, every slide rendered in PowerPoint and looked at.
+- **Open:** team photos, own images on slide 3, demo video on slide 6. Not pushed.
