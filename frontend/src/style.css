@@ -151,3 +151,21 @@ h2 small { font-size: .85rem; font-weight: 500; margin-left: .4rem }
 @media (max-width: 760px) {
   .process-table-scroll { max-height: 58vh }
 }
+
+.suggestions h3 { margin: .5rem 0 .3rem }
+.suggestions .section-title { margin-bottom: .3rem }
+.suggestions .section-title h3 { margin-bottom: 0 }
+.suggestion-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: .4rem; list-style: none; margin: 0 0 .5rem; padding: 0 }
+.suggestion-list li { display: flex; align-items: stretch; gap: .15rem; min-width: 0 }
+.suggestion-list .secondary { flex: 1; min-width: 0; padding: .4rem .6rem; font-size: .9rem; text-align: left; overflow-wrap: anywhere }
+.suggestion-list small { display: block; color: #455c6d; font-weight: 450 }
+.suggestion-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 0 1rem }
+.suggestion-columns p { color: #455c6d; font-size: .9rem }
+.icon-button { flex: none; min-width: 2.1rem; padding: .2rem .4rem; background: transparent; color: #085b51; font-size: 1.1rem; line-height: 1 }
+.icon-button:hover:not(:disabled) { background: #e8f2f5 }
+.event-questions { margin-bottom: .75rem }
+.event-questions .actions { margin: .3rem 0 }
+.event-questions .secondary { padding: .4rem .6rem; font-size: .9rem; text-align: left; overflow-wrap: anywhere }
+@media (min-width: 761px) {
+  .composer-live { grid-template-columns: 1fr auto auto }
+}

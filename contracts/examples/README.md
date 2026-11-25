@@ -19,6 +19,7 @@ The endpoint list is in [docs/ARCHITECTURE.md §5](../../docs/ARCHITECTURE.md).
 | `event_context.json` | `GET /api/events/{id}/context?n=3` | P1 |
 | `ingest_status.json` | `GET /api/ingest/status`, also the `202` body of `POST /api/ingest` (`{"mode": "full" \| "incremental"}`; `409` if one runs) | P1 |
 | `ingest_progress.sse.txt` | `GET /api/ingest/progress` (SSE events `state`, `started`, `progress`, `new_file`, `done`, `error`; read with `EventSource`) | P1 |
+| `suggestions.json` | `GET /api/suggestions?lang=en\|de&limit=8` (questions from the logs, `scope: logs`); with `&event_id=…` questions about one event (`scope: event`, `404` if unknown). Not paginated. Show `question` and `reason` as they are; `kind` may get new values | P1 |
 | *to add by P2* | `/api/analysis/*`, `/api/trace/{key}` | P2 |
 | `chat_request.json` | `POST /api/chat` (request body) | P3 |
 | `chat_stream.sse` | `POST /api/chat` (SSE: `token`, `step`, `answer`, `done`, `error`) | P3 |

@@ -33,6 +33,7 @@ Die Repo-Architektur beschreibt die Endpunkte und den strukturierten Chat-Output
 | GET /api/events/{id} | Einzelereignis mit `source_path`, `line_start`, `line_end`, UTC-Zeit, Host, Level und Meldung |
 | GET /api/events/{id}/context?n=10 | `{ id, source_path, line_start, line_end, lines: [{ no, is_event, text }] }` |
 | GET /api/trace/{key} | Ereignisse einer Trace-ID als Liste oder `{ items, total, limit, offset }` |
+| GET /api/suggestions | `{ scope, event_id, items: [{ kind, question, reason, job_id, event_id, last_ts }] }`; `lang=en\|de`, optional `event_id` |
 | POST /api/chat | JSON `{ question }`; SSE mit `step`, `token`, `answer`, `done` oder `error`. Die UI zeigt Zwischenschritte und anschließend die strukturierte Antwort. |
 
 Die verbindlichen Beispiele für die P1-Routen liegen in `../contracts/examples/`. Das Frontend normalisiert deren `source_path`, `line_start`, `line_end`, `no` und `limit/offset`-Felder für die Ansichten.
@@ -41,6 +42,10 @@ Im aktuellen Feature-Branch sind durch den Merge von `origin/develop` die P1-Rou
 
 Details zu den UI-Datentypen stehen in `src/demo.ts`; die Backend-Beispiele sind maßgeblich für die Antwortform. Die Zeitleiste zeigt eine chronologisch sortierte Ereignistabelle mit teilbaren Filtern, einschließlich UTC-Zeitraum. Der Live-Modus lädt Übersicht, Aufträge, Zeitleiste, Fehlergruppen, Quellkontext und Chat über die API. Die Auftragsübersicht gruppiert die erste vom Backend gelieferte Ereignisseite; die vollständige Suche mit serverseitiger `limit/offset`-Paginierung ist in der Zeitleiste verfügbar. Fehlende API-Routen erscheinen als Backend-Fehler. Abhängigkeitsgraph, grafische Zeitreihe und Evaluationsdashboard sind spätere Ausbauschritte.
 
+
+## Fragevorschläge im Assistenten
+
+Im Live-Modus zeigt der Assistent Fragen aus vier Quellen (`src/suggestions.tsx`): aus den aktuellen Logs (`GET /api/suggestions`), zum zuletzt geöffneten Ereignis oder Auftrag (`?event_id=`), Favoriten (☆) und die letzten 8 Fragen. Favoriten und letzte Fragen liegen im `localStorage` dieses Browsers. Dieselben Fragen zum Ereignis stehen auch in den Meldungsdetails und im aufgeklappten Auftrag. Der Demo-Modus behält seine drei vorbereiteten Fragen.
 
 ## ZIP-Datei im Browser importieren
 

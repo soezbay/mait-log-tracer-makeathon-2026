@@ -7,7 +7,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from logtracer import __version__
-from logtracer.api import chat, events, health, ingest, sources
+from logtracer.api import chat, events, health, ingest, sources, suggestions
+from logtracer.api.analysis import router as analysis_router
 from logtracer.core.config import Settings, get_settings
 from logtracer.core.logpaket import ensure_from_settings
 from logtracer.ingest.watcher import LogWatcher
@@ -58,13 +59,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Routers (prefix /api). Owners: health/sources/events/ingest = P1, analysis = P2,
+    # Routers (prefix /api). Owners: health/sources/events/ingest/suggestions = P1, analysis = P2,
     # chat = P3, eval = P5.
     app.include_router(health.router, prefix="/api")
     app.include_router(sources.router, prefix="/api")
     app.include_router(events.router, prefix="/api")
     app.include_router(ingest.router, prefix="/api")
+    app.include_router(suggestions.router, prefix="/api")
     app.include_router(chat.router, prefix="/api")
+    app.include_router(analysis_router)  # P2, prefix /api/analysis set in the router
     return app
 
 

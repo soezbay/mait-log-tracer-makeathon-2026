@@ -431,6 +431,35 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Where:** `frontend/src/main.tsx`, `docs/AI_LOG.md`, `docs/WORKLOG.md`
 - **Checks:** 110 backend tests pass, `ruff check` clean, `npm run build` (TypeScript + Vite) succeeds.
 
+### Merge P2 analysis into main (Harsh's branch, no pull request)
+- **What:** Merged `p2/analysis-implementation` (Harsh, 2 commits from 25 Nov) into `main`: `analysis/` (Drain3 templates, error groups, anomalies, correlation, incidents, dependency graph), `normalize/clock.py`, the router `/api/analysis` (`stats`, `incidents`, `incidents/{id}`, `anomalies`, `graph`) and 7 test files.
+  - Conflicts: `backend/pyproject.toml` (kept P3's `anthropic`, `google-genai`, `groq` and P2's `drain3`), `backend/src/logtracer/main.py` (both the chat and the analysis router). `uv.lock` regenerated (adds `drain3`, `jsonpickle`).
+  - Lint fixes in P2 code so `ruff check` stays clean, no behavior change: removed an empty stub `build_error_groups` that was redefined below, an unused variable and unused imports; `Depends` via an `Annotated` alias as in the P1 routers; `con` moved before parameters with defaults.
+- **Why:** Safak asked to merge it; the frontend's error-group view waits for P2.
+- **Where:** `backend/src/logtracer/analysis/`, `backend/src/logtracer/api/analysis.py`, `backend/src/logtracer/main.py`, `backend/pyproject.toml`, `backend/uv.lock`
+- **Checks:** 125 tests pass (15 new from P2), `ruff check` clean. On the real DB all 5 analysis endpoints answer 200.
+- **Open (P2):** nothing calls the `build_*` functions on the real database yet, so the analysis tables are empty and the endpoints return empty lists. The frontend calls `/api/analysis/groups`, which does not exist (404). Empty stray package `normalise/` (British spelling) can be removed.
+
+### Merge pull request #9 into main
+- **What:** Merged #9 (Harsh, `p2/analysis-implementation`): `build_anomalies` also reports bursts of at least 30 errors per minute when there is not enough baseline history yet. No conflicts.
+- **Why:** Safak asked to merge the open pull request.
+- **Where:** `backend/src/logtracer/analysis/anomalies.py`, `backend/tests/test_p2_anomalies.py`
+- **Checks:** 126 tests pass, `ruff check` clean.
+- **Open (P2):** the title mentions the full pipeline, but nothing calls the `build_*` functions on the real database yet. `p3/kiconnect-provider` (2 commits, no pull request) was left alone.
+
+### Dynamic question suggestions for the Live assistant
+- **What:** The Live assistant no longer offers three fixed questions. It offers:
+  - **From the logs (backend):** `GET /api/suggestions?lang=en|de&limit=8`. SQL only, no LLM call. Kinds: jobs with recent errors (re-runs `-Rnn` count as one job, widest spread first), `INC-nn` numbers, days with clearly more errors than a typical day, servers, frequent older messages, and one question about harmless ERROR lines. "Recent" means 24 h before the newest real error in the logs, not the wall clock.
+  - **Context:** `?event_id=` returns questions about the opened event, its job, the other runs and what happened on that server at that time. Shown in the event drawer, in an opened job of the process monitor, and in the assistant for the last opened event or job (removable).
+  - **Recently asked:** the last 8 questions, removable one by one or all at once.
+  - **Favorites:** star on every suggestion and at the composer, up to 20. Both lists live in the browser's `localStorage`.
+- **Noise rule:** a message counts as a real error only if at least 10 % of its lines are ERROR/FATAL. In the data the two sides are clearly apart: 8 harmless messages are at about 0.5 %, all 80 others at 17 % or more. Harmless messages never lead to a "what caused" question.
+- **Why:** The fixed questions did not fit live data; `SYNC-312` does not exist in the log package.
+- **Design:** The question texts (EN/DE) come from the backend, so a new kind needs no frontend change. Suggestions block only the very same question, because several different questions about one job are wanted; typed questions keep Adnan's rule. The panel folds while an answer is shown. Demo mode keeps its three prepared questions, since its answers are prepared too.
+- **Where:** `backend/src/logtracer/api/suggestions.py`, `services/suggestion_service.py`, `storage/repositories/suggestions.py`, `main.py`; `frontend/src/suggestions.tsx`, `main.tsx`, `ProcessMonitor.tsx`, `i18n.tsx`, `style.css`; `contracts/examples/suggestions.json`, `docs/ARCHITECTURE.md`, `docs/ARCHITEKTUR.md`, `frontend/README.md`, `AGENTS.md` §4
+- **Checks:** 136 backend tests pass (10 new), `ruff check` clean, `npm run build` succeeds. 24 UI checks with the real app in jsdom against the running backend and the real database; only the chat answer was mocked.
+- **Open:** Not seen in a real browser (the built-in browser did not load localhost), so the look is unchecked; P4 please review. The suggested questions were not run through the LLM. Typed questions: `assistantTarget` reads "on 2026-11-24" as a job ID and can block a different question with the same date (P4).
+
 ### KI:connect.nrw as LLM provider (P3, Tarun)
 - **What:** New provider `kiconnect` for KI:connect.nrw, the AI gateway of NRW universities. Its API follows the OpenAI chat-completions format, so `KIConnectProvider` (official `openai` SDK, base URL `https://chat.kiconnect.nrw/api/v1`) reuses the Groq conversation code, now named `ChatCompletionsConversation`: tool calls, `retry-after` waits, readable errors with the right key name, and the retry for unparsable model output. Models are deployments assigned to the key's user group: `LLM_MODEL` must be one of them, listed by `uv run python scripts/ask.py --list-models`. No output-limit parameter is sent (deployments sit on different upstream providers); a deployment that refuses a forced `tool_choice` gets `auto` instead.
 - **Why:** A teammate's university account gives access with much higher context and output limits than Groq's free plan, whose per-minute limit makes a second question wait.

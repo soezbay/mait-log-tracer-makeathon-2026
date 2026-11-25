@@ -1,0 +1,30 @@
+{
+  "scope": "logs",
+  "event_id": null,
+  "items": [
+    {
+      "kind": "job",
+      "question": "What caused the errors in JOB-2003?",
+      "reason": "101 errors, 50 runs, 2 servers",
+      "job_id": "JOB-2003",
+      "event_id": 205678,
+      "last_ts": "2026-11-24T08:30:12Z"
+    },
+    {
+      "kind": "incident",
+      "question": "What caused INC-10 and which systems were affected?",
+      "reason": "30 errors, 2026-10-29",
+      "job_id": null,
+      "event_id": 1558855,
+      "last_ts": "2026-10-29T12:33:29Z"
+    },
+    {
+      "kind": "noise",
+      "question": "Are the ERROR entries \"Transient retry recovered\" harmless?",
+      "reason": "239 errors, otherwise logged as normal",
+      "job_id": null,
+      "event_id": 155709,
+      "last_ts": "2026-10-30T22:55:36Z"
+    }
+  ]
+}
