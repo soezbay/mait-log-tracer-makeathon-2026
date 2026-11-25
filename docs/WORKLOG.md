@@ -582,3 +582,9 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Why:** The coverage check showed that everything is in DuckDB, but copies, duplicate lines, the file list and the server information were not visible. Safak decides later whether the page stays, so it lives on its own branch.
 - **Checks:** 195 tests pass (3 new), `ruff check` clean, build OK, 106 jsdom UI checks, seen in the browser at 1400 px and checked for horizontal scroll at 390 px. Totals match the coverage check: 13,643 files, 5,068 different, 8,575 copies, 1,673,792 events, 11,125 duplicate lines.
 - **Open:** Safak: merge into `main` or delete the branch. P4 (Adnan): review if it is kept.
+
+### Data sources page merged into `main`
+- **What:** Safak decided to keep the page; `p1/data-sources` was merged into `main` as a fast-forward (commit `858bf55`).
+- **Why:** the branch only existed until this decision.
+- **Checks:** 195 tests pass, `ruff check` clean, build OK on `main`.
+- **Open:** P4 (Adnan): review the page.
