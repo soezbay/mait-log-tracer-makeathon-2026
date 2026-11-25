@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "drain3>=0.9.11",
     "duckdb>=2.0.1",
     "fastapi>=0.165.0",
     "pandas>=3.1.1",
