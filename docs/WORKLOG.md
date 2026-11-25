@@ -554,3 +554,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Decision:** in Live only the identical question is blocked. Adnan's block by job number would reject follow-ups about the same job; Demo keeps it.
 - **Checks:** 179 tests pass (2 new), `ruff check` clean, build OK, 81 jsdom UI checks. Live with KI:connect: "Warum ist job 2013 fehlgeschlagen?" → "Erkläre das einfacher …" (15 s, no tool call, 3 evidence lines) → "Und welche anderen Jobs hatten an dem Tag …" (day understood).
 - **Open:** after a page reload a new chat starts (the messages are stored, `GET /chat/{id}` could restore them). The facts of the third live answer were not checked against the logs.
+
+### MAIT colors in the frontend
+- **What:** Colors read from mait.de: blue `#72b5cc` and `#599cb3`, orange `#ff5c3e`, charcoal `#323232`, grey `#71777a`. New `theme.css` with all colors as variables; `style.css` and `layout.css` no longer contain own colors. Orange: round main buttons, active page, title mark, selected log line. Blue: sidebar, links, figures, info. Errors, warnings and success keep red, amber and green, so orange never means a status. The success badge has its own class `ok`, because INFO is blue now.
+- **Why:** Safak asked for the blue and orange of the MAIT website. No logo or font was taken over.
+- **Where:** `frontend/src/theme.css`, `style.css`, `layout.css`, `main.tsx`, `ui.tsx`, `ProcessMonitor.tsx`; local branch `p1/mait-colors`
+- **Checks:** 32 color pairs computed: text at least 4.5:1, marks at least 3:1 (white on MAIT orange has 3.06:1, therefore main buttons use large bold text). Build OK, 81 jsdom UI checks, all pages looked at in the browser at 1300 px and one at 375 px.
+- **Open:** not pushed. Overlaps Adnan's `codex/mait-brand-refresh` (green and coral): only one theme can be merged.

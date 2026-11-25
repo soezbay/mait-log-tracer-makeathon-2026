@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { HashRouter, Navigate, NavLink, Route, Routes, useNavigate, useSearchParams } from 'react-router-dom'
 import { MantineProvider, Tooltip } from '@mantine/core'
 import '@mantine/core/styles.css'
+import './theme.css'
 import './style.css'
 import './layout.css'
 import { request } from './api'
@@ -177,7 +178,7 @@ function ErrorGroups({ mode, open }: { mode: Mode; open: (id: number) => void })
     <PageTitle title={t('groups.title')} info={t('groups.description')} />
     <Feedback {...result} />
     {list?.length === 0 && <p className="notice">{mode === 'import' ? t('groups.importNotice') : t('groups.empty')}</p>}
-    {list?.map(group => <section className="panel" key={group.id}><div className="section-title"><h2>{group.label}</h2><span className={'badge ' + (group.status === 'recovered' ? 'info' : group.status === 'failed' ? 'error' : '')}>{group.status === 'recovered' ? t('groups.recovered') : group.status === 'failed' ? t('groups.failed') : group.status}</span></div>
+    {list?.map(group => <section className="panel" key={group.id}><div className="section-title"><h2>{group.label}</h2><span className={'badge ' + (group.status === 'recovered' ? 'ok' : group.status === 'failed' ? 'error' : '')}>{group.status === 'recovered' ? t('groups.recovered') : group.status === 'failed' ? t('groups.failed') : group.status}</span></div>
       <div className="actions">{group.event_ids?.map(id => <button className="secondary" key={id} onClick={() => open(id)}>{t('groups.event', { id })}</button>)}</div></section>)}
   </>
 }

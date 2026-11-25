@@ -1,0 +1,42 @@
+/* Colors of mait.de: blue #72b5cc / #599cb3, orange #ff5c3e, charcoal #323232, grey #71777a.
+   Darker shades of the blue are used where text needs more contrast. All other styles use
+   these variables only. Loaded first. */
+:root {
+  --accent: #ff5c3e;          /* MAIT orange: main buttons, active page, highlights */
+  --accent-hover: #ee4a2b;
+  --accent-tint: #fff0ec;
+
+  --blue-light: #72b5cc;      /* MAIT blue */
+  --blue: #599cb3;            /* MAIT dark blue: marks, icons, borders */
+  --blue-text: #235d71;       /* same hue, readable as text on white */
+  --blue-tint: #e6f2f6;
+  --focus: #3a8aa6;
+
+  --ink: #323232;             /* MAIT charcoal */
+  --ink-soft: #3f4a4e;
+  --muted: #5c6467;
+  --grey: #8b9599;
+
+  --canvas: #f4f7f8;
+  --surface: #ffffff;
+  --tint: #f1f5f7;
+  --line: #d9e1e4;
+  --line-strong: #bccad0;
+
+  --nav: #235d71;
+  --nav-deep: #174552;
+  --nav-hover: #2f7189;
+  --nav-text: #f2f9fb;
+  --nav-muted: #c9e2eb;
+  --nav-ok: #6fe3b1; --nav-warn: #ffc857; --nav-error: #ffa08f; /* status dots on the sidebar */
+
+  --code-bg: #13262e;
+  --code-text: #eaf4f7;
+  --code-muted: #a3bac3;
+  --code-mark: #22536a;
+
+  --ok-bg: #e3f4ec;   --ok-text: #155f43;   --ok: #38b583;
+  --warn-bg: #fff3d6; --warn-text: #744800; --warn: #e0a526;
+  --error-bg: #fdeaec; --error-text: #97202f; --error: #b3263a;
+  --info-bg: #e6f2f6; --info-text: #235d71;
+}

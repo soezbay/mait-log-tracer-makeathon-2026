@@ -148,7 +148,7 @@ export function ProcessMonitor({ events, open }: { events: Entry[]; open: (id: n
 
 function badge(process: Process) {
   if (process.status === 'Fehlgeschlagen') return 'error'
-  if (process.status === 'Erfolgreich' || process.status === 'Erholt') return 'info'
+  if (process.status === 'Erfolgreich' || process.status === 'Erholt') return 'ok'
   if (process.status === 'Läuft') return 'warn'
   return ''
 }
