@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Log Tracer – Live-Demo</title>
+<style>
+  html, body { margin: 0; background: #F4F7F8; }
+  #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; font-family: Inter, sans-serif; color: #323232; }
+  #bg { position: absolute; inset: 0; background: #F4F7F8; }
+  .blob { position: absolute; border-radius: 42%; background: #72B5CC; opacity: .16; }
+  #viewport { position: absolute; left: 160px; top: 36px; width: 1600px; height: 900px; overflow: hidden;
+              border-radius: 18px; box-shadow: 0 18px 50px rgba(35, 93, 113, .28); background: #fff; }
+  #stage { position: absolute; left: 0; top: 0; width: 1600px; height: 900px; }
+  #stage video { position: absolute; left: 0; top: 0; width: 1600px; height: 900px; object-fit: cover; }
+  #cursor, #cursor2 { position: absolute; left: 0; top: 0; width: 30px; height: 40px; z-index: 5; }
+  #cursor svg, #cursor2 svg { width: 30px; height: 40px; display: block; filter: drop-shadow(0 2px 3px rgba(0,0,0,.35)); }
+  .cap { position: absolute; left: 160px; top: 966px; height: 76px; z-index: 6; }
+  .cap .pill { display: inline-flex; align-items: center; gap: 18px; height: 76px; padding: 0 34px 0 14px; border-radius: 38px;
+               background: #fff; box-shadow: 0 8px 24px rgba(35, 93, 113, .18); font-size: 34px; font-weight: 700; white-space: nowrap; }
+  .cap .num { width: 52px; height: 52px; border-radius: 50%; background: #FF5C3E; color: #fff; display: grid; place-items: center;
+              font-family: "Archivo Black", sans-serif; font-size: 30px; }
+  #badge, #badge2 { position: absolute; right: 196px; top: 62px; z-index: 6; }
+  #badge .in, #badge2 .in { display: flex; align-items: center; gap: 16px; padding: 14px 26px; border-radius: 34px; background: #235D71; color: #fff;
+               font-size: 30px; font-weight: 700; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+  #badge .speed, #badge2 .speed { font-size: 28px; font-weight: 700; color: #D5E9F0; }
+  #secs { font-family: "Archivo Black", sans-serif; min-width: 86px; text-align: right; }
+  .card { position: absolute; inset: 0; z-index: 10; }
+  .card .ground { position: absolute; inset: 0; background: #fff; }
+  .card .title { position: absolute; left: 220px; top: 380px; font-family: "Archivo Black", sans-serif; font-size: 128px; line-height: 1;
+                 color: #FF5C3E; text-transform: uppercase; letter-spacing: -2px; }
+  .card .sub { position: absolute; left: 226px; top: 540px; font-family: "Archivo Black", sans-serif; font-size: 46px; color: #599CB3;
+               text-transform: uppercase; }
+  .card .shape { position: absolute; border-radius: 42%; background: #72B5CC; opacity: .3; }
+  #outro .title { top: 370px; font-size: 108px; }
+  #outro .sub { top: 520px; }
+  #outro .proof { position: absolute; left: 226px; top: 620px; font-size: 34px; color: #71777A; }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-duration="90" data-width="1920" data-height="1080" data-fps="30">
+  <div id="bg">
+    <div class="blob" style="left:-260px; top:620px; width:620px; height:620px"></div>
+    <div class="blob" style="left:1640px; top:-240px; width:560px; height:560px"></div>
+  </div>
+
+  <div id="viewport">
+    <div id="stage">
+      <!-- the real UI, recorded in headless Edge: A = clicks and typing, B = the AI working (4x), C = the answer -->
+      <video id="recA" class="clip" src="assets/rec.mp4" data-start="3" data-duration="30.5" data-media-start="0" data-track-index="0" muted playsinline></video>
+      <video id="recB" class="clip" src="assets/rec.mp4" data-start="33.5" data-duration="6.125" data-media-start="30.5" data-playback-rate="4" data-track-index="0" muted playsinline></video>
+      <video id="recC" class="clip" src="assets/rec.mp4" data-start="39.625" data-duration="8.575" data-media-start="55" data-track-index="0" muted playsinline></video>
+      <!-- part 2: timeline -> message -> ask the assistant -> answer (4x while it works) -> data sources -->
+      <video id="recD" class="clip" src="assets/rec2.mp4" data-start="48.2" data-duration="12.6" data-media-start="0" data-track-index="0" muted playsinline></video>
+      <video id="recE" class="clip" src="assets/rec2.mp4" data-start="60.8" data-duration="4.525" data-media-start="12.6" data-playback-rate="4" data-track-index="0" muted playsinline></video>
+      <video id="recF" class="clip" src="assets/rec2.mp4" data-start="65.325" data-duration="7.7" data-media-start="30.7" data-track-index="0" muted playsinline></video>
+      <video id="recG" class="clip" src="assets/rec2.mp4" data-start="73.025" data-duration="10.975" data-media-start="38.4" data-track-index="0" muted playsinline></video>
+      <div id="cursor2" class="clip" data-start="48.2" data-duration="28.3" data-track-index="1">
+        <div id="cursor2-in"><svg viewBox="0 0 30 40"><path d="M2 2 L2 32 L10 25 L15.5 37 L21 34.5 L15.6 23 L26 23 Z" fill="#fff" stroke="#323232" stroke-width="2.2" stroke-linejoin="round"/></svg></div>
+      </div>
+      <div id="cursor" class="clip" data-start="3" data-duration="30.4" data-track-index="1">
+        <div id="cursor-in"><svg viewBox="0 0 30 40"><path d="M2 2 L2 32 L10 25 L15.5 37 L21 34.5 L15.6 23 L26 23 Z" fill="#fff" stroke="#323232" stroke-width="2.2" stroke-linejoin="round"/></svg></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="cap1" class="cap clip" data-start="3.3" data-duration="4.2" data-track-index="2"><div class="pill"><span class="num">1</span>Prozessüberwachung: 52.226 Jobs auf einen Blick</div></div>
+  <div id="cap2" class="cap clip" data-start="7.6" data-duration="4.4" data-track-index="2"><div class="pill"><span class="num">2</span>Job suchen: JOB-2003</div></div>
+  <div id="cap3" class="cap clip" data-start="12.2" data-duration="8.6" data-track-index="2"><div class="pill"><span class="num">3</span>Incident: zusammengehörige Fehler als ein Vorfall</div></div>
+  <div id="cap4" class="cap clip" data-start="21" data-duration="3.3" data-track-index="2"><div class="pill"><span class="num">4</span>Die Kette über drei Server, mit Datei und Zeile</div></div>
+  <div id="cap5" class="cap clip" data-start="24.4" data-duration="9" data-track-index="2"><div class="pill"><span class="num">5</span>Frage in natürlicher Sprache</div></div>
+  <div id="cap6" class="cap clip" data-start="33.5" data-duration="6.1" data-track-index="2"><div class="pill"><span class="num">6</span>Der KI-Agent fragt DuckDB ab</div></div>
+  <div id="cap7" class="cap clip" data-start="39.7" data-duration="8.6" data-track-index="2"><div class="pill"><span class="num">7</span>Antwort: Ursache, Belege, Konfidenz, Prüfschritte</div></div>
+
+  <div id="cap8" class="cap clip" data-start="48.4" data-duration="7.8" data-track-index="2"><div class="pill"><span class="num">8</span>Zeitleiste: alle Ereignisse, gefiltert auf JOB-2010</div></div>
+  <div id="cap9" class="cap clip" data-start="56.3" data-duration="2.6" data-track-index="2"><div class="pill"><span class="num">9</span>Meldung öffnen: Kontext und Originalzeile</div></div>
+  <div id="cap10" class="cap clip" data-start="58.95" data-duration="1.85" data-track-index="2"><div class="pill"><span class="num">10</span>Rechts: den Assistenten fragen</div></div>
+  <div id="cap11" class="cap clip" data-start="60.8" data-duration="4.5" data-track-index="2"><div class="pill"><span class="num">11</span>Der KI-Agent prüft die Logs</div></div>
+  <div id="cap12" class="cap clip" data-start="65.4" data-duration="7.6" data-track-index="2"><div class="pill"><span class="num">12</span>Antwort: fehlende Referenz im Eingabepaket, mit Belegen</div></div>
+  <div id="cap13" class="cap clip" data-start="73.1" data-duration="10.7" data-track-index="2"><div class="pill"><span class="num">13</span>Datenquellen: 14 Server, 13.643 Dateien, 6 Formate</div></div>
+
+  <div id="badge2" class="clip" data-start="60.8" data-duration="4.5" data-track-index="3">
+    <div class="in"><span>KI arbeitet</span><span id="secs2">0 s</span><span class="speed">4× schneller</span></div>
+  </div>
+  <div id="badge" class="clip" data-start="33.5" data-duration="6.1" data-track-index="3">
+    <div class="in"><span>KI arbeitet</span><span id="secs">0 s</span><span class="speed">4× schneller</span></div>
+  </div>
+
+  <div id="intro" class="card clip" data-start="0" data-duration="3.6" data-track-index="4">
+    <div class="ground"></div>
+    <div class="shape" style="left:1300px; top:-120px; width:620px; height:620px"></div>
+    <div class="shape" style="left:1480px; top:420px; width:560px; height:560px"></div>
+    <div id="intro-title" class="title">Live-Demo.</div>
+    <div id="intro-sub" class="sub">Zwei Fehler. Zwei Fragen. Zwei belegte Antworten.</div>
+  </div>
+
+  <div id="outro" class="card clip" data-start="83.9" data-duration="6.1" data-track-index="4">
+    <div id="outro-ground" class="ground"></div>
+    <div class="shape" style="left:1300px; top:-120px; width:620px; height:620px"></div>
+    <div class="shape" style="left:1480px; top:420px; width:560px; height:560px"></div>
+    <div id="outro-title" class="title">Unter 30 Sekunden.</div>
+    <div id="outro-sub" class="sub">Von der Frage zur belegten Ursache.</div>
+    <div id="outro-proof" class="proof">Gemessen in dieser Aufnahme: JOB-2003 in 25 s, JOB-2010 in 18 s, je Konfidenz 93 %</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script>
+  const tl = gsap.timeline({ paused: true });
+  const K = 1600 / 1920;                       // recording pixels -> stage pixels
+  const A = r => 3 + r;                         // recording time -> film time (segment A)
+
+  // camera: zoom on a point of the recording, kept inside the window
+  function cam(t, rx, ry, s, d = 0.8, ease = "power2.inOut") {
+    const px = rx * K, py = ry * K;
+    const x = Math.min(0, Math.max(1600 * (1 - s), 800 - px * s));
+    const y = Math.min(0, Math.max(900 * (1 - s), 450 - py * s));
+    tl.to("#stage", { scale: s, x, y, duration: d, ease }, t);
+  }
+  tl.set("#stage", { transformOrigin: "0 0", scale: 1, x: 0, y: 0 }, 0);
+  cam(A(4.4), 640, 300, 1.6);   cam(A(8.6), 960, 540, 1, 0.6);
+  cam(A(17.9), 820, 330, 1.55); cam(A(21.0), 960, 540, 1, 0.6);
+  cam(A(24.2), 930, 700, 1.4);  cam(A(29.9), 960, 540, 1, 0.5);
+  cam(40.0, 1070, 330, 1.25, 0.9); cam(43.8, 1070, 620, 1.25, 1.0); cam(47.4, 960, 540, 1, 0.7);
+
+  // cursor: travels to each recorded click, presses there
+  const clicks = [[4.741, 5.452, 439, 176], [9.123, 9.833, 117.5, 233], [11.239, 11.949, 567, 116],
+                  [14.394, 15.106, 1077.5, 232], [21.354, 22.064, 117.5, 282], [23.617, 24.321, 937, 746]];
+  tl.fromTo("#cursor", { x: 980 * K, y: 620 * K }, { x: 980 * K, y: 620 * K, duration: 0.01 }, 3);
+  tl.fromTo("#cursor-in", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 3.2);
+  for (const [m, c, x, y] of clicks) {
+    tl.to("#cursor", { x: x * K - 3, y: y * K - 2, duration: c - m - 0.05, ease: "power2.inOut" }, A(m));
+    tl.to("#cursor-in", { scale: 0.82, duration: 0.07, ease: "power2.in", transformOrigin: "2px 2px" }, A(c));
+    tl.to("#cursor-in", { scale: 1, duration: 0.16, ease: "power2.out" }, A(c) + 0.07);
+  }
+  tl.to("#cursor-in", { opacity: 0, duration: 0.3 }, A(29.9));
+
+  // captions: blur in, hold, blur out
+  for (const [id, start, dur] of [["cap1", 3.3, 4.2], ["cap2", 7.6, 4.4], ["cap3", 12.2, 8.6], ["cap4", 21, 3.3],
+                                  ["cap5", 24.4, 9], ["cap6", 33.5, 6.1], ["cap7", 39.7, 8.6], ["cap8", 48.4, 7.8], ["cap9", 56.3, 2.6], ["cap10", 58.95, 1.85], ["cap11", 60.8, 4.5], ["cap12", 65.4, 7.6], ["cap13", 73.1, 10.7]]) {
+    const pill = `#${id} .pill`;
+    tl.fromTo(pill, { opacity: 0, filter: "blur(8px)", y: 12 }, { opacity: 1, filter: "blur(0px)", y: 0, duration: 0.35, ease: "expo.out" }, start);
+    tl.to(pill, { opacity: 0, filter: "blur(6px)", duration: 0.2, ease: "power2.in" }, start + dur - 0.25);
+  }
+
+  // the AI at work: badge with the real elapsed seconds (25 s shown 4x faster)
+  tl.fromTo("#badge .in", { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.3, ease: "expo.out" }, 33.5);
+  const counter = { s: 0 };
+  tl.fromTo(counter, { s: 0 }, { s: 25.3, duration: 6.0, ease: "none",
+    onUpdate: () => { document.getElementById("secs").textContent = Math.floor(counter.s) + " s"; } }, 33.55);
+  tl.to("#badge .in", { opacity: 0, duration: 0.2 }, 39.35);
+
+  // intro card
+  tl.set("#intro-title", { opacity: 1 }, 0);  // on screen from frame 0: it is the thumbnail
+  tl.fromTo("#intro-sub", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.25, ease: "power4.out" }, 0.45);
+  tl.to("#intro", { opacity: 0, duration: 0.45, ease: "power2.in" }, 3.1);
+  tl.fromTo("#viewport", { scale: 0.92, opacity: 0.0 }, { scale: 1, opacity: 1, duration: 0.7, ease: "expo.out" }, 3.0);
+
+  // outro card
+  tl.fromTo("#outro", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 83.9);
+  tl.fromTo("#outro-title", { opacity: 0, filter: "blur(10px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.25, ease: "power4.out" }, 84.2);
+  tl.fromTo("#outro-sub", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.25, ease: "power4.out" }, 84.6);
+  tl.fromTo("#outro-proof", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 85.1);
+
+  // part 2: recording 2 time -> film time
+  const B = r => r < 12.6 ? 48.2 + r : r < 30.7 ? 60.8 + (r - 12.6) / 4 : r < 38.4 ? 65.325 + (r - 30.7) : 73.025 + (r - 38.4);
+  cam(B(3.5), 980, 260, 1.5);   cam(B(7.3), 960, 540, 1, 0.6);
+  cam(B(10.0), 1640, 620, 1.45, 0.8); cam(60.7, 960, 540, 1, 0.5);
+  cam(66.0, 1000, 330, 1.25, 0.9); cam(69.4, 1000, 620, 1.25, 1.0); cam(72.4, 960, 540, 1, 0.6);
+  const clicks2 = [[1.515, 2.216, 117.5, 184.4], [3.918, 4.622, 981.7, 118], [7.613, 8.328, 1261.9, 500], [11.744, 12.447, 1732.5, 734.9]];
+  tl.fromTo("#cursor2", { x: 700 * K, y: 520 * K }, { x: 700 * K, y: 520 * K, duration: 0.01 }, 48.2);
+  tl.fromTo("#cursor2-in", { opacity: 0 }, { opacity: 1, duration: 0.25 }, 48.25);
+  for (const [m, c, x, y] of clicks2) {
+    tl.to("#cursor2", { x: x * K - 3, y: y * K - 2, duration: c - m - 0.05, ease: "power2.inOut" }, B(m));
+    tl.to("#cursor2-in", { scale: 0.82, duration: 0.07, ease: "power2.in", transformOrigin: "2px 2px" }, B(c));
+    tl.to("#cursor2-in", { scale: 1, duration: 0.16, ease: "power2.out" }, B(c) + 0.07);
+  }
+  tl.to("#cursor2-in", { opacity: 0, duration: 0.2 }, 60.7);
+  tl.set("#cursor2", { x: 600 * K, y: 600 * K }, 72.9);
+  tl.to("#cursor2-in", { opacity: 1, duration: 0.25 }, 73.05);
+  tl.to("#cursor2", { x: 117.5 * K - 3, y: 330.7 * K - 2, duration: 0.65, ease: "power2.inOut" }, B(38.487));
+  tl.to("#cursor2-in", { scale: 0.82, duration: 0.07, ease: "power2.in", transformOrigin: "2px 2px" }, B(39.19));
+  tl.to("#cursor2-in", { scale: 1, duration: 0.16, ease: "power2.out" }, B(39.19) + 0.07);
+  tl.to("#cursor2-in", { opacity: 0, duration: 0.3 }, 75.8);
+  tl.fromTo("#badge2 .in", { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.3, ease: "expo.out" }, 60.8);
+  const counter2 = { s: 0 };
+  tl.fromTo(counter2, { s: 0 }, { s: 18.1, duration: 4.4, ease: "none",
+    onUpdate: () => { document.getElementById("secs2").textContent = Math.floor(counter2.s) + " s"; } }, 60.85);
+  tl.to("#badge2 .in", { opacity: 0, duration: 0.2 }, 65.05);
+
+  window.__timelines = window.__timelines || {};
+  window.__timelines["main"] = tl;
+</script>
+</body>
+</html>

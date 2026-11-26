@@ -608,3 +608,27 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **What:** Safak's improved version of the pitch deck (edited in PowerPoint) committed; template and deck pushed to `main` on his request.
 - **Where:** `docs/Log Tracer – Pitch 5 Minuten.pptx`, `docs/templates/`
 - **Open:** D1: the repo is public, so the template and the deck are public now.
+
+### Demo video with HyperFrames and an explainer slide
+- **What:** `docs/demo/Log Tracer – Demo.mp4`, 53 s, no sound (the team narrates live). Story: process monitor (52,226 jobs) → search JOB-2003 → incident with the chain over three servers, file and line → question in German → the real assistant answer (cause: upload denied for missing `WRITE_DATASET`, evidence from three servers, confidence 93 %) → "25 Sekunden. Von der Frage zur belegten Ursache."
+- **How:** `docs/demo/record.mjs` drives headless Edge over the DevTools protocol and records screencast frames plus click positions (one real LLM call, answered in 25 s); ffmpeg turns the frames into an MP4; `docs/demo/film.html` is the HyperFrames composition (zooms, drawn cursor, captions, intro and outro in MAIT colors, the AI wait 4x faster with the real seconds). HyperFrames 0.9.35 (Apache 2.0), ffmpeg-static and ffprobe-static installed only in the scratch folder; telemetry disabled; `hyperframes check` passed without errors.
+- **Explainer slide:** a subagent added "Vier Ansichten führen vom Job zur belegten Ursache" after the Webapp slide (job definition, timeline, incidents, assistant; every fact checked in the code), saved as a copy because the deck was open in PowerPoint.
+- **Open:** put the video on the demo slide (Einfügen → Video → Dieses Gerät), merge the copy with the original deck, decide whether the 11 MB video goes into git.
+
+### Story slide: the working student gets the task
+- **What:** `docs/Folie Einstieg – Werkstudent.pptx`, one slide on the MAIT template for position 2 of the pitch: a company for software and distributed systems (left) sends the task "Warum ist JOB-2003 fehlgeschlagen?" (orange card) to a working student (centre, graduation cap); around the student a dashed ring with eight systems: Linux server, Windows server, Teamcenter (PLM), NX / CAD, converter, dispatcher, file management, database. Speaker notes (about 20 s) lead to the raw-log slide.
+- **Why:** the pitch starts with a person and a task the audience knows before it shows the raw logs.
+- **Images:** Tabler Icons 3.19.0 (MIT), Tux from simple-icons 13.0.0 (CC0); no product logos of Siemens or Microsoft.
+- **Checks:** schema validation passed, rendered in PowerPoint and looked at (no cut words, labels on white boxes so the ring does not cross them).
+- **Open:** the deck copy is open in PowerPoint, so the slide was not inserted; paste it after slide 1. Not committed.
+
+### Demo video extended; story slide and video placed in the deck
+- **What:** the video is now 90 s and fills the demo slot. Part 2 (`docs/demo/record2.mjs`): timeline filtered on JOB-2010, a click on the ERROR message opens the event dialog, the button "Den Assistenten fragen" on the right asks the assistant, the answer comes in 18 s (missing reference `DEMO-Seal-17/C` in the input package, confidence 93 %), then the data sources page (14 servers, 13,643 files, 6 formats). Intro now "Zwei Fehler. Zwei Fragen. Zwei belegte Antworten.", outro "Unter 30 Sekunden." with both measured times.
+- **Deck:** in `docs/Log Tracer – Pitch 5 Minuten (mit Erklärfolie).pptx` (Safak's latest save) the story slide is slide 2 and the video sits full-frame on the demo slide (now slide 9), starting automatically, poster = intro card. Inserted with PowerPoint itself, so Safak's own changes stay untouched; backups in the scratch folder.
+- **Checks:** `hyperframes check` without errors, frames of the rendered video looked at, deck validated against the previous version and rendered in PowerPoint.
+- **Open:** decide whether the copy replaces `Log Tracer – Pitch 5 Minuten.pptx`; the deck is 24 MB and the video 21 MB, so think about git (or Git LFS) before committing.
+
+### Final pitch deck replaces the old file
+- **What:** Safak decided that the copy with the explainer slide, the story slide (slide 2) and the 90 s video (slide 9) becomes `docs/Log Tracer – Pitch 5 Minuten.pptx`; the copy file is gone.
+- **Where:** `docs/Log Tracer – Pitch 5 Minuten.pptx`, `docs/demo/` (video, `film.html`, `record.mjs`, `record2.mjs`), `docs/Folie Einstieg – Werkstudent.pptx`
+- **Open:** not pushed; the deck (24 MB) and the video (21 MB) are plain git files, Git LFS would keep the history smaller.
