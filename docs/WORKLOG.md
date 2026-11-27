@@ -645,3 +645,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **Why:** an open license cannot be taken back once someone has the code, while going from all rights reserved to MIT later is easy; the makeathon terms (rights of the sponsor) are not clear yet and all five team members own the code.
 - **Where:** `LICENSE`
 - **Open:** decide on MIT or Apache-2.0 after checking the makeathon terms with the mentor and getting the team's agreement.
+
+### README for the GitHub repository
+- **What:** New root `README.md` in English: what Log Tracer does, the five views and three UI modes, measured results on the challenge data, one-command and manual start, command-line tools, configuration, an architecture diagram (Mermaid), the analysis pipeline, the assistant's answer format, all API routes, development rules, links to the docs, team and license.
+- **Why:** the public repository had no README; jury and mentors need a technical entry point.
+- **Where:** `README.md` (written by Safak's session, P5 area).
+- **Checks:** routes compared with the routers, settings with `backend/.env.example`, figures with the AI_LOG measurements, all local links resolve. Corrected while checking: there is no ingest button in the UI (ingest via `POST /api/ingest` or `scripts/ingest.py`), no Ollama provider is implemented.
+
