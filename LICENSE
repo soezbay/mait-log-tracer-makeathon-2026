@@ -1,0 +1,20 @@
+Copyright (c) 2026 the Log Tracer team (MAIT Makeathon 2026). All rights reserved.
+
+This repository is public so that it can be viewed and evaluated as part of the
+MAIT Makeathon 2026. No license is granted to use, copy, modify, distribute or
+sublicense its contents, in whole or in part, without the written permission of
+the Log Tracer team. This is a temporary notice; the team may later release the
+code under an open source license.
+
+Third-party material
+--------------------
+The following is not the team's work, is not covered by the notice above and
+stays the property of its owners:
+
+- MAIT_Makeathon_Logpaket.zip and the log data extracted from it
+  (MAIT GmbH, provided for the makeathon challenge).
+- The MAIT name, logo and design used in docs/templates/ and the pitch deck
+  (MAIT GmbH).
+- Third-party libraries and icons used by the project, each under its own
+  license (see backend/pyproject.toml, frontend/package.json and the notes in
+  docs/WORKLOG.md).

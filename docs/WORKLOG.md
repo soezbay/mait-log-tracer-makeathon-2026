@@ -639,3 +639,9 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **What:** Safak's latest edits to `docs/Log Tracer – Pitch 5 Minuten.pptx` (saved 2026-11-26 14:19) are committed; together with the earlier local commit (final deck, 90 s demo video, story slide) everything is on `main` on GitHub.
 - **Checks:** `pytest` 195 passed, `ruff check` clean; PowerPoint was closed, no lock file.
 - **Open:** no LICENSE in the repo yet; the deck (24 MB) and the video (21 MB) are plain git files, not Git LFS.
+
+### Temporary license
+- **What:** `LICENSE` in the repo root: copyright of the Log Tracer team, all rights reserved; the repo is public only so it can be viewed and evaluated. The MAIT log package, the MAIT name, logo and template, and third-party libraries and icons are named as not covered.
+- **Why:** an open license cannot be taken back once someone has the code, while going from all rights reserved to MIT later is easy; the makeathon terms (rights of the sponsor) are not clear yet and all five team members own the code.
+- **Where:** `LICENSE`
+- **Open:** decide on MIT or Apache-2.0 after checking the makeathon terms with the mentor and getting the team's agreement.
