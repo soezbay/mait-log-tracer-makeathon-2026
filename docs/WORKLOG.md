@@ -632,3 +632,10 @@ For AI agents there is a compact one-line version: [AI_LOG.md](AI_LOG.md).
 - **What:** Safak decided that the copy with the explainer slide, the story slide (slide 2) and the 90 s video (slide 9) becomes `docs/Log Tracer – Pitch 5 Minuten.pptx`; the copy file is gone.
 - **Where:** `docs/Log Tracer – Pitch 5 Minuten.pptx`, `docs/demo/` (video, `film.html`, `record.mjs`, `record2.mjs`), `docs/Folie Einstieg – Werkstudent.pptx`
 - **Open:** not pushed; the deck (24 MB) and the video (21 MB) are plain git files, Git LFS would keep the history smaller.
+
+## 2026-11-27
+
+### Pitch deck and demo video pushed
+- **What:** Safak's latest edits to `docs/Log Tracer – Pitch 5 Minuten.pptx` (saved 2026-11-26 14:19) are committed; together with the earlier local commit (final deck, 90 s demo video, story slide) everything is on `main` on GitHub.
+- **Checks:** `pytest` 195 passed, `ruff check` clean; PowerPoint was closed, no lock file.
+- **Open:** no LICENSE in the repo yet; the deck (24 MB) and the video (21 MB) are plain git files, not Git LFS.
